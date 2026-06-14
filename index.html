@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>红利低波资产现金流规划与监控工具</title>
-    <meta name="description" content="高颜值、交互式红利低波配置及日常现金流平滑模拟计算器，支持个股与ETF组合。">
+    <meta name="description" content="高颜值、交互式红利低波配置及日常现金流平滑模拟计算器，使用实时市场数据。">
     <!-- 引入谷歌 Inter 字体 -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- 引入 Plotly.js -->
@@ -190,6 +190,7 @@
 
         header {
             margin-bottom: 30px;
+            position: relative;
         }
 
         header h1 {
@@ -202,6 +203,17 @@
         header p {
             color: var(--text-secondary);
             font-size: 0.95rem;
+            margin-bottom: 12px;
+        }
+
+        .data-status-badge {
+            display: inline-block;
+            font-size: 0.82rem;
+            padding: 4px 10px;
+            border-radius: 4px;
+            background-color: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: var(--accent-blue);
         }
 
         /* 玻璃幕墙卡片 */
@@ -234,6 +246,43 @@
             color: var(--accent-emerald);
             border-left: 4px solid var(--accent-emerald);
             padding-left: 10px;
+        }
+
+        /* 使用说明特殊样式 */
+        .instruction-box {
+            background: rgba(16, 185, 129, 0.04);
+            border: 1px solid rgba(16, 185, 129, 0.15);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 25px;
+        }
+
+        .instruction-box summary {
+            font-weight: 600;
+            color: var(--accent-emerald);
+            cursor: pointer;
+            outline: none;
+            font-size: 0.95rem;
+            user-select: none;
+        }
+
+        .instruction-content {
+            margin-top: 12px;
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .instruction-content ol {
+            margin-left: 20px;
+            margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .instruction-content strong {
+            color: #FFFFFF;
         }
 
         /* 网格卡片 */
@@ -427,7 +476,24 @@
         <header>
             <h1 id="main-header-title">资产配置与股息测算看板</h1>
             <p id="main-header-desc">设置本金与标的分配权重，测算红利税后综合股息率及现金流产出。</p>
+            <div class="data-status-badge" id="live-data-badge">⏳ 正在连接实时数据源...</div>
         </header>
+
+        <!-- ==========================================
+           测算页面使用说明 (全页面通用折叠)
+           ========================================== -->
+        <details class="instruction-box" open>
+            <summary>📖 测算页面使用说明 (点击展开/折叠)</summary>
+            <div class="instruction-content">
+                <p>欢迎使用红利低波现金流配置系统，本工具基于<strong>当前真实的实时市场数据</strong>为您进行多维度测算，帮助您搭建长期可执行的月均 2 万元现金流闭环。以下是系统的使用步骤：</p>
+                <ol>
+                    <li><strong>第一步：设定可用资金</strong>。在左侧“策略控制台”调节您的总本金（默认 400 万）、期望月流出额度、缓冲池备用金等，系统将自动核算出用于购买红利资产的实际额度。</li>
+                    <li><strong>第二步：精调组合权重</strong>。在“资产配置看板”中利用滑动条调节 8 种高确定性资产的比重，确保<strong>总配置权重之和正好为 100%</strong>。系统将基于最新的收盘价和实际派息金额，动态换算得出加权股息率及月分红缺口。</li>
+                    <li><strong>第三步：现金流体检</strong>。切换到“缓冲池与现金流模拟”页面。由于分红通常集中在特定月份（如6-7月），系统会模拟 36 个月的“红利流入-生活费支取”过程，您需确保<strong>缓冲池最低水位大于 0</strong>，如遇预警，请增加侧边栏“缓冲池初始资金”以平滑淡季支出。</li>
+                    <li><strong>第四步：低买高息建仓与定期平衡</strong>。查看“估值温度计”确定当前市场百分位以调节月度定投额度；年底或定期在“资产记账与平衡”中录入持仓市值，获取调仓避税买卖指南。</li>
+                </ol>
+            </div>
+        </details>
 
         <!-- ==========================================
            TAB 1: PORTFOLIO ALLOCATOR
@@ -437,19 +503,19 @@
             <div class="grid-cards">
                 <div class="metric-card">
                     <span class="metric-label">加权税后股息率</span>
-                    <span class="metric-val-num" id="t1-blended-yield" style="color: var(--accent-emerald);">4.80%</span>
+                    <span class="metric-val-num" id="t1-blended-yield" style="color: var(--accent-emerald);">0.00%</span>
                 </div>
                 <div class="metric-card">
                     <span class="metric-label">预期年税后分红</span>
-                    <span class="metric-val-num" id="t1-annual-dividend">¥186,240</span>
+                    <span class="metric-val-num" id="t1-annual-dividend">¥0</span>
                 </div>
                 <div class="metric-card">
                     <span class="metric-label">折合月均现金流</span>
-                    <span class="metric-val-num" id="t1-monthly-dividend">¥15,520</span>
+                    <span class="metric-val-num" id="t1-monthly-dividend">¥0</span>
                 </div>
                 <div class="metric-card">
                     <span class="metric-label">期望月现金流缺口</span>
-                    <span class="metric-val-num" id="t1-monthly-gap" style="color: var(--accent-red);">¥4,480</span>
+                    <span class="metric-val-num" id="t1-monthly-gap" style="color: var(--accent-red);">¥0</span>
                 </div>
             </div>
 
@@ -469,9 +535,10 @@
                             <tr>
                                 <th>证券名称及代码</th>
                                 <th>资产类型</th>
+                                <th>当前实时单价</th>
                                 <th>配置权重 (%)</th>
                                 <th>实际分配金额</th>
-                                <th>税后股息率 (%)</th>
+                                <th>实时税后股息率</th>
                                 <th>预计年税后分红</th>
                             </tr>
                         </thead>
@@ -497,15 +564,15 @@
             <div class="grid-cards">
                 <div class="metric-card">
                     <span class="metric-label">初始缓冲池预留</span>
-                    <span class="metric-val-num" id="t2-seed-val">¥120,000</span>
+                    <span class="metric-val-num" id="t2-seed-val">¥0</span>
                 </div>
                 <div class="metric-card">
                     <span class="metric-label">缓冲池36个月最低水位</span>
-                    <span class="metric-val-num" id="t2-min-buffer-val">¥34,500</span>
+                    <span class="metric-val-num" id="t2-min-buffer-val">¥0</span>
                 </div>
                 <div class="metric-card">
                     <span class="metric-label">3年累计预计分红流入</span>
-                    <span class="metric-val-num" id="t2-accum-div-val">¥558,720</span>
+                    <span class="metric-val-num" id="t2-accum-div-val">¥0</span>
                 </div>
             </div>
 
@@ -564,7 +631,7 @@
 
             <div class="flex-row-layouts">
                 <div class="flex-col-left card">
-                    <div class="card-title-text" style="margin-bottom: 20px;">中证红利低波动指数历史股息率波动 (4年回测模拟)</div>
+                    <div class="card-title-text" style="margin-bottom: 20px;">中证红利低波动指数历史股息率变化趋势 (过去4年)</div>
                     <div id="t3-plotly-history" style="height: 380px; width: 100%;"></div>
                 </div>
 
@@ -649,7 +716,7 @@
        5. JAVASCRIPT APPLICATION LOGIC
        ========================================== -->
     <script>
-        // 初始化本地核心 State
+        // 初始化本地核心 State (默认预设数据)
         const state = {
             principal: 400.0,
             targetMonthly: 2.0,
@@ -657,14 +724,14 @@
             moneyMarketRate: 2.0,
             currentTab: 'tab1',
             assets: {
-                '512890': { name: '中证红利低波 ETF', type: 'ETF', weight: 20.0, yield: 4.5, months: { 7: 0.5, 12: 0.5 } },
-                '515450': { name: '标普大盘红利低波 ETF', type: 'ETF', weight: 15.0, yield: 4.2, months: { 7: 1.0 } },
-                '513530': { name: '恒生红利低波 ETF', type: 'ETF', weight: 15.0, yield: 4.8, months: { 7: 0.5, 12: 0.5 } },
-                '600941': { name: '中国移动 (个股)', type: 'Stock', weight: 10.0, yield: 6.0, months: { 6: 0.6, 9: 0.4 } },
-                '600900': { name: '长江电力 (个股)', type: 'Stock', weight: 10.0, yield: 3.71, months: { 7: 1.0 } },
-                '601398': { name: '工商银行 (个股)', type: 'Stock', weight: 10.0, yield: 5.5, months: { 7: 0.7, 12: 0.3 } },
-                '601088': { name: '中国神华 (个股)', type: 'Stock', weight: 10.0, yield: 4.77, months: { 7: 1.0 } },
-                '601668': { name: '中国建筑 (个股)', type: 'Stock', weight: 10.0, yield: 5.52, months: { 6: 1.0 } }
+                '512890': { name: '中证红利低波 ETF', type: 'ETF', weight: 20.0, yield: 4.5, price: 1.17, months: { 7: 0.5, 12: 0.5 } },
+                '515450': { name: '标普大盘红利低波 ETF', type: 'ETF', weight: 15.0, yield: 4.2, price: 1.43, months: { 7: 1.0 } },
+                '513530': { name: '恒生红利低波 ETF', type: 'ETF', weight: 15.0, yield: 4.8, price: 1.61, months: { 7: 0.5, 12: 0.5 } },
+                '600941': { name: '中国移动 (个股)', type: 'Stock', weight: 10.0, yield: 6.0, price: 95.12, months: { 6: 0.6, 9: 0.4 } },
+                '600900': { name: '长江电力 (个股)', type: 'Stock', weight: 10.0, yield: 3.71, price: 28.28, months: { 7: 1.0 } },
+                '601398': { name: '工商银行 (个股)', type: 'Stock', weight: 10.0, yield: 5.5, price: 7.78, months: { 7: 0.7, 12: 0.3 } },
+                '601088': { name: '中国神华 (个股)', type: 'Stock', weight: 10.0, yield: 4.77, price: 46.14, months: { 7: 1.0 } },
+                '601668': { name: '中国建筑 (个股)', type: 'Stock', weight: 10.0, yield: 5.52, price: 4.77, months: { 6: 1.0 } }
             },
             holdings: {
                 '512890': 78.0,
@@ -688,8 +755,46 @@
         // 页面初始化
         window.addEventListener('DOMContentLoaded', () => {
             initValuationHistory();
-            renderAll();
+            loadLiveMarketData(); // 异步载入真实市场股息率与价格
         });
+
+        // 异步获取真实的实时行情数据
+        async function loadLiveMarketData() {
+            const badge = document.getElementById('live-data-badge');
+            try {
+                // 读取同级目录下的 live_data.json
+                const response = await fetch('live_data.json');
+                if (!response.ok) throw new Error('CORS or file access error');
+                
+                const result = await response.json();
+                
+                if (result.status === 'success' && result.data) {
+                    const marketData = result.data;
+                    
+                    // 将实时数据写入 state.assets
+                    Object.keys(state.assets).forEach(code => {
+                        if (marketData[code]) {
+                            state.assets[code].price = marketData[code].price;
+                            state.assets[code].yield = marketData[code].yield;
+                        }
+                    });
+                    
+                    badge.innerText = `● 实时数据源已连接 | 最后更新时间: ${result.timestamp}`;
+                    badge.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
+                    badge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                    badge.style.color = 'var(--accent-emerald)';
+                }
+            } catch (err) {
+                console.warn("无法加载实时行情，采用默认离线数据：", err);
+                badge.innerText = `⚠️ 正在使用离线预设数据 (GitHub Pages 部署后可自动加载实时分红数据)`;
+                badge.style.backgroundColor = 'rgba(245, 158, 11, 0.15)';
+                badge.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+                badge.style.color = 'var(--accent-orange)';
+            } finally {
+                // 渲染整个页面
+                renderAll();
+            }
+        }
 
         // 1. 初始化估值历史图表数据 (过去200个周期模拟)
         function initValuationHistory() {
@@ -748,7 +853,6 @@
 
         // 4. 重绘所有数据与图表页面
         function renderAll() {
-            // 计算及渲染核心
             const investPrincipal = Math.max(state.principal - state.bufferSeed, 0.0);
             document.getElementById('t1-invest-principal-hint').innerText = `实际配置红利资产本金: ${investPrincipal.toFixed(2)} 万元`;
 
@@ -791,12 +895,13 @@
                     <tr>
                         <td><strong>${asset.name}</strong><br><span style="color:var(--text-secondary);font-size:0.75rem">${code}</span></td>
                         <td><span style="color:var(--text-secondary);">${asset.type}</span></td>
+                        <td style="font-weight: 500;">¥${asset.price.toFixed(2)}</td>
                         <td>
                             <input class="weight-input-field" type="number" id="w_val_${code}" step="0.5" min="0" max="100" value="${inputWeight}" oninput="recalculateTab1()">
                         </td>
                         <td>${actualInvestAmt.toFixed(2)} 万元</td>
-                        <td>
-                            <input class="weight-input-field" type="number" id="y_val_${code}" step="0.1" min="0" max="20" value="${inputYield}" oninput="recalculateTab1()">
+                        <td style="color:var(--accent-blue);font-weight: 500;">
+                            <input class="weight-input-field" type="number" id="y_val_${code}" step="0.1" min="0" max="20" value="${inputYield}" oninput="recalculateTab1()" style="color:var(--accent-blue)">%
                         </td>
                         <td>¥${Math.round(expectedAnnualDiv).toLocaleString()}</td>
                     </tr>
@@ -920,13 +1025,13 @@
                 alertEl.className = 'alert-banner alert-warning';
                 alertEl.innerHTML = `
                     <strong>⚠️ 缓冲池水位警报：</strong> 
-                    模拟显示缓冲池在部分月份的期末余额会出现 <strong>负水位 (¥${Math.round(minBuffer).toLocaleString()})</strong>！这说明您的 12 万元初始预留资金在淡季无法完全承载每月 2 万元提取的支出压力，建议调高缓冲池初始预留，或者在淡季期略微缩减支取额度。
+                    模拟显示缓冲池在部分月份的期末余额会出现 <strong>负水位 (¥${Math.round(minBuffer).toLocaleString()})</strong>！这说明您的初始预留资金在淡季无法完全承载支出压力，建议调高缓冲池初始预留，或者在淡季期略微缩减支取额度。
                 `;
             } else {
                 alertEl.className = 'alert-banner alert-success';
                 alertEl.innerHTML = `
                     <strong>✅ 缓冲池平滑成功：</strong>
-                    在 36 个月的完整周期内，缓冲池余额最低水位为 <strong>¥${Math.round(minBuffer).toLocaleString()}</strong>，水位线始终在 0 以上。该配置方案的现金平滑机制能够完美运行，您的日常生活现金流将完全不被分红不均衡所干扰！
+                    在 36 个月的完整周期内，缓冲池最低水位为 <strong>¥${Math.round(minBuffer).toLocaleString()}</strong>，水位线始终在 0 以上。该配置方案的现金平滑机制能够完美运行，您的日常生活现金流将完全不被分红不均衡所干扰！
                 `;
             }
 
