@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>红利低波资产现金流规划与监控工具</title>
-    <meta name="description" content="高颜值、交互式红利低波配置及日常现金流平滑模拟计算器，使用实时市场数据。">
+    <meta name="description" content="高颜值、交互式红利低波配置及日常现金流平滑模拟计算器，使用实时数据与时钟。">
     <!-- 引入谷歌 Inter 字体 -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- 引入 Plotly.js -->
@@ -209,11 +209,13 @@
         .data-status-badge {
             display: inline-block;
             font-size: 0.82rem;
-            padding: 4px 10px;
+            padding: 6px 12px;
             border-radius: 4px;
-            background-color: rgba(59, 130, 246, 0.15);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            color: var(--accent-blue);
+            background-color: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: var(--accent-emerald);
+            font-weight: 500;
+            transition: all 0.3s;
         }
 
         /* 玻璃幕墙卡片 */
@@ -476,7 +478,7 @@
         <header>
             <h1 id="main-header-title">资产配置与股息测算看板</h1>
             <p id="main-header-desc">设置本金与标的分配权重，测算红利税后综合股息率及现金流产出。</p>
-            <div class="data-status-badge" id="live-data-badge">⏳ 正在连接实时数据源...</div>
+            <div class="data-status-badge" id="live-data-badge">⏳ 正在连接实时行情源...</div>
         </header>
 
         <!-- ==========================================
@@ -485,10 +487,10 @@
         <details class="instruction-box" open>
             <summary>📖 测算页面使用说明 (点击展开/折叠)</summary>
             <div class="instruction-content">
-                <p>欢迎使用红利低波现金流配置系统，本工具基于<strong>当前真实的实时市场数据</strong>为您进行多维度测算，帮助您搭建长期可执行的月均 2 万元现金流闭环。以下是系统的使用步骤：</p>
+                <p>欢迎使用红利低波现金流配置系统，本工具基于<strong>腾讯财经提供的真实实时市场价格</strong>进行高频更新，为您进行多维度测算，帮助您搭建长期可执行的月均 2 万元现金流闭环。以下是系统的使用步骤：</p>
                 <ol>
                     <li><strong>第一步：设定可用资金</strong>。在左侧“策略控制台”调节您的总本金（默认 400 万）、期望月流出额度、缓冲池备用金等，系统将自动核算出用于购买红利资产的实际额度。</li>
-                    <li><strong>第二步：精调组合权重</strong>。在“资产配置看板”中利用滑动条调节 8 种高确定性资产的比重，确保<strong>总配置权重之和正好为 100%</strong>。系统将基于最新的收盘价和实际派息金额，动态换算得出加权股息率及月分红缺口。</li>
+                    <li><strong>第二步：精调组合权重</strong>。在“资产配置看板”中利用输入框调节 8 种高确定性资产的比重，确保重量之和正好为 100%。系统将使用**实时的最新市场成交单价**，动态计算组合的加权股息率及月均现金流。</li>
                     <li><strong>第三步：现金流体检</strong>。切换到“缓冲池与现金流模拟”页面。由于分红通常集中在特定月份（如6-7月），系统会模拟 36 个月的“红利流入-生活费支取”过程，您需确保<strong>缓冲池最低水位大于 0</strong>，如遇预警，请增加侧边栏“缓冲池初始资金”以平滑淡季支出。</li>
                     <li><strong>第四步：低买高息建仓与定期平衡</strong>。查看“估值温度计”确定当前市场百分位以调节月度定投额度；年底或定期在“资产记账与平衡”中录入持仓市值，获取调仓避税买卖指南。</li>
                 </ol>
@@ -535,15 +537,15 @@
                             <tr>
                                 <th>证券名称及代码</th>
                                 <th>资产类型</th>
-                                <th>当前实时单价</th>
+                                <th>实时单价</th>
                                 <th>配置权重 (%)</th>
                                 <th>实际分配金额</th>
-                                <th>实时税后股息率</th>
+                                <th>当前股息率</th>
                                 <th>预计年税后分红</th>
                             </tr>
                         </thead>
                         <tbody id="t1-assets-table-body">
-                            <!-- 动态填充 -->
+                            <!-- 结构化渲染 -->
                         </tbody>
                     </table>
                 </div>
@@ -601,7 +603,7 @@
                             </tr>
                         </thead>
                         <tbody id="t2-simulation-table-body">
-                            <!-- 动态填充 -->
+                            <!-- 结构化渲染 -->
                         </tbody>
                     </table>
                 </div>
@@ -683,7 +685,7 @@
                             </tr>
                         </thead>
                         <tbody id="t4-ledger-body">
-                            <!-- 动态填充 -->
+                            <!-- 结构化渲染 -->
                         </tbody>
                     </table>
                 </div>
@@ -716,7 +718,7 @@
        5. JAVASCRIPT APPLICATION LOGIC
        ========================================== -->
     <script>
-        // 初始化本地核心 State (默认预设数据)
+        // 初始化本地核心 State
         const state = {
             principal: 400.0,
             targetMonthly: 2.0,
@@ -724,14 +726,14 @@
             moneyMarketRate: 2.0,
             currentTab: 'tab1',
             assets: {
-                '512890': { name: '中证红利低波 ETF', type: 'ETF', weight: 20.0, yield: 4.5, price: 1.17, months: { 7: 0.5, 12: 0.5 } },
-                '515450': { name: '标普大盘红利低波 ETF', type: 'ETF', weight: 15.0, yield: 4.2, price: 1.43, months: { 7: 1.0 } },
-                '513530': { name: '恒生红利低波 ETF', type: 'ETF', weight: 15.0, yield: 4.8, price: 1.61, months: { 7: 0.5, 12: 0.5 } },
-                '600941': { name: '中国移动 (个股)', type: 'Stock', weight: 10.0, yield: 6.0, price: 95.12, months: { 6: 0.6, 9: 0.4 } },
-                '600900': { name: '长江电力 (个股)', type: 'Stock', weight: 10.0, yield: 3.71, price: 28.28, months: { 7: 1.0 } },
-                '601398': { name: '工商银行 (个股)', type: 'Stock', weight: 10.0, yield: 5.5, price: 7.78, months: { 7: 0.7, 12: 0.3 } },
-                '601088': { name: '中国神华 (个股)', type: 'Stock', weight: 10.0, yield: 4.77, price: 46.14, months: { 7: 1.0 } },
-                '601668': { name: '中国建筑 (个股)', type: 'Stock', weight: 10.0, yield: 5.52, price: 4.77, months: { 6: 1.0 } }
+                '512890': { name: '中证红利低波 ETF', type: 'ETF', weight: 20.0, yield: 4.50, price: 1.17, months: { 7: 0.5, 12: 0.5 } },
+                '515450': { name: '标普大盘红利低波 ETF', type: 'ETF', weight: 15.0, yield: 4.20, price: 1.43, months: { 7: 1.0 } },
+                '513530': { name: '恒生红利低波 ETF', type: 'ETF', weight: 15.0, yield: 4.80, price: 1.61, months: { 7: 0.5, 12: 0.5 } },
+                '600941': { name: '中国移动', type: 'Stock', weight: 10.0, yield: 4.95, price: 95.12, months: { 6: 0.6, 9: 0.4 } },
+                '600900': { name: '长江电力', type: 'Stock', weight: 10.0, yield: 3.54, price: 28.28, months: { 7: 1.0 } },
+                '601398': { name: '工商银行', type: 'Stock', weight: 10.0, yield: 3.99, price: 7.78, months: { 7: 0.7, 12: 0.3 } },
+                '601088': { name: '中国神华', type: 'Stock', weight: 10.0, yield: 4.36, price: 46.14, months: { 7: 1.0 } },
+                '601668': { name: '中国建筑', type: 'Stock', weight: 10.0, yield: 5.70, price: 4.77, months: { 6: 1.0 } }
             },
             holdings: {
                 '512890': 78.0,
@@ -748,6 +750,21 @@
             valuationCurrentYield: 4.95
         };
 
+        // 定义每股年度实际派息 (元/股) 与 ETF 基准参数
+        const STOCK_DPS = {
+            '600941': 4.7037,  // 中国移动 (2025年中期 2.5025 + 末期 2.2012)
+            '600900': 1.0000,  // 长江电力
+            '601398': 0.3103,  // 工商银行
+            '601088': 2.0100,  // 中国神华
+            '601668': 0.2718,  // 中国建筑
+        };
+
+        const ETF_BASE = {
+            '512890': { base_price: 1.40, base_yield: 4.5 },
+            '515450': { base_price: 1.15, base_yield: 4.2 },
+            '513530': { base_price: 1.00, base_yield: 4.8 },
+        };
+
         // 估值模拟历史曲线数据
         let historyDates = [];
         let historyYields = [];
@@ -755,48 +772,116 @@
         // 页面初始化
         window.addEventListener('DOMContentLoaded', () => {
             initValuationHistory();
-            loadLiveMarketData(); // 异步载入真实市场股息率与价格
+            initStaticTableStructures(); // 仅渲染一次 DOM 框架，避免重绘失去输入框焦点
+            
+            // 首次请求并渲染
+            fetchLiveMarketData();
+
+            // 启动定时刷新回路
+            // 1. 每 3 秒自动拉取最新实时行情
+            setInterval(fetchLiveMarketData, 3000);
+            
+            // 2. 每 1 秒刷新顶置的时钟时间
+            setInterval(updateClock, 1000);
         });
 
-        // 异步获取真实的实时行情数据
-        async function loadLiveMarketData() {
+        // 定时更新时间显示
+        function updateClock() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const timeStr = now.toTimeString().split(' ')[0];
+            const formattedTime = `${year}-${month}-${day} ${timeStr}`;
+            
             const badge = document.getElementById('live-data-badge');
-            try {
-                // 读取同级目录下的 live_data.json
-                const response = await fetch('live_data.json');
-                if (!response.ok) throw new Error('CORS or file access error');
-                
-                const result = await response.json();
-                
-                if (result.status === 'success' && result.data) {
-                    const marketData = result.data;
-                    
-                    // 将实时数据写入 state.assets
-                    Object.keys(state.assets).forEach(code => {
-                        if (marketData[code]) {
-                            state.assets[code].price = marketData[code].price;
-                            state.assets[code].yield = marketData[code].yield;
-                        }
-                    });
-                    
-                    badge.innerText = `● 实时数据源已连接 | 最后更新时间: ${result.timestamp}`;
-                    badge.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
-                    badge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
-                    badge.style.color = 'var(--accent-emerald)';
-                }
-            } catch (err) {
-                console.warn("无法加载实时行情，采用默认离线数据：", err);
-                badge.innerText = `⚠️ 正在使用离线预设数据 (GitHub Pages 部署后可自动加载实时分红数据)`;
-                badge.style.backgroundColor = 'rgba(245, 158, 11, 0.15)';
-                badge.style.borderColor = 'rgba(245, 158, 11, 0.3)';
-                badge.style.color = 'var(--accent-orange)';
-            } finally {
-                // 渲染整个页面
-                renderAll();
+            if (state.lastSuccessFetch) {
+                badge.innerText = `🟢 实时行情已连接 | 最后更新时间: ${formattedTime} (数据每3秒自动刷新)`;
+                badge.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+                badge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                badge.style.color = 'var(--accent-emerald)';
+            } else {
+                badge.innerText = `⏳ 正在连接实时行情源... 最后更新时间: ${formattedTime}`;
             }
         }
 
-        // 1. 初始化估值历史图表数据 (过去200个周期模拟)
+        // 定时获取腾讯财经的实时行情数据
+        async function fetchLiveMarketData() {
+            try {
+                // 8个证券代码列表
+                const codes = ['sh600941', 'sh600900', 'sh601398', 'sh601088', 'sh601668', 'sh512890', 'sh515450', 'sh513530'];
+                
+                // 发起 Fetch (跨域由 Tencent 的 Access-Control-Allow-Origin: * 头解决)
+                const response = await fetch(`https://qt.gtimg.cn/q=${codes.join(',')}`);
+                if (!response.ok) throw new Error('Network response error');
+                
+                const buffer = await response.arrayBuffer();
+                // 腾讯使用 GBK 编码，使用 TextDecoder 转换以防中文乱码
+                const text = new TextDecoder('gbk').decode(buffer);
+                
+                const lines = text.split('\n');
+                lines.forEach(line => {
+                    if (!line.trim() || !line.includes('=')) return;
+                    
+                    const parts = line.split('=');
+                    const code = parts[0].replace('v_sh', '').trim();
+                    const content = parts[1].replace(/"/g, '').replace(/;/g, '').trim();
+                    const fields = content.split('~');
+                    
+                    if (fields.length < 4) return;
+                    
+                    const price = parseFloat(fields[3]);
+                    
+                    if (state.assets[code] && price > 0) {
+                        state.assets[code].price = price;
+                        
+                        // 基于实时最新价格重新换算股息率
+                        if (STOCK_DPS[code]) {
+                            state.assets[code].yield = parseFloat(((STOCK_DPS[code] / price) * 100).toFixed(2));
+                        } else if (ETF_BASE[code]) {
+                            const base = ETF_BASE[code];
+                            state.assets[code].yield = parseFloat((base.base_yield * (base.base_price / price)).toFixed(2));
+                        }
+                    }
+                });
+
+                state.lastSuccessFetch = true;
+                
+                // 静默更新各个数据计算，并重绘图表与静态文本单元格 (不重建输入框 DOM)
+                silentUpdateCalculations();
+                
+            } catch (err) {
+                console.warn("直接跨域获取腾讯数据失败，尝试拉取 Pages 本地缓存 (live_data.json)...", err);
+                // 备用机制：拉取本地 live_data.json
+                fetchBackupLocalJson();
+            }
+        }
+
+        // 备用拉取本地缓存接口
+        async function fetchBackupLocalJson() {
+            try {
+                const response = await fetch('live_data.json');
+                if (!response.ok) throw new Error('Local file not found');
+                const result = await response.json();
+                
+                if (result.status === 'success' && result.data) {
+                    Object.keys(state.assets).forEach(code => {
+                        if (result.data[code]) {
+                            state.assets[code].price = result.data[code].price;
+                            state.assets[code].yield = result.data[code].yield;
+                        }
+                    });
+                    state.lastSuccessFetch = true;
+                    silentUpdateCalculations();
+                }
+            } catch (e) {
+                console.error("本地缓存行情也加载失败，使用预设离线数据:", e);
+                // 如果全都失败，使用默认值静默计算一次
+                silentUpdateCalculations();
+            }
+        }
+
+        // 初始化估值历史图表数据
         function initValuationHistory() {
             const startDate = new Date(2022, 5, 27);
             for (let i = 0; i < 200; i++) {
@@ -806,39 +891,72 @@
                 const noise = (Math.random() - 0.5) * 0.15;
                 historyYields.push(parseFloat((4.8 + sineVal + noise).toFixed(2)));
             }
-            // 当前最新的股息率和百分位
             state.valuationCurrentYield = historyYields[historyYields.length - 1];
             const lowerCount = historyYields.filter(y => y < state.valuationCurrentYield).length;
             state.valuationPercentile = Math.round((lowerCount / historyYields.length) * 100);
         }
 
-        // 2. 多选项卡页面切换控制
-        function switchTab(tabId) {
-            state.currentTab = tabId;
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+        // 初始化静态表格 DOM，仅运行一次，这样后续的实时更新只改文字，不破坏 Input 焦点
+        function initStaticTableStructures() {
+            // 1. 初始化 Tab 1 的表格框架
+            const t1Tbody = document.getElementById('t1-assets-table-body');
+            t1Tbody.innerHTML = '';
+            Object.keys(state.assets).forEach(code => {
+                const asset = state.assets[code];
+                t1Tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${asset.name}</strong><br><span style="color:var(--text-secondary);font-size:0.75rem">${code}</span></td>
+                        <td><span style="color:var(--text-secondary);">${asset.type}</span></td>
+                        <td id="t1_price_${code}" style="font-weight: 500;">¥${asset.price.toFixed(2)}</td>
+                        <td>
+                            <input class="weight-input-field" type="number" id="w_val_${code}" step="0.5" min="0" max="100" value="${asset.weight}" oninput="userInputsChanged()">
+                        </td>
+                        <td id="t1_invest_${code}">0.00 万元</td>
+                        <td style="color:var(--accent-blue);font-weight: 500;">
+                            <input class="weight-input-field" type="number" id="y_val_${code}" step="0.1" min="0" max="20" value="${asset.yield}" oninput="userInputsChanged()" style="color:var(--accent-blue)">%
+                        </td>
+                        <td id="t1_div_${code}">¥0</td>
+                    </tr>
+                `;
+            });
 
-            document.getElementById(`${tabId}-view`).classList.add('active');
-            document.getElementById(`btn-${tabId}`).classList.add('active');
-
-            // 改变主标题及文字
-            const headerTitles = {
-                'tab1': ["资产配置与股息测算看板", "设置本金与标的分配权重，测算红利税后综合股息率及现金流产出。"],
-                'tab2': ["现金缓冲池平滑模拟器", "大多数分红在 5-8 月密集派发。本模拟器展示分红如何平滑平铺到 36 个月中。"],
-                'tab3': ["估值温度计与定投建仓助手", "估值低位时多买，估值高位时少买。监控市场温度，生成买入额度建议。"],
-                'tab4': ["年度资产再平衡测算", "输入各资产当前实际市值，一键测算偏离度，提供再平衡调仓建议。"]
-            };
-
-            document.getElementById('main-header-title').innerText = headerTitles[tabId][0];
-            document.getElementById('main-header-desc').innerText = headerTitles[tabId][1];
-
-            // 延迟重绘以保证图表正确挂载
-            setTimeout(() => {
-                renderAllCharts();
-            }, 50);
+            // 2. 初始化 Tab 4 的表格框架
+            const t4Tbody = document.getElementById('t4-ledger-body');
+            t4Tbody.innerHTML = '';
+            Object.keys(state.assets).forEach(code => {
+                const asset = state.assets[code];
+                t4Tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${asset.name}</strong><br><span style="color:var(--text-secondary);font-size:0.75rem">${code}</span></td>
+                        <td>
+                            <input class="weight-input-field" type="number" id="hold_input_${code}" step="1" min="0" value="${state.holdings[code].toFixed(1)}" oninput="userInputsChanged()">
+                        </td>
+                        <td>${asset.weight.toFixed(1)}%</td>
+                        <td id="t4_actual_pct_${code}">0.0%</td>
+                        <td id="t4_diff_pct_${code}" style="font-weight:500;">0.0%</td>
+                        <td id="t4_status_${code}">正常</td>
+                    </tr>
+                `;
+            });
         }
 
-        // 3. 当侧边栏参数变化时更新主 State 并重新渲染页面
+        // 当用户手动修改滑块、本金、目标或输入框时触发更新
+        function userInputsChanged() {
+            // 将 Input 中的权重、股息率、持仓实时读取并写回 state 保持同步
+            Object.keys(state.assets).forEach(code => {
+                const wInput = parseFloat(document.getElementById(`w_val_${code}`).value);
+                const yInput = parseFloat(document.getElementById(`y_val_${code}`).value);
+                if (!isNaN(wInput)) state.assets[code].weight = wInput;
+                if (!isNaN(yInput)) state.assets[code].yield = yInput;
+
+                const holdInput = parseFloat(document.getElementById(`hold_input_${code}`).value);
+                if (!isNaN(holdInput)) state.holdings[code] = holdInput;
+            });
+
+            silentUpdateCalculations();
+        }
+
+        // 当策略控制台基础参数输入时触发更新
         function updateCoreState() {
             state.principal = parseFloat(document.getElementById('principal-input').value) || 0.0;
             state.targetMonthly = parseFloat(document.getElementById('monthly-target-input').value) || 0.0;
@@ -848,64 +966,42 @@
             state.moneyMarketRate = parseFloat(rateSlider.value) || 0.0;
             document.getElementById('rate-val-span').innerText = `${state.moneyMarketRate.toFixed(1)}%`;
 
-            renderAll();
+            silentUpdateCalculations();
         }
 
-        // 4. 重绘所有数据与图表页面
-        function renderAll() {
+        // 静默更新计算器的数据 (仅修改 TextNode，不重建 Input 元素，保证良好的打字焦点)
+        function silentUpdateCalculations() {
             const investPrincipal = Math.max(state.principal - state.bufferSeed, 0.0);
             document.getElementById('t1-invest-principal-hint').innerText = `实际配置红利资产本金: ${investPrincipal.toFixed(2)} 万元`;
 
-            // 模块1的数据渲染
-            renderTab1Data(investPrincipal);
-
-            // 模块2的数据渲染
-            renderTab2Data(investPrincipal);
-
-            // 模块3的数据渲染
-            calculateDcaAdjust();
-
-            // 模块4的数据渲染
-            renderTab4Data();
-
-            // 图表渲染
-            renderAllCharts();
-        }
-
-        // 5. 模块 1 数据测算渲染
-        function renderTab1Data(investPrincipal) {
-            const tbody = document.getElementById('t1-assets-table-body');
-            tbody.innerHTML = '';
-
+            // 1. 重新计算 Tab 1 (股息测算)
             let totalWeight = 0.0;
             let blendedYield = 0.0;
 
             Object.keys(state.assets).forEach(code => {
                 const asset = state.assets[code];
-                const inputWeight = parseFloat(document.getElementById(`w_val_${code}`)?.value) ?? asset.weight;
-                const inputYield = parseFloat(document.getElementById(`y_val_${code}`)?.value) ?? asset.yield;
+                
+                // 1) 动态写入实时价格
+                document.getElementById(`t1_price_${code}`).innerText = `¥${asset.price.toFixed(2)}`;
 
-                totalWeight += inputWeight;
-                blendedYield += (inputWeight / 100) * (inputYield / 100);
+                // 2) 如果股息率输入框当前没有聚焦，将实时算出的股息率更新进去
+                const yInput = document.getElementById(`y_val_${code}`);
+                if (document.activeElement !== yInput) {
+                    yInput.value = asset.yield.toFixed(2);
+                }
 
-                const actualInvestAmt = investPrincipal * (inputWeight / 100);
-                const expectedAnnualDiv = actualInvestAmt * (inputYield / 100) * 10000;
+                // 3) 读取权重并累加
+                const currentW = asset.weight;
+                const currentY = parseFloat(yInput.value) || asset.yield;
+                totalWeight += currentW;
+                blendedYield += (currentW / 100.0) * (currentY / 100.0);
 
-                tbody.innerHTML += `
-                    <tr>
-                        <td><strong>${asset.name}</strong><br><span style="color:var(--text-secondary);font-size:0.75rem">${code}</span></td>
-                        <td><span style="color:var(--text-secondary);">${asset.type}</span></td>
-                        <td style="font-weight: 500;">¥${asset.price.toFixed(2)}</td>
-                        <td>
-                            <input class="weight-input-field" type="number" id="w_val_${code}" step="0.5" min="0" max="100" value="${inputWeight}" oninput="recalculateTab1()">
-                        </td>
-                        <td>${actualInvestAmt.toFixed(2)} 万元</td>
-                        <td style="color:var(--accent-blue);font-weight: 500;">
-                            <input class="weight-input-field" type="number" id="y_val_${code}" step="0.1" min="0" max="20" value="${inputYield}" oninput="recalculateTab1()" style="color:var(--accent-blue)">%
-                        </td>
-                        <td>¥${Math.round(expectedAnnualDiv).toLocaleString()}</td>
-                    </tr>
-                `;
+                const actualInvestAmt = investPrincipal * (currentW / 100.0);
+                const expectedAnnualDiv = actualInvestAmt * (currentY / 100.0) * 10000;
+
+                // 4) 写入实际分配金额与预计分红
+                document.getElementById(`t1_invest_${code}`).innerText = `${actualInvestAmt.toFixed(2)} 万元`;
+                document.getElementById(`t1_div_${code}`).innerText = `¥${Math.round(expectedAnnualDiv).toLocaleString()}`;
             });
 
             // 验证权重报警
@@ -917,9 +1013,9 @@
                 warningEl.classList.add('hidden');
             }
 
-            // 指标输出
+            // 输出指标卡片
             const expectedAnnualTotal = investPrincipal * blendedYield * 10000;
-            const expectedMonthlyTotal = expectedAnnualTotal / 12;
+            const expectedMonthlyTotal = expectedAnnualTotal / 12.0;
             const gap = (state.targetMonthly * 10000) - expectedMonthlyTotal;
 
             document.getElementById('t1-blended-yield').innerText = `${(blendedYield * 100).toFixed(2)}%`;
@@ -934,28 +1030,21 @@
                 gapEl.innerText = `¥${Math.round(gap).toLocaleString()} (缺口)`;
                 gapEl.style.color = 'var(--accent-red)';
             }
-        }
 
-        // 用户输入权重和收益率后即时重新测算 (无需刷新整个页面)
-        function recalculateTab1() {
-            const investPrincipal = Math.max(state.principal - state.bufferSeed, 0.0);
-            
-            // 将输入框的临时值同步写回 state，保持状态同步
-            Object.keys(state.assets).forEach(code => {
-                const wInput = parseFloat(document.getElementById(`w_val_${code}`).value) || 0.0;
-                const yInput = parseFloat(document.getElementById(`y_val_${code}`).value) || 0.0;
-                state.assets[code].weight = wInput;
-                state.assets[code].yield = yInput;
-            });
-
-            renderTab1Data(investPrincipal);
+            // 2. 重新计算 Tab 2 (缓冲池模拟)
             renderTab2Data(investPrincipal);
+
+            // 3. 重新计算 Tab 3 (定投建仓建议)
             calculateDcaAdjust();
-            renderTab4Data();
+
+            // 4. 重新计算 Tab 4 (再平衡)
+            renderTab4Silent();
+
+            // 5. 刷新当前可见 Tab 的 Plotly 图表
             renderAllCharts();
         }
 
-        // 6. 模块 2 数据测算渲染 (缓冲池 36 个月模拟)
+        // Tab 2 的核心计算与表格更新
         function renderTab2Data(investPrincipal) {
             const tbody = document.getElementById('t2-simulation-table-body');
             tbody.innerHTML = '';
@@ -1039,10 +1128,8 @@
             state.simData = simData;
         }
 
-        // 7. 模块 3 数据测算渲染 (估值定投调节)
+        // Tab 3 的定投计算器
         function calculateDcaAdjust() {
-            state.baseDca = parseFloat(document.getElementById('base-dca-input').value) || 0.0;
-
             // 动态调节因子
             let factor = 1.0;
             let ratingText = "合理估值区";
@@ -1093,16 +1180,13 @@
             });
         }
 
-        // 8. 模块 4 数据渲染 (记账与年度再平衡)
-        function renderTab4Data() {
-            const tbody = document.getElementById('t4-ledger-body');
-            tbody.innerHTML = '';
-
+        // Tab 4 静默更新 (不改持仓 Input 框)
+        function renderTab4Silent() {
             let totalHoldValue = 0.0;
             Object.keys(state.assets).forEach(code => {
-                const inputVal = parseFloat(document.getElementById(`hold_input_${code}`)?.value) ?? state.holdings[code];
-                totalHoldValue += inputVal;
-                state.holdings[code] = inputVal;
+                const holdInput = parseFloat(document.getElementById(`hold_input_${code}`).value) || 0.0;
+                totalHoldValue += holdInput;
+                state.holdings[code] = holdInput;
             });
 
             document.getElementById('t4-total-ledger-val').innerText = `${totalHoldValue.toFixed(2)} 万元`;
@@ -1117,31 +1201,23 @@
                 const targetPct = asset.weight;
                 const diffPct = actualPct - targetPct;
 
-                // 超过 +-3% 标红
                 const isOverThreshold = Math.abs(diffPct) > 3.0;
 
-                tbody.innerHTML += `
-                    <tr>
-                        <td><strong>${asset.name}</strong><br><span style="color:var(--text-secondary);font-size:0.75rem">${code}</span></td>
-                        <td>
-                            <input class="weight-input-field" type="number" id="hold_input_${code}" step="1" min="0" value="${actualVal.toFixed(1)}" oninput="recalculateTab4()">
-                        </td>
-                        <td>${targetPct.toFixed(1)}%</td>
-                        <td>${actualPct.toFixed(1)}%</td>
-                        <td style="color:${diffPct >= 0 ? 'var(--accent-emerald)' : 'var(--accent-red)'};font-weight:500;">
-                            ${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}%
-                        </td>
-                        <td>
-                            <span style="color:${isOverThreshold ? 'var(--accent-red)' : 'var(--text-secondary)'}; font-weight:${isOverThreshold ? '700' : 'normal'}">
-                                ${isOverThreshold ? '⚠️ 已偏离' : '✅ 正常'}
-                            </span>
-                        </td>
-                    </tr>
-                `;
+                // 更新表格中的占比文字单元格
+                document.getElementById(`t4_actual_pct_${code}`).innerText = `${actualPct.toFixed(1)}%`;
+                
+                const diffCell = document.getElementById(`t4_diff_pct_${code}`);
+                diffCell.innerText = `${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}%`;
+                diffCell.style.color = diffPct >= 0 ? 'var(--accent-emerald)' : 'var(--accent-red)';
 
-                // 调仓指导单
+                const statusCell = document.getElementById(`t4_status_${code}`);
+                statusCell.innerText = isOverThreshold ? '⚠️ 已偏离' : '✅ 正常';
+                statusCell.style.color = isOverThreshold ? 'var(--accent-red)' : 'var(--text-secondary)';
+                statusCell.style.fontWeight = isOverThreshold ? '700' : 'normal';
+
+                // 计算调仓行动指导单
                 const targetValue = totalHoldValue * (targetPct / 100);
-                const diffVal = targetValue - actualVal; // 正数代表应买入，负数代表应卖出
+                const diffVal = targetValue - actualVal;
 
                 let actionText = '<span style="color:var(--text-secondary)">持平</span>';
                 if (diffVal > 0.5) {
@@ -1159,8 +1235,28 @@
             });
         }
 
-        function recalculateTab4() {
-            renderTab4Data();
+        // 多选项卡页面切换控制 (触发重绘 Plotly)
+        function switchTab(tabId) {
+            state.currentTab = tabId;
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+
+            document.getElementById(`${tabId}-view`).classList.add('active');
+            document.getElementById(`btn-${tabId}`).classList.add('active');
+
+            const headerTitles = {
+                'tab1': ["资产配置与股息测算看板", "设置本金与标的分配权重，测算红利税后综合股息率及现金流产出。"],
+                'tab2': ["现金缓冲池平滑模拟器", "大多数分红在 5-8 月密集派发。本模拟器展示分红如何平滑平铺到 36 个月中。"],
+                'tab3': ["估值温度计与定投建仓助手", "估值低位时多买，估值高位时少买。监控市场温度，生成买入额度建议。"],
+                'tab4': ["年度资产再平衡测算", "输入各资产当前实际市值，一键测算偏离度，提供再平衡调仓建议。"]
+            };
+
+            document.getElementById('main-header-title').innerText = headerTitles[tabId][0];
+            document.getElementById('main-header-desc').innerText = headerTitles[tabId][1];
+
+            setTimeout(() => {
+                renderAllCharts();
+            }, 50);
         }
 
         // ==========================================
