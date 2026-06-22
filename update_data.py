@@ -77,7 +77,8 @@ def fetch_live_data():
             'data': result
         }
         
-        with open('/Users/baokaijian/Project/gemini-invest/live_data.json', 'w', encoding='utf-8') as f:
+        output_path = os.path.join(script_dir, 'live_data.json')
+        with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(output, f, ensure_ascii=False, indent=4)
             
         print("Live data updated successfully at:", output['timestamp'])

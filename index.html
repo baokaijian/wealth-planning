@@ -729,7 +729,9 @@
             holdings: {},
             baseDca: 32.3,
             valuationPercentile: 58.0,
-            valuationCurrentYield: 4.95
+            valuationCurrentYield: 4.95,
+            fetchStatus: 'loading', // 'loading', 'success', 'fallback'
+            dataTimestamp: ''
         };
 
         // ETF基准参数 (基准价格, 基准股息率)，用于根据最新价格反算实时股息率
@@ -754,11 +756,11 @@
             initStaticTableStructures(); // 仅渲染一次 DOM 框架，避免重绘失去输入框焦点
             
             // 首次请求并渲染
-            fetchLiveMarketData();
+            await fetchLiveMarketData();
 
             // 启动定时刷新回路
-            // 1. 每 3 秒自动拉取最新实时行情
-            setInterval(fetchLiveMarketData, 3000);
+            // 1. 每 60 秒自动拉取最新实时行情缓存
+            setInterval(fetchLiveMarketData, 60000);
             
             // 2. 每 1 秒刷新顶置的时钟时间
             setInterval(updateClock, 1000);
@@ -782,6 +784,7 @@
                         weight: item.weight,
                         yield: 0.0,
                         price: 0.0,
+                        estimated_yield: item.estimated_yield, // 保存默认估算股息率作为降级兜底
                         months: item.distribution_months,
                         category: item.category,
                         target_index: item.target_index,
@@ -812,6 +815,7 @@
                         weight: item.weight,
                         yield: 0.0,
                         price: 0.0,
+                        estimated_yield: item.estimated_yield,
                         months: item.distribution_months
                     };
                     state.holdings[code] = parseFloat((state.principal * (item.weight / 100.0) * 0.8).toFixed(1));
@@ -819,7 +823,7 @@
             }
         }
 
-        // 定时更新时间显示
+        // 定时更新时钟与数据监控指示
         function updateClock() {
             const now = new Date();
             const year = now.getFullYear();
@@ -829,92 +833,78 @@
             const formattedTime = `${year}-${month}-${day} ${timeStr}`;
             
             const badge = document.getElementById('live-data-badge');
-            if (state.lastSuccessFetch) {
-                badge.innerText = `🟢 实时行情已连接 | 最后更新时间: ${formattedTime} (数据每3秒自动刷新)`;
-                badge.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
-                badge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
-                badge.style.color = 'var(--accent-emerald)';
+            
+            let statusText = "";
+            let badgeBg = "rgba(16, 185, 129, 0.1)";
+            let badgeBorder = "rgba(16, 185, 129, 0.3)";
+            let badgeColor = "var(--accent-emerald)";
+            
+            if (state.fetchStatus === 'success') {
+                // 检查是否已过期 (超过 24 小时)
+                // 兼容 Safari 的日期解析 (将 "-" 替换为 "/")
+                const dataTime = new Date(state.dataTimestamp.replace(/-/g, '/'));
+                const diffMs = now.getTime() - dataTime.getTime();
+                const isExpired = diffMs > 24 * 60 * 60 * 1000;
+                
+                if (isExpired) {
+                    statusText = `⚠️ 市场数据已过期 (数据时间: ${state.dataTimestamp})`;
+                    badgeBg = "rgba(245, 158, 11, 0.1)";
+                    badgeBorder = "rgba(245, 158, 11, 0.3)";
+                    badgeColor = "var(--accent-orange)";
+                } else {
+                    statusText = `🟢 市场数据已同步 (数据时间: ${state.dataTimestamp})`;
+                }
+            } else if (state.fetchStatus === 'fallback') {
+                statusText = `🔴 数据源载入失败，已降级为离线测算数据`;
+                badgeBg = "rgba(239, 68, 68, 0.1)";
+                badgeBorder = "rgba(239, 68, 68, 0.3)";
+                badgeColor = "var(--accent-red)";
             } else {
-                badge.innerText = `⏳ 正在连接实时行情源... 最后更新时间: ${formattedTime}`;
+                statusText = `⏳ 正在载入市场数据...`;
+                badgeBg = "rgba(255, 255, 255, 0.05)";
+                badgeBorder = "rgba(255, 255, 255, 0.1)";
+                badgeColor = "var(--text-secondary)";
             }
+            
+            badge.innerText = `${statusText} | 系统时间: ${formattedTime}`;
+            badge.style.backgroundColor = badgeBg;
+            badge.style.borderColor = badgeBorder;
+            badge.style.color = badgeColor;
         }
 
-        // 定时获取腾讯财经的实时行情数据
+        // 获取本地行情缓存数据 (live_data.json)
         async function fetchLiveMarketData() {
             try {
-                // 动态构建请求的基金代码列表
-                const keys = Object.keys(state.assets);
-                if (keys.length === 0) return;
-                const codes = keys.map(code => `sh${code}`);
+                const response = await fetch('live_data.json');
+                if (!response.ok) throw new Error('Failed to load live_data.json');
                 
-                // 发起 Fetch (跨域由 Tencent 的 Access-Control-Allow-Origin: * 头解决)
-                const response = await fetch(`https://qt.gtimg.cn/q=${codes.join(',')}`);
-                if (!response.ok) throw new Error('Network response error');
+                const result = await response.json();
+                if (result.status !== 'success' || !result.data) {
+                    throw new Error('Invalid live_data.json structure');
+                }
                 
-                const buffer = await response.arrayBuffer();
-                // 腾讯使用 GBK 编码，使用 TextDecoder 转换以防中文乱码
-                const text = new TextDecoder('gbk').decode(buffer);
-                
-                const lines = text.split('\n');
-                lines.forEach(line => {
-                    if (!line.trim() || !line.includes('=')) return;
-                    
-                    const parts = line.split('=');
-                    const code = parts[0].replace('v_sh', '').trim();
-                    const content = parts[1].replace(/"/g, '').replace(/;/g, '').trim();
-                    const fields = content.split('~');
-                    
-                    if (fields.length < 4) return;
-                    
-                    const price = parseFloat(fields[3]);
-                    
-                    if (state.assets[code] && price > 0) {
-                        state.assets[code].price = price;
-                        
-                        // 基于实时最新价格重新换算股息率
-                        if (ETF_BASE[code]) {
-                            const base = ETF_BASE[code];
-                            if (base.base_yield > 0) {
-                                state.assets[code].yield = parseFloat((base.base_yield * (base.base_price / price)).toFixed(2));
-                            } else {
-                                state.assets[code].yield = 0.0;
-                            }
-                        }
+                Object.keys(state.assets).forEach(code => {
+                    if (result.data[code]) {
+                        state.assets[code].price = result.data[code].price;
+                        state.assets[code].yield = result.data[code].yield;
                     }
                 });
-
-                state.lastSuccessFetch = true;
                 
-                // 静默更新各个数据计算，并重绘图表与静态文本单元格 (不重建输入框 DOM)
+                state.dataTimestamp = result.timestamp;
+                state.fetchStatus = 'success';
                 silentUpdateCalculations();
-                
             } catch (err) {
-                console.warn("直接跨域获取腾讯数据失败，尝试拉取 Pages 本地缓存 (live_data.json)...", err);
-                // 备用机制：拉取本地 live_data.json
-                fetchBackupLocalJson();
-            }
-        }
-
-        // 备用拉取本地缓存接口
-        async function fetchBackupLocalJson() {
-            try {
-                const response = await fetch('live_data.json');
-                if (!response.ok) throw new Error('Local file not found');
-                const result = await response.json();
+                console.error("加载实时数据源失败，进入降级测算状态：", err);
+                state.fetchStatus = 'fallback';
                 
-                if (result.status === 'success' && result.data) {
-                    Object.keys(state.assets).forEach(code => {
-                        if (result.data[code]) {
-                            state.assets[code].price = result.data[code].price;
-                            state.assets[code].yield = result.data[code].yield;
-                        }
-                    });
-                    state.lastSuccessFetch = true;
-                    silentUpdateCalculations();
-                }
-            } catch (e) {
-                console.error("本地缓存行情也加载失败，使用预设离线数据:", e);
-                // 如果全都失败，使用默认值静默计算一次
+                // 失败降级状态：价格设为 0，股息率使用 estimated_yield 兜底
+                Object.keys(state.assets).forEach(code => {
+                    if (state.assets[code]) {
+                        state.assets[code].price = 0.0;
+                        state.assets[code].yield = state.assets[code].estimated_yield || 0.0;
+                    }
+                });
+                
                 silentUpdateCalculations();
             }
         }
