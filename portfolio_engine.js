@@ -93,7 +93,8 @@ const portfolioEngine = {
                 const currentYield = asset.yield !== undefined ? asset.yield : asset.estimated_yield;
 
                 if (asset.income_type === 'dividend' || asset.income_type === 'cash_interest') {
-                    const monthDistRatio = (asset.distribution_months && asset.distribution_months[cMonth.toString()]) || 0.0;
+                    const distMonths = asset.distribution_months || asset.months || {};
+                    const monthDistRatio = distMonths[cMonth.toString()] || 0.0;
                     if (monthDistRatio > 0.0) {
                         const assetValue = investPrincipal * (weight / 100.0) * 10000.0; // 元
                         monthDividend += assetValue * (currentYield / 100.0) * monthDistRatio;
@@ -318,7 +319,8 @@ const portfolioEngine = {
                 const currentYield = asset.yield !== undefined ? asset.yield : asset.estimated_yield;
 
                 if (asset.income_type === 'dividend' || asset.income_type === 'cash_interest') {
-                    const monthDistRatio = (asset.distribution_months && asset.distribution_months[cMonth.toString()]) || 0.0;
+                    const distMonths = asset.distribution_months || asset.months || {};
+                    const monthDistRatio = distMonths[cMonth.toString()] || 0.0;
                     if (monthDistRatio > 0.0) {
                         const assetVal = investPrincipal * (weight / 100.0) * 10000.0; // 元
                         

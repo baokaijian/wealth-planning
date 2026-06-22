@@ -96,7 +96,7 @@ def simulate_cashflow(months_range, monthly_withdraw, buffer_seed, invest_princi
             current_yield = asset.get('yield') if asset.get('yield') is not None else asset.get('estimated_yield', 0.0)
 
             if asset.get('income_type') in ['dividend', 'cash_interest']:
-                dist_months = asset.get('distribution_months', {})
+                dist_months = asset.get('distribution_months', None) or asset.get('months', {})
                 month_dist_ratio = dist_months.get(str(c_month)) or dist_months.get(c_month) or 0.0
                 if month_dist_ratio > 0.0:
                     asset_value = invest_principal * (weight / 100.0) * 10000.0  # 元
@@ -316,7 +316,7 @@ def run_stress_test(weights, assets, invest_principal, monthly_withdraw, buffer_
             current_yield = asset.get('yield') if asset.get('yield') is not None else asset.get('estimated_yield', 0.0)
 
             if asset.get('income_type') in ['dividend', 'cash_interest']:
-                dist_months = asset.get('distribution_months', {})
+                dist_months = asset.get('distribution_months', None) or asset.get('months', {})
                 month_dist_ratio = dist_months.get(str(c_month)) or dist_months.get(c_month) or 0.0
                 if month_dist_ratio > 0.0:
                     asset_val = invest_principal * (weight / 100.0) * 10000.0  # 元

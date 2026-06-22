@@ -1514,19 +1514,36 @@
             currentPE: null,
             currentPB: null,
             fetchStatus: 'loading', // 'loading', 'success', 'fallback'
+            marketDataSource: '',
             dataTimestamp: ''
         };
 
         // ETF基准参数 (基准价格, 基准股息率)，用于根据最新价格反算实时股息率
         const ETF_BASE = {
+            '511880': { base_price: 100.0, base_yield: 1.8 },
             '512890': { base_price: 1.17, base_yield: 4.5 },
             '515450': { base_price: 1.43, base_yield: 4.2 },
             '510880': { base_price: 3.20, base_yield: 4.0 },
-            '515080': { base_price: 1.50, base_yield: 4.1 },
             '513530': { base_price: 1.61, base_yield: 4.8 },
-            '511360': { base_price: 108.0, base_yield: 2.5 },
-            '518880': { base_price: 4.50, base_yield: 0.0 }
+            '510300': { base_price: 3.50, base_yield: 1.5 },
+            '588000': { base_price: 0.80, base_yield: 0.2 },
+            '513100': { base_price: 1.30, base_yield: 0.5 },
+            '518880': { base_price: 4.50, base_yield: 0.0 },
+            '511360': { base_price: 108.0, base_yield: 2.5 }
         };
+
+        const DEFAULT_ASSETS_CONFIG = [
+            { code: "511880", name: "银华日利货币 ETF", type: "ETF", role: "cash", market: "CN", volatility_level: "low", income_type: "cash_interest", weight: 5.0, estimated_yield: 1.8, estimated_return: 1.8, distribution_months: {"1":0.083,"2":0.083,"3":0.083,"4":0.083,"5":0.083,"6":0.083,"7":0.083,"8":0.083,"9":0.083,"10":0.083,"11":0.083,"12":0.083}, strategy_note: "场内高流动性交易型货币基金，等同现金，平滑日常支取", risk_note: "货币市场利率下行，整体收益率随之下降的风险" },
+            { code: "512890", name: "中证红利低波 ETF", type: "ETF", role: "dividend_income", market: "CN", volatility_level: "medium", income_type: "dividend", weight: 20.0, estimated_yield: 4.5, estimated_return: 7.0, distribution_months: {"7":0.5,"12":0.5}, strategy_note: "选取高股息低波动率标的，适合核心防御和红利现金流获取", risk_note: "分红不及预期风险，底层行业景气度及指数编制波动风险" },
+            { code: "515450", name: "标普大盘红利低波 ETF", type: "ETF", role: "dividend_income", market: "CN", volatility_level: "medium", income_type: "dividend", weight: 10.0, estimated_yield: 4.2, estimated_return: 6.8, distribution_months: {"7":1.0}, strategy_note: "大市值红利股票筛选，兼具蓝筹稳定性与优异派息表现", risk_note: "样本股分红政策变更及底层大盘股价格波动风险" },
+            { code: "510880", name: "华泰柏瑞红利 ETF", type: "ETF", role: "dividend_income", market: "CN", volatility_level: "medium", income_type: "dividend", weight: 10.0, estimated_yield: 4.0, estimated_return: 6.5, distribution_months: {"12":1.0}, strategy_note: "经典上证红利ETF，聚焦成熟期、大市值高息龙头标的", risk_note: "煤炭银行等周期股占比偏高，指数行业集中度相对较大" },
+            { code: "513530", name: "恒生红利低波 ETF", type: "ETF", role: "dividend_income", market: "HK", volatility_level: "high", income_type: "dividend", weight: 10.0, estimated_yield: 4.8, estimated_return: 7.5, distribution_months: {"7":0.5,"12":0.5}, strategy_note: "配置港股优质低估红利资产，实现跨币种离岸现金流流入", risk_note: "港股通20%红利税折损风险，汇率波动及港股高波动特征" },
+            { code: "510300", name: "华泰柏瑞沪深300 ETF", type: "ETF", role: "domestic_beta", market: "CN", volatility_level: "medium", income_type: "capital_growth", weight: 15.0, estimated_yield: 1.5, estimated_return: 8.0, distribution_months: {"10":1.0}, strategy_note: "代表国内核心宽基资产，获取国内宏观经济长期平稳增长Beta", risk_note: "国内宏观经济增速放缓及A股系统性震荡下行风险" },
+            { code: "588000", name: "华夏科创50 ETF", type: "ETF", role: "tech_growth", market: "CN", volatility_level: "high", income_type: "capital_growth", weight: 10.0, estimated_yield: 0.2, estimated_return: 10.0, distribution_months: {"12":1.0}, strategy_note: "聚焦战略性新兴产业与硬科技核心资产，博取高成长增值弹性", risk_note: "高估值下回撤大，高波动，行业集中及科技迭代不确定性" },
+            { code: "513100", name: "易方达纳斯达克100 ETF", type: "ETF", role: "overseas_beta", market: "US", volatility_level: "high", income_type: "capital_growth", weight: 10.0, estimated_yield: 0.5, estimated_return: 9.5, distribution_months: {"12":1.0}, strategy_note: "挂钩美股核心科技成长大盘，全球化配置分散单一市场风险", risk_note: "美股估值高位回撤风险，汇率波动对实际本位币资产的影响" },
+            { code: "518880", name: "华安黄金 ETF", type: "ETF", role: "hedge", market: "Global", volatility_level: "medium", income_type: "hedge", weight: 5.0, estimated_yield: 0.0, estimated_return: 4.5, distribution_months: {}, strategy_note: "实物黄金挂钩，对冲极端通胀及系统性地缘冲突风险", risk_note: "黄金资产无股息票息产出，主要面临黄金价格短期波动风险" },
+            { code: "511360", name: "中债信用债 ETF", type: "ETF", role: "hedge", market: "CN", volatility_level: "low", income_type: "cash_interest", weight: 5.0, estimated_yield: 2.5, estimated_return: 3.5, distribution_months: {"6":0.5,"12":0.5}, strategy_note: "配置高评级信用债，获取稳定票息，组合波动的重要安全气垫", risk_note: "信用债利率波动风险及市场流动性紧缩带来的估值调整风险" }
+        ];
 
         // 估值模拟历史曲线数据
         let historyDates = [];
@@ -1564,59 +1581,39 @@
                 const response = await fetch('assets.json');
                 if (!response.ok) throw new Error('Failed to load assets.json');
                 const list = await response.json();
-                
-                state.assets = {};
-                state.holdings = {};
-                
-                list.forEach(item => {
-                    const code = item.code;
-                    state.assets[code] = {
-                        name: item.name,
-                        type: item.type,
-                        weight: item.weight,
-                        yield: 0.0,
-                        price: 0.0,
-                        estimated_yield: item.estimated_yield, // 保存默认估算股息率作为降级兜底
-                        estimated_return: item.estimated_return !== undefined ? item.estimated_return : item.estimated_yield,
-                        months: item.distribution_months,
-                        role: item.role,
-                        market: item.market,
-                        volatility_level: item.volatility_level,
-                        income_type: item.income_type,
-                        strategy_note: item.strategy_note,
-                        risk_note: item.risk_note
-                    };
-                    // 默认持仓根据本金400万和目标权重计算一个偏离了的模拟市值 (例如 80%)
-                    state.holdings[code] = parseFloat((state.principal * (item.weight / 100.0) * 0.8).toFixed(1));
-                });
+                applyAssetsConfig(list);
             } catch (e) {
-                console.error("Error loading assets config, using hardcoded fallback:", e);
-                // 备用硬编码以防万一
-                const fallback = [
-                    { "code": "512890", "name": "中证红利低波 ETF", "type": "ETF", "weight": 25.0, "estimated_yield": 4.5, "distribution_months": {"7": 0.5, "12": 0.5} },
-                    { "code": "515450", "name": "标普大盘红利低波 ETF", "type": "ETF", "weight": 15.0, "estimated_yield": 4.2, "distribution_months": {"7": 1.0} },
-                    { "code": "510880", "name": "华泰柏瑞红利 ETF", "type": "ETF", "weight": 15.0, "estimated_yield": 4.0, "distribution_months": {"12": 1.0} },
-                    { "code": "515080", "name": "招商中证红利 ETF", "type": "ETF", "weight": 15.0, "estimated_yield": 4.1, "distribution_months": {"12": 1.0} },
-                    { "code": "513530", "name": "恒生红利低波 ETF", "type": "ETF", "weight": 15.0, "estimated_yield": 4.8, "distribution_months": {"7": 0.5, "12": 0.5} },
-                    { "code": "511360", "name": "中债信用债 ETF", "type": "ETF", "weight": 10.0, "estimated_yield": 2.5, "distribution_months": {"6": 0.5, "12": 0.5} },
-                    { "code": "518880", "name": "华安黄金 ETF", "type": "ETF", "weight": 5.0, "estimated_yield": 0.0, "distribution_months": {} }
-                ];
-                state.assets = {};
-                state.holdings = {};
-                fallback.forEach(item => {
-                    const code = item.code;
-                    state.assets[code] = {
-                        name: item.name,
-                        type: item.type,
-                        weight: item.weight,
-                        yield: 0.0,
-                        price: 0.0,
-                        estimated_yield: item.estimated_yield,
-                        months: item.distribution_months
-                    };
-                    state.holdings[code] = parseFloat((state.principal * (item.weight / 100.0) * 0.8).toFixed(1));
-                });
+                console.error("Error loading assets config, using embedded fallback:", e);
+                applyAssetsConfig(DEFAULT_ASSETS_CONFIG);
             }
+        }
+
+        function applyAssetsConfig(list) {
+            state.assets = {};
+            state.holdings = {};
+
+            list.forEach(item => {
+                const code = item.code;
+                state.assets[code] = {
+                    name: item.name,
+                    type: item.type,
+                    weight: item.weight,
+                    yield: 0.0,
+                    price: 0.0,
+                    estimated_yield: item.estimated_yield,
+                    estimated_return: item.estimated_return !== undefined ? item.estimated_return : item.estimated_yield,
+                    months: item.distribution_months || {},
+                    distribution_months: item.distribution_months || {},
+                    role: item.role || 'dividend_income',
+                    market: item.market || 'CN',
+                    volatility_level: item.volatility_level || 'medium',
+                    income_type: item.income_type || 'dividend',
+                    strategy_note: item.strategy_note || '',
+                    risk_note: item.risk_note || ''
+                };
+                // 默认持仓根据本金400万和目标权重计算一个偏离了的模拟市值 (例如 80%)
+                state.holdings[code] = parseFloat((state.principal * (item.weight / 100.0) * 0.8).toFixed(1));
+            });
         }
 
         // 定时更新时钟与数据监控指示
@@ -1641,14 +1638,15 @@
                 const dataTime = new Date(state.dataTimestamp.replace(/-/g, '/'));
                 const diffMs = now.getTime() - dataTime.getTime();
                 const isExpired = diffMs > 24 * 60 * 60 * 1000;
+                const sourceLabel = state.marketDataSource === 'live' ? '实时行情' : '缓存行情';
                 
                 if (isExpired) {
-                    statusText = `⚠️ 市场数据已过期 (数据时间: ${state.dataTimestamp})`;
+                    statusText = `⚠️ ${sourceLabel}已过期 (数据时间: ${state.dataTimestamp})`;
                     badgeBg = "rgba(245, 158, 11, 0.1)";
                     badgeBorder = "rgba(245, 158, 11, 0.3)";
                     badgeColor = "var(--accent-orange)";
                 } else {
-                    statusText = `🟢 市场数据已同步 (数据时间: ${state.dataTimestamp})`;
+                    statusText = `🟢 ${sourceLabel}已同步 (数据时间: ${state.dataTimestamp})`;
                 }
             } else if (state.fetchStatus === 'fallback') {
                 statusText = `🔴 数据源载入失败，已降级为离线测算数据`;
@@ -1668,40 +1666,149 @@
             badge.style.color = badgeColor;
         }
 
-        // 获取本地行情缓存数据 (live_data.json)
-        async function fetchLiveMarketData() {
-            try {
-                const response = await fetch('live_data.json');
-                if (!response.ok) throw new Error('Failed to load live_data.json');
-                
-                const result = await response.json();
-                if (result.status !== 'success' || !result.data) {
-                    throw new Error('Invalid live_data.json structure');
+        function formatLocalDateTime(date = new Date()) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+
+        function getExchangePrefix(code) {
+            return code.startsWith('5') || code.startsWith('6') ? 'sh' : 'sz';
+        }
+
+        function calculateLiveYield(code, price) {
+            const base = ETF_BASE[code];
+            if (!base || !price || price <= 0 || !base.base_yield) {
+                return state.assets[code]?.estimated_yield || 0.0;
+            }
+            return Math.round(base.base_yield * (base.base_price / price) * 100) / 100;
+        }
+
+        function loadTencentQuoteScript(secIds) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                const timeoutId = setTimeout(() => {
+                    script.remove();
+                    reject(new Error('Tencent quote request timed out'));
+                }, 8000);
+
+                script.charset = 'gbk';
+                script.src = `https://qt.gtimg.cn/q=${secIds.join(',')}&_=${Date.now()}`;
+                script.onload = () => {
+                    clearTimeout(timeoutId);
+                    script.remove();
+                    resolve();
+                };
+                script.onerror = () => {
+                    clearTimeout(timeoutId);
+                    script.remove();
+                    reject(new Error('Tencent quote script failed to load'));
+                };
+                document.head.appendChild(script);
+            });
+        }
+
+        async function fetchTencentMarketData() {
+            const codes = Object.keys(state.assets);
+            if (!codes.length) throw new Error('No assets configured');
+
+            const secIds = codes.map(code => `${getExchangePrefix(code)}${code}`);
+            await loadTencentQuoteScript(secIds);
+
+            const data = {};
+            codes.forEach(code => {
+                const secId = `${getExchangePrefix(code)}${code}`;
+                const raw = window[`v_${secId}`];
+                if (!raw) return;
+
+                const fields = raw.split('~');
+                const price = parseFloat(fields[3]);
+                if (!Number.isFinite(price) || price <= 0) return;
+
+                data[code] = {
+                    name: fields[1] || state.assets[code].name,
+                    price,
+                    yield: calculateLiveYield(code, price)
+                };
+            });
+
+            if (!Object.keys(data).length) {
+                throw new Error('Tencent quote response contains no usable assets');
+            }
+
+            return {
+                status: 'success',
+                timestamp: formatLocalDateTime(),
+                data
+            };
+        }
+
+        async function fetchCachedMarketData() {
+            const response = await fetch('live_data.json');
+            if (!response.ok) throw new Error('Failed to load live_data.json');
+
+            const result = await response.json();
+            if (result.status !== 'success' || !result.data) {
+                throw new Error('Invalid live_data.json structure');
+            }
+            return result;
+        }
+
+        function applyMarketData(result, source) {
+            Object.keys(state.assets).forEach(code => {
+                if (result.data[code]) {
+                    state.assets[code].price = result.data[code].price;
+                    state.assets[code].yield = result.data[code].yield;
+                } else {
+                    state.assets[code].price = 0.0;
+                    state.assets[code].yield = state.assets[code].estimated_yield || 0.0;
                 }
-                
-                Object.keys(state.assets).forEach(code => {
-                    if (result.data[code]) {
-                        state.assets[code].price = result.data[code].price;
-                        state.assets[code].yield = result.data[code].yield;
-                    }
-                });
-                
-                state.dataTimestamp = result.timestamp;
-                state.fetchStatus = 'success';
-                silentUpdateCalculations();
+            });
+
+            state.dataTimestamp = result.timestamp || formatLocalDateTime();
+            state.marketDataSource = source;
+            state.fetchStatus = 'success';
+            silentUpdateCalculations();
+            updateClock();
+        }
+
+        function applyEstimatedMarketData() {
+            state.fetchStatus = 'fallback';
+            state.marketDataSource = 'estimated';
+            state.dataTimestamp = formatLocalDateTime();
+
+            Object.keys(state.assets).forEach(code => {
+                if (state.assets[code]) {
+                    state.assets[code].price = 0.0;
+                    state.assets[code].yield = state.assets[code].estimated_yield || 0.0;
+                }
+            });
+
+            silentUpdateCalculations();
+            updateClock();
+        }
+
+        // 获取行情数据：实时接口优先，本地缓存兜底，最后使用估算值
+        async function fetchLiveMarketData() {
+            state.fetchStatus = 'loading';
+            updateClock();
+
+            try {
+                const liveResult = await fetchTencentMarketData();
+                applyMarketData(liveResult, 'live');
             } catch (err) {
-                console.error("加载实时数据源失败，进入降级测算状态：", err);
-                state.fetchStatus = 'fallback';
-                
-                // 失败降级状态：价格设为 0，股息率使用 estimated_yield 兜底
-                Object.keys(state.assets).forEach(code => {
-                    if (state.assets[code]) {
-                        state.assets[code].price = 0.0;
-                        state.assets[code].yield = state.assets[code].estimated_yield || 0.0;
-                    }
-                });
-                
-                silentUpdateCalculations();
+                console.warn("实时行情接口失败，尝试读取本地缓存：", err);
+                try {
+                    const cachedResult = await fetchCachedMarketData();
+                    applyMarketData(cachedResult, 'cache');
+                } catch (cacheErr) {
+                    console.error("行情缓存也不可用，进入估算测算状态：", cacheErr);
+                    applyEstimatedMarketData();
+                }
             }
         }
 
@@ -2899,7 +3006,6 @@
             // 保存积极策略阻断状态
             state.isProhibitAggressive = res.isProhibitAggressive;
         }
-        }
 
         // 设置三桶 UI
         function setFamilyBucketUI(safety, longterm, hedge) {
@@ -3215,6 +3321,23 @@ ${avoidList}
                 alert('复制失败，可能是由于浏览器安全权限原因，请尝试在控制台手动复制。');
             });
         }
+
+        Object.assign(window, {
+            applyStrategyPreset,
+            calculateDcaAdjust,
+            calculateFamilyProfile,
+            changeTemperatureIndex,
+            clearFamilyData,
+            copyFamilyMarkdown,
+            exportFamilyJSON,
+            fetchLiveMarketData,
+            runStressTest,
+            saveFamilyToLocal,
+            switchTab,
+            updateCoreState,
+            updateStressTestLabels,
+            userInputsChanged
+        });
     </script>
 </body>
 </html>

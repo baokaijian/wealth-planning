@@ -40,13 +40,12 @@
 ## 🛠️ 本地运行方式
 
 ### 方案 A：静态网页运行 (推荐，轻量便携)
-本项目包含完整的单页静态 Web 应用，可以直接使用浏览器双击打开：
-- 直接打开根目录的 [index.html](file:///Users/baokaijian/Project/gemini-invest/index.html)。
-- 或者在终端使用 python 起一个本地网页服务：
+本项目包含完整的单页静态 Web 应用。推荐通过本地 HTTP 服务运行，避免浏览器在 `file://` 场景下限制同目录 JSON 文件读取：
   ```bash
   python3 -m http.server 8000
   ```
   然后在浏览器中访问 `http://localhost:8000` 并使用侧边栏切换各个页面。
+- 如直接双击根目录的 `index.html`，页面会使用内置资产配置兜底，并尝试通过 HTTPS 行情脚本获取实时价格；但历史估值 JSON 等本地文件读取仍可能受浏览器安全策略影响。
 
 ### 方案 B：Streamlit 本地 GUI 应用 (丰富交互)
 如果您偏好 Python 交互式控制台，可以通过 Streamlit 运行：
@@ -65,7 +64,7 @@
 ## 🔄 数据来源与同步管线
 
 - **基础资产池配置**：通过 [assets.json](file:///Users/baokaijian/Project/gemini-invest/assets.json) 集中维护被动红利基金（ETF）的基础配置信息（代码、目标指数、分配月份、权重等）。
-- **实时收盘行情数据**：优先从同级目录下的缓存文件 [live_data.json](file:///Users/baokaijian/Project/gemini-invest/live_data.json) 读取数据，每 60 秒轮询一次。若数据失效或载入失败，系统自动降级使用 `estimated_yield` 兜底，绝不发生跨域频繁直连外部 API 导致的响应堵塞。
+- **实时行情数据**：静态前端每 60 秒优先通过 HTTPS 腾讯行情脚本拉取当前价格，并基于 [assets.json](file:///Users/baokaijian/Project/gemini-invest/assets.json) 中的基准股息率反算当前股息率；若在线接口失败，则读取同级目录下的缓存文件 [live_data.json](file:///Users/baokaijian/Project/gemini-invest/live_data.json)；若缓存也不可用，系统自动降级使用 `estimated_yield` 兜底。
 - **历史估值数据**：估值温度计的百分位和趋势图完全基于 [valuation_history.json](file:///Users/baokaijian/Project/gemini-invest/valuation_history.json) 的真实日期、股息率、PE、PB 字段进行渲染和对齐。
 - **本地行情手动抓取**：
   若想手动触发实时行情抓取并更新本地缓存包，直接执行：
