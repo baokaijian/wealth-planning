@@ -344,6 +344,25 @@
             color: var(--accent-red);
         }
 
+        .stress-result-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 8px;
+            padding: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .stress-period-label {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+        }
+        .stress-status-val {
+            font-weight: 700;
+            font-size: 1.15rem;
+        }
+
         /* ==========================================
            4. 表格及控制项样式
            ========================================== */
@@ -441,6 +460,7 @@
             <button class="nav-btn" id="btn-tab2" onclick="switchTab('tab2')">2. 缓冲池与现金流模拟</button>
             <button class="nav-btn" id="btn-tab3" onclick="switchTab('tab3')">3. 估值温度计与测算工具</button>
             <button class="nav-btn" id="btn-tab4" onclick="switchTab('tab4')">4. 资产记账与再平衡提示</button>
+            <button class="nav-btn" id="btn-tab5" onclick="switchTab('tab5')">5. 风险压力测试</button>
         </nav>
 
         <div class="sidebar-config">
@@ -617,11 +637,19 @@
             <div class="grid-cards">
                 <div class="metric-card">
                     <span class="metric-label">当前中证红利低波股息率</span>
-                    <span class="metric-val-num" id="t3-idx-yield" style="color: var(--accent-blue);">4.95%</span>
+                    <span class="metric-val-num" id="t3-idx-yield" style="color: var(--accent-blue);">--</span>
                 </div>
                 <div class="metric-card">
                     <span class="metric-label">历史股息率百分位</span>
-                    <span class="metric-val-num" id="t3-idx-percentile" style="color: var(--accent-orange);">58%</span>
+                    <span class="metric-val-num" id="t3-idx-percentile" style="color: var(--accent-orange);">--</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">当前 PE (市盈率)</span>
+                    <span class="metric-val-num" id="t3-idx-pe" style="color: var(--accent-emerald);">--</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">当前 PB (市净率)</span>
+                    <span class="metric-val-num" id="t3-idx-pb" style="color: var(--accent-blue);">--</span>
                 </div>
                 <div class="metric-card">
                     <span class="metric-label">动态定投调节因子</span>
@@ -712,6 +740,68 @@
                 </div>
             </div>
         </div>
+
+        <!-- ==========================================
+           TAB 5: STRESS TEST
+           ========================================== -->
+        <div id="tab5-view" class="tab-content">
+            <div class="alert-banner alert-warning" style="margin-bottom: 25px; background-color: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: var(--accent-orange);">
+                <strong>⚠️ 重要风险提示</strong><br>
+                ETF 分红不等于债券票息，分红金额和分红月份都可能随市场行情及基金公司政策变化而发生波动。压力测试仅用于极端市况下的弹性和最坏情况模拟，不作为投资建议或收益保证。
+            </div>
+
+            <div class="flex-row-layouts">
+                <div class="flex-col-left card" style="flex: 1.2;">
+                    <div class="card-title-text" style="margin-bottom: 20px;">压力测试参数设定</div>
+                    
+                    <div class="input-group" style="margin-bottom: 20px;">
+                        <label for="stress-div-drop">组合年分红下降比例 (%): <span id="stress-div-drop-lbl" style="font-weight: 600; color: var(--accent-orange);">20%</span></label>
+                        <input type="range" id="stress-div-drop" min="0" max="100" value="20" step="5" oninput="updateStressTestLabels(); runStressTest();" style="width: 100%; accent-color: var(--accent-orange);">
+                    </div>
+
+                    <div class="input-group" style="margin-bottom: 20px;">
+                        <label for="stress-etf-drawdown">A股/常规 ETF 净值回撤比例 (%): <span id="stress-etf-drawdown-lbl" style="font-weight: 600; color: var(--accent-red);">30%</span></label>
+                        <input type="range" id="stress-etf-drawdown" min="0" max="100" value="30" step="5" oninput="updateStressTestLabels(); runStressTest();" style="width: 100%; accent-color: var(--accent-red);">
+                    </div>
+
+                    <div class="input-group" style="margin-bottom: 20px;">
+                        <label for="stress-hk-drawdown">港股资产净值回撤比例 (%): <span id="stress-hk-drawdown-lbl" style="font-weight: 600; color: var(--accent-red);">40%</span></label>
+                        <input type="range" id="stress-hk-drawdown" min="0" max="100" value="40" step="5" oninput="updateStressTestLabels(); runStressTest();" style="width: 100%; accent-color: var(--accent-red);">
+                    </div>
+
+                    <div class="input-group" style="margin-bottom: 20px;">
+                        <label for="stress-buffer-months">现金缓冲池备用月份数 (月): <span id="stress-buffer-months-lbl" style="font-weight: 600; color: var(--accent-blue);">12 个月</span></label>
+                        <input type="range" id="stress-buffer-months" min="0" max="36" value="12" step="3" oninput="updateStressTestLabels(); runStressTest();" style="width: 100%; accent-color: var(--accent-blue);">
+                    </div>
+                </div>
+
+                <div class="flex-col-right card" style="flex: 1;">
+                    <div class="card-title-text" style="margin-bottom: 20px;">现金流安全性检测结果</div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 15px;">
+                        <div class="stress-result-card" id="stress-res-12">
+                            <span class="stress-period-label">12 个月内现金流</span>
+                            <span class="stress-status-val" id="stress-status-12">安全</span>
+                        </div>
+                        <div class="stress-result-card" id="stress-res-24">
+                            <span class="stress-period-label">24 个月内现金流</span>
+                            <span class="stress-status-val" id="stress-status-24">安全</span>
+                        </div>
+                        <div class="stress-result-card" id="stress-res-36">
+                            <span class="stress-period-label">36 个月内现金流</span>
+                            <span class="stress-status-val" id="stress-status-36">安全</span>
+                        </div>
+                    </div>
+
+                    <div id="stress-test-summary-alert" class="alert-banner" style="margin-top: 20px; font-size: 0.9rem; margin-bottom: 0;"></div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top: 25px;">
+                <div class="card-title-text" style="margin-bottom: 15px;">压力测试下 36 个月缓冲池余额投影线</div>
+                <div id="t5-plotly-stress" style="height: 320px; width: 100%;"></div>
+            </div>
+        </div>
     </main>
 
     <!-- ==========================================
@@ -728,8 +818,10 @@
             assets: {},
             holdings: {},
             baseDca: 32.3,
-            valuationPercentile: 58.0,
-            valuationCurrentYield: 4.95,
+            valuationPercentile: null,
+            valuationCurrentYield: null,
+            currentPE: null,
+            currentPB: null,
             fetchStatus: 'loading', // 'loading', 'success', 'fallback'
             dataTimestamp: ''
         };
@@ -751,12 +843,15 @@
 
         // 页面初始化
         window.addEventListener('DOMContentLoaded', async () => {
-            initValuationHistory();
+            await loadValuationHistory();
             await loadAssetsConfig(); // 加载 assets.json 动态配置
             initStaticTableStructures(); // 仅渲染一次 DOM 框架，避免重绘失去输入框焦点
             
             // 首次请求并渲染
             await fetchLiveMarketData();
+            
+            // 运行首次压力测试以显示结果
+            runStressTest();
 
             // 启动定时刷新回路
             // 1. 每 60 秒自动拉取最新实时行情缓存
@@ -909,19 +1004,43 @@
             }
         }
 
-        // 初始化估值历史图表数据
-        function initValuationHistory() {
-            const startDate = new Date(2022, 5, 27);
-            for (let i = 0; i < 200; i++) {
-                const date = new Date(startDate.getTime() + i * 7 * 24 * 60 * 60 * 1000);
-                historyDates.push(date.toISOString().split('T')[0]);
-                const sineVal = Math.sin(i * 0.05) * 0.8;
-                const noise = (Math.random() - 0.5) * 0.15;
-                historyYields.push(parseFloat((4.8 + sineVal + noise).toFixed(2)));
+        let valuationHistory = [];
+        let hasValuationHistory = false;
+
+        // 从 valuation_history.json 读取真实历史估值数据
+        async function loadValuationHistory() {
+            try {
+                const response = await fetch('valuation_history.json');
+                if (!response.ok) throw new Error('Failed to load valuation_history.json');
+                const data = await response.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    // 过滤 H30269 指数，若没有则取全部
+                    let filtered = data.filter(item => item.index_code === 'H30269');
+                    if (filtered.length === 0) {
+                        filtered = data;
+                    }
+                    // 升序排列
+                    filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
+                    
+                    valuationHistory = filtered;
+                    hasValuationHistory = true;
+                    
+                    historyDates = valuationHistory.map(item => item.date);
+                    historyYields = valuationHistory.map(item => parseFloat(item.dividend_yield));
+                    
+                    state.valuationCurrentYield = historyYields[historyYields.length - 1];
+                    const lowerCount = historyYields.filter(y => y < state.valuationCurrentYield).length;
+                    state.valuationPercentile = Math.round((lowerCount / historyYields.length) * 100);
+                    
+                    state.currentPE = parseFloat(valuationHistory[valuationHistory.length - 1].pe) || 0.0;
+                    state.currentPB = parseFloat(valuationHistory[valuationHistory.length - 1].pb) || 0.0;
+                } else {
+                    hasValuationHistory = false;
+                }
+            } catch (e) {
+                console.error("Error loading valuation history:", e);
+                hasValuationHistory = false;
             }
-            state.valuationCurrentYield = historyYields[historyYields.length - 1];
-            const lowerCount = historyYields.filter(y => y < state.valuationCurrentYield).length;
-            state.valuationPercentile = Math.round((lowerCount / historyYields.length) * 100);
         }
 
         // 初始化静态表格 DOM，仅运行一次，这样后续的实时更新只改文字，不破坏 Input 焦点
@@ -1068,7 +1187,10 @@
             // 4. 重新计算 Tab 4 (再平衡)
             renderTab4Silent();
 
-            // 5. 刷新当前可见 Tab 的 Plotly 图表
+            // 5. 重新计算 Tab 5 (风险压力测试)
+            runStressTest();
+
+            // 6. 刷新当前可见 Tab 的 Plotly 图表
             renderAllCharts();
         }
 
@@ -1077,7 +1199,7 @@
             const tbody = document.getElementById('t2-simulation-table-body');
             tbody.innerHTML = '';
 
-            const rateMonthly = state.moneyMarketRate / 12.0;
+            const rateMonthly = state.moneyMarketRate / 12.0 / 100.0;
             const monthlyWithdraw = state.targetMonthly * 10000;
 
             let bufferBalance = state.bufferSeed * 10000;
@@ -1160,36 +1282,61 @@
         function calculateDcaAdjust() {
             // 动态调节因子
             let factor = 1.0;
-            let ratingText = "合理估值区";
+            let ratingText = "";
             let ratingColor = "var(--accent-orange)";
-            let ratingTips = "提示：中证红利低波动指数估值处于历史合理分位数，可保持既定的基础定投节奏买入。";
+            let ratingTips = "";
 
-            if (state.valuationPercentile >= 70.0) {
-                factor = 1.3;
-                ratingText = "低估便宜区（极具股息性价比）";
-                ratingColor = "var(--accent-emerald)";
-                ratingTips = "提示：当前红利资产整体股息收益十分丰厚，处于中长期底部的优势估值区间，可参考加大定投额度。";
-            } else if (state.valuationPercentile < 30.0) {
-                factor = 0.5;
-                ratingText = "高估偏贵区（股息吸引力低）";
+            if (!hasValuationHistory) {
+                ratingText = "缺少估值历史，无法生成估值分位";
                 ratingColor = "var(--accent-red)";
-                ratingTips = "提示：当前指数上涨较多导致股息率稀释，股息溢价一般，可参考减少月定投规模，多余资金留存货币基金。";
+                ratingTips = "由于缺少估值历史数据，系统无法生成估值分位数，已禁用动态配置调整，不提供任何投资测算建议。";
+                
+                document.getElementById('t3-idx-yield').innerText = `--`;
+                document.getElementById('t3-idx-percentile').innerText = `--`;
+                document.getElementById('t3-idx-pe').innerText = `--`;
+                document.getElementById('t3-idx-pb').innerText = `--`;
+                document.getElementById('t3-factor-val').innerText = `--`;
+            } else {
+                if (state.valuationPercentile >= 70.0) {
+                    factor = 1.3;
+                    ratingText = "合理估值区间 (极具性价比)";
+                    ratingColor = "var(--accent-emerald)";
+                    ratingTips = "提示：目前红利资产股息回报丰厚，估值偏低，系统已应用配置调节。";
+                } else if (state.valuationPercentile < 30.0) {
+                    factor = 0.5;
+                    ratingText = "合理估值区间 (估值偏贵)";
+                    ratingColor = "var(--accent-red)";
+                    ratingTips = "提示：当前估值偏高，股息收益稀释，系统已应用配置调节。";
+                } else {
+                    factor = 1.0;
+                    ratingText = "合理估值区";
+                    ratingColor = "var(--accent-orange)";
+                    ratingTips = "提示：估值处于正常水平，系统未应用配置偏向。";
+                }
+                
+                document.getElementById('t3-idx-yield').innerText = `${state.valuationCurrentYield.toFixed(2)}%`;
+                document.getElementById('t3-idx-percentile').innerText = `${state.valuationPercentile}%`;
+                document.getElementById('t3-idx-pe').innerText = `${state.currentPE.toFixed(2)}`;
+                document.getElementById('t3-idx-pb').innerText = `${state.currentPB.toFixed(2)}`;
+                document.getElementById('t3-factor-val').innerText = `${factor.toFixed(1)}x`;
             }
-
-            // 指标输出
-            document.getElementById('t3-idx-yield').innerText = `${state.valuationCurrentYield.toFixed(2)}%`;
-            document.getElementById('t3-idx-percentile').innerText = `${state.valuationPercentile}%`;
-            document.getElementById('t3-factor-val').innerText = `${factor.toFixed(1)}x`;
 
             const alertEl = document.getElementById('t3-rating-alert');
             alertEl.style.border = `1px solid ${ratingColor}`;
             alertEl.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
-            alertEl.innerHTML = `
-                <h4 style="color:${ratingColor}; margin-bottom: 5px;">🌡️ 估值评级：${ratingText}</h4>
-                <p style="font-size:0.92rem; color:var(--text-primary); line-height:1.4">${ratingTips}</p>
-            `;
+            if (hasValuationHistory) {
+                alertEl.innerHTML = `
+                    <h4 style="color:${ratingColor}; margin-bottom: 5px;">🌡️ 估值评级：${ratingText}</h4>
+                    <p style="font-size:0.92rem; color:var(--text-primary); line-height:1.4">${ratingTips}</p>
+                `;
+            } else {
+                alertEl.innerHTML = `
+                    <h4 style="color:${ratingColor}; margin-bottom: 5px;">⚠️ ${ratingText}</h4>
+                    <p style="font-size:0.92rem; color:var(--text-primary); line-height:1.4">${ratingTips}</p>
+                `;
+            }
 
-            const adjustDca = state.baseDca * factor;
+            const adjustDca = hasValuationHistory ? (state.baseDca * factor) : state.baseDca;
             document.getElementById('t3-adjust-dca-val').innerText = `${adjustDca.toFixed(2)} 万元`;
 
             // 列表明细渲染
@@ -1275,8 +1422,9 @@
             const headerTitles = {
                 'tab1': ["资产配置与股息测算看板", "设置本金与标的分配权重，测算红利税后综合股息率及现金流产出。"],
                 'tab2': ["现金缓冲池平滑模拟器", "大多数分红在 5-8 月密集派发。本模拟器展示分红如何平滑平铺到 36 个月中。"],
-                'tab3': ["估值温度计与测算工具", "估值低位时多买，估值高位时少买。监控市场温度，生成买入额度测算。"],
-                'tab4': ["年度资产再平衡测算", "输入各资产当前实际市值，一键测算偏离度，提供再平衡提示。"]
+                'tab3': ["估值温度计与测算工具", "监控红利指数历史估值分位与当前股息率，生成定投额度测算。"],
+                'tab4': ["年度资产再平衡测算", "输入各资产当前实际市值，一键测算偏离度，提供再平衡提示。"],
+                'tab5': ["风险压力测试", "模拟极端市场环境下的分红下降与净值回撤，评估现金流安全性。"]
             };
 
             document.getElementById('main-header-title').innerText = headerTitles[tabId][0];
@@ -1297,6 +1445,8 @@
                 renderTab2MixedChart();
             } else if (state.currentTab === 'tab3') {
                 renderTab3HistoryChart();
+            } else if (state.currentTab === 'tab5') {
+                renderTab5StressChart();
             }
         }
 
@@ -1386,14 +1536,131 @@
             Plotly.newPlot('t2-plotly-mixed', data, layout, { responsive: true, displayModeBar: false });
         }
 
+        // ==========================================
+        // 10. 风险压力测试计算与图表
+        // ==========================================
+        let stressBufferHistory = [];
+
+        function updateStressTestLabels() {
+            document.getElementById('stress-div-drop-lbl').innerText = `${document.getElementById('stress-div-drop').value}%`;
+            document.getElementById('stress-etf-drawdown-lbl').innerText = `${document.getElementById('stress-etf-drawdown').value}%`;
+            document.getElementById('stress-hk-drawdown-lbl').innerText = `${document.getElementById('stress-hk-drawdown').value}%`;
+            document.getElementById('stress-buffer-months-lbl').innerText = `${document.getElementById('stress-buffer-months').value} 个月`;
+        }
+
+        function runStressTest() {
+            if (!state.assets || Object.keys(state.assets).length === 0) return;
+
+            const divDrop = parseFloat(document.getElementById('stress-div-drop').value) / 100;
+            const etfDrawdown = parseFloat(document.getElementById('stress-etf-drawdown').value) / 100;
+            const hkDrawdown = parseFloat(document.getElementById('stress-hk-drawdown').value) / 100;
+            const bufferMonths = parseFloat(document.getElementById('stress-buffer-months').value);
+
+            const investPrincipal = Math.max(state.principal - state.bufferSeed, 0.0);
+            const monthlyWithdraw = state.targetMonthly * 10000;
+            let bufferBalance = bufferMonths * monthlyWithdraw;
+
+            const rateMonthly = state.moneyMarketRate / 12.0 / 100.0; 
+
+            stressBufferHistory = [bufferBalance];
+            let breachedMonth = null;
+
+            for (let t = 1; t <= 36; t++) {
+                const c_month = ((t - 1) % 12) + 1;
+
+                // 计算当月压力分红流入
+                let monthDividend = 0.0;
+                Object.keys(state.assets).forEach(code => {
+                    const asset = state.assets[code];
+                    const distRatio = asset.months[c_month] || 0.0;
+                    if (distRatio > 0.0) {
+                        const assetValue = investPrincipal * (asset.weight / 100.0) * 10000;
+                        
+                        // 判定是否是港股资产
+                        const isHK = (asset.category === '港股红利' || asset.name.includes('港股') || code === '513530');
+                        const drawdown = isHK ? hkDrawdown : etfDrawdown;
+                        const stressedAssetValue = assetValue * (1.0 - drawdown);
+                        
+                        // 获取股息率 (优先取最新 input，如果没有则取当前 yield 或 estimated_yield)
+                        const yInput = document.getElementById(`y_val_${code}`);
+                        const yVal = yInput ? (parseFloat(yInput.value) || asset.yield) : (asset.yield || asset.estimated_yield || 0.0);
+                        const stressedYield = (yVal / 100.0) * (1.0 - divDrop);
+                        
+                        monthDividend += stressedAssetValue * stressedYield * distRatio;
+                    }
+                });
+
+                const startBalance = bufferBalance;
+                const interestEarned = startBalance * rateMonthly;
+                bufferBalance = startBalance + monthDividend + interestEarned - monthlyWithdraw;
+
+                stressBufferHistory.push(bufferBalance);
+
+                if (bufferBalance < 0 && breachedMonth === null) {
+                    breachedMonth = t;
+                }
+            }
+
+            // Remove the initial element for the 36-month timeline graph
+            stressBufferHistory = stressBufferHistory.slice(1);
+
+            // 评估 12 / 24 / 36 个月是否击穿
+            const periods = [12, 24, 36];
+            periods.forEach(p => {
+                const isBreached = breachedMonth !== null && breachedMonth <= p;
+                const card = document.getElementById(`stress-res-${p}`);
+                const statusVal = document.getElementById(`stress-status-${p}`);
+                
+                if (isBreached) {
+                    card.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+                    card.style.backgroundColor = 'rgba(239, 68, 68, 0.03)';
+                    statusVal.innerText = `🔴 已击穿 (第 ${breachedMonth} 月)`;
+                    statusVal.style.color = 'var(--accent-red)';
+                } else {
+                    card.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                    card.style.backgroundColor = 'rgba(16, 185, 129, 0.03)';
+                    // Find minimum balance in this period
+                    const periodBalances = stressBufferHistory.slice(0, p);
+                    const minBal = Math.min(...periodBalances);
+                    statusVal.innerText = `🟢 安全 (最低 ¥${Math.round(minBal).toLocaleString()})`;
+                    statusVal.style.color = 'var(--accent-emerald)';
+                }
+            });
+
+            // Summary text
+            const summaryAlert = document.getElementById('stress-test-summary-alert');
+            if (breachedMonth !== null) {
+                summaryAlert.className = 'alert-banner alert-warning';
+                summaryAlert.innerHTML = `<strong>⚠️ 压力测试未通过：</strong> 现金缓冲池将在第 <strong>${breachedMonth}</strong> 个月耗尽，无法在预设压力下支撑 36 个月的现金流支出。建议增加缓冲池初始月份数，或者适当降低期望的月度支出，或优化组合权重配置。`;
+            } else {
+                summaryAlert.className = 'alert-banner alert-success';
+                summaryAlert.innerHTML = `<strong>✅ 压力测试通过：</strong> 在预设极端市场压力下，现金缓冲池在 36 个月内始终保持 <strong>正水位</strong>。资产配置方案具备极高的现金流抗震防线！`;
+            }
+
+            // Redraw chart if tab5 is active
+            if (state.currentTab === 'tab5') {
+                renderTab5StressChart();
+            }
+        }
+
         // 历史股息率线图
         function renderTab3HistoryChart() {
+            const chartDiv = document.getElementById('t3-plotly-history');
+            if (!hasValuationHistory) {
+                chartDiv.innerHTML = `<div style="display:flex; justify-content:center; align-items:center; height:100%; color:var(--text-secondary); font-size: 0.95rem;">缺少估值历史，无法生成图表</div>`;
+                return;
+            }
             const traceLine = {
                 x: historyDates,
                 y: historyYields,
+                customdata: valuationHistory.map(item => [item.pe, item.pb]),
                 type: 'scatter',
                 mode: 'lines',
                 name: '历史股息率 (%)',
+                hovertemplate: '<b>日期</b>: %{x}<br>' +
+                              '<b>股息率</b>: %{y:.2f}%<br>' +
+                              '<b>PE (市盈率)</b>: %{customdata[0]:.2f}<br>' +
+                              '<b>PB (市净率)</b>: %{customdata[1]:.2f}<extra></extra>',
                 line: { color: '#3B82F6', width: 2 }
             };
 
@@ -1426,6 +1693,53 @@
             };
 
             Plotly.newPlot('t3-plotly-history', data, layout, { responsive: true, displayModeBar: false });
+        }
+
+        // 绘制压力测试余额投影折线图
+        function renderTab5StressChart() {
+            if (stressBufferHistory.length === 0) return;
+            
+            const monthsLabels = Array.from({length: 36}, (_, i) => `第 ${i+1} 月`);
+            
+            const traceLine = {
+                x: monthsLabels,
+                y: stressBufferHistory,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: '压力下余额 (元)',
+                marker: { size: 5 },
+                line: { color: stressBufferHistory.some(v => v < 0) ? '#EF4444' : '#3B82F6', width: 2 }
+            };
+
+            const traceZero = {
+                x: [monthsLabels[0], monthsLabels[35]],
+                y: [0, 0],
+                type: 'scatter',
+                mode: 'lines',
+                name: '击穿警戒线',
+                line: { color: '#94A3B8', width: 1.5, dash: 'dash' }
+            };
+
+            const data = [traceLine, traceZero];
+
+            const layout = {
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                xaxis: {
+                    tickfont: { color: '#94A3B8', size: 9 },
+                    gridcolor: 'rgba(255,255,255,0.05)'
+                },
+                yaxis: {
+                    title: { text: '缓冲池余额 (元)', font: { color: '#94A3B8' } },
+                    tickfont: { color: '#94A3B8' },
+                    gridcolor: 'rgba(255,255,255,0.05)'
+                },
+                margin: { t: 20, b: 40, l: 60, r: 20 },
+                font: { color: '#E2E8F0' },
+                showlegend: false
+            };
+
+            Plotly.newPlot('t5-plotly-stress', data, layout, { responsive: true, displayModeBar: false });
         }
     </script>
 </body>
