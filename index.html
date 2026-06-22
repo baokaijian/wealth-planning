@@ -660,7 +660,7 @@
         <details class="instruction-box" open>
             <summary>📖 测算页面使用说明 (点击展开/折叠)</summary>
             <div class="instruction-content">
-                <p>欢迎使用红利低波现金流配置系统，本工具基于<strong>腾讯财经提供的真实实时市场价格</strong>进行高频更新，为您进行多维度测算，帮助您搭建长期可执行的月均 2 万元现金流闭环。以下是系统的使用步骤：</p>
+                <p>欢迎使用红利低波现金流配置系统，本工具基于<strong>腾讯财经提供的真实实时市场价格</strong>进行高频更新，为您进行多维度测算，帮助您搭建长期可执行的月均 <span id="instruction-target-monthly">2.0</span> 万元现金流闭环。以下是系统的使用步骤：</p>
                 <ol>
                     <li><strong>第一步：设定可用资金</strong>。在左侧“策略控制台”调节您的总本金（默认 400 万）、期望月流出额度、缓冲池备用金等，系统将自动核算出用于购买红利资产的实际额度。</li>
                     <li><strong>第二步：精调组合权重</strong>。在“资产配置看板”中利用输入框调节候选基金的比重，确保重量之和正好为 100%。系统将使用**实时的最新市场成交单价**，动态计算组合的加权股息率及月均现金流。</li>
@@ -1418,6 +1418,9 @@
             // 初始化家庭资产体检与配置数据
             initFamilyProfile();
 
+            // 同步一次策略控制台输入数据至其余部分
+            updateCoreState();
+
             // 启动定时刷新回路
             // 1. 每 60 秒自动拉取最新实时行情缓存
             setInterval(fetchLiveMarketData, 60000);
@@ -1677,6 +1680,12 @@
             const rateSlider = document.getElementById('rate-slider');
             state.moneyMarketRate = parseFloat(rateSlider.value) || 0.0;
             document.getElementById('rate-val-span').innerText = `${state.moneyMarketRate.toFixed(1)}%`;
+
+            // 同步更新使用说明里的期望月现金流金额
+            const targetMonthlySpan = document.getElementById('instruction-target-monthly');
+            if (targetMonthlySpan) {
+                targetMonthlySpan.innerText = state.targetMonthly.toFixed(1);
+            }
 
             silentUpdateCalculations();
         }
