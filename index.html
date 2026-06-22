@@ -416,6 +416,8 @@
             text-align: right;
             opacity: 0.95;
             -webkit-text-fill-color: var(--accent-blue);
+            width: 55px;
+            padding: 4px 0px;
         }
 
         /* 页面选项卡机制 */
@@ -1637,7 +1639,7 @@
                             <input class="weight-input-field" type="number" id="w_val_${code}" step="0.5" min="0" max="100" value="${asset.weight}" oninput="userInputsChanged()">
                         </td>
                         <td id="t1_invest_${code}">0.00 万元</td>
-                        <td style="color:var(--accent-blue);font-weight: 500;">
+                        <td style="color:var(--accent-blue);font-weight: 500; white-space: nowrap;">
                             <input class="weight-input-field" type="number" id="y_val_${code}" step="0.1" min="0" max="20" value="${asset.yield > 0 ? asset.yield.toFixed(2) : ''}" placeholder="获取中..." style="color:var(--accent-blue)" disabled readonly>%
                         </td>
                         <td id="t1_div_${code}">¥0</td>
