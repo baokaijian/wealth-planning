@@ -726,14 +726,14 @@
             moneyMarketRate: 2.0,
             currentTab: 'tab1',
             assets: {
-                '512890': { name: '中证红利低波 ETF', type: 'ETF', weight: 20.0, yield: 4.50, price: 1.17, months: { 7: 0.5, 12: 0.5 } },
-                '515450': { name: '标普大盘红利低波 ETF', type: 'ETF', weight: 15.0, yield: 4.20, price: 1.43, months: { 7: 1.0 } },
-                '513530': { name: '恒生红利低波 ETF', type: 'ETF', weight: 15.0, yield: 4.80, price: 1.61, months: { 7: 0.5, 12: 0.5 } },
-                '600941': { name: '中国移动', type: 'Stock', weight: 10.0, yield: 4.95, price: 95.12, months: { 6: 0.6, 9: 0.4 } },
-                '600900': { name: '长江电力', type: 'Stock', weight: 10.0, yield: 3.54, price: 28.28, months: { 7: 1.0 } },
-                '601398': { name: '工商银行', type: 'Stock', weight: 10.0, yield: 3.99, price: 7.78, months: { 7: 0.7, 12: 0.3 } },
-                '601088': { name: '中国神华', type: 'Stock', weight: 10.0, yield: 4.36, price: 46.14, months: { 7: 1.0 } },
-                '601668': { name: '中国建筑', type: 'Stock', weight: 10.0, yield: 5.70, price: 4.77, months: { 6: 1.0 } }
+                '512890': { name: '中证红利低波 ETF', type: 'ETF', weight: 20.0, yield: 0.0, price: 0.0, months: { 7: 0.5, 12: 0.5 } },
+                '515450': { name: '标普大盘红利低波 ETF', type: 'ETF', weight: 15.0, yield: 0.0, price: 0.0, months: { 7: 1.0 } },
+                '513530': { name: '恒生红利低波 ETF', type: 'ETF', weight: 15.0, yield: 0.0, price: 0.0, months: { 7: 0.5, 12: 0.5 } },
+                '600941': { name: '中国移动', type: 'Stock', weight: 10.0, yield: 0.0, price: 0.0, months: { 6: 0.6, 9: 0.4 } },
+                '600900': { name: '长江电力', type: 'Stock', weight: 10.0, yield: 0.0, price: 0.0, months: { 7: 1.0 } },
+                '601398': { name: '工商银行', type: 'Stock', weight: 10.0, yield: 0.0, price: 0.0, months: { 7: 0.7, 12: 0.3 } },
+                '601088': { name: '中国神华', type: 'Stock', weight: 10.0, yield: 0.0, price: 0.0, months: { 7: 1.0 } },
+                '601668': { name: '中国建筑', type: 'Stock', weight: 10.0, yield: 0.0, price: 0.0, months: { 6: 1.0 } }
             },
             holdings: {
                 '512890': 78.0,
@@ -907,13 +907,13 @@
                     <tr>
                         <td><strong>${asset.name}</strong><br><span style="color:var(--text-secondary);font-size:0.75rem">${code}</span></td>
                         <td><span style="color:var(--text-secondary);">${asset.type}</span></td>
-                        <td id="t1_price_${code}" style="font-weight: 500;">¥${asset.price.toFixed(2)}</td>
+                        <td id="t1_price_${code}" style="font-weight: 500;">${asset.price > 0 ? '¥' + asset.price.toFixed(2) : '获取中...'}</td>
                         <td>
                             <input class="weight-input-field" type="number" id="w_val_${code}" step="0.5" min="0" max="100" value="${asset.weight}" oninput="userInputsChanged()">
                         </td>
                         <td id="t1_invest_${code}">0.00 万元</td>
                         <td style="color:var(--accent-blue);font-weight: 500;">
-                            <input class="weight-input-field" type="number" id="y_val_${code}" step="0.1" min="0" max="20" value="${asset.yield}" oninput="userInputsChanged()" style="color:var(--accent-blue)">%
+                            <input class="weight-input-field" type="number" id="y_val_${code}" step="0.1" min="0" max="20" value="${asset.yield > 0 ? asset.yield.toFixed(2) : ''}" placeholder="获取中..." oninput="userInputsChanged()" style="color:var(--accent-blue)">%
                         </td>
                         <td id="t1_div_${code}">¥0</td>
                     </tr>
