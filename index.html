@@ -781,7 +781,7 @@
 
                     <!-- 3. 家庭资产明细 -->
                     <div class="card">
-                        <div class="card-title-text">🏦 家庭现有资产 (单位：万元)</div>
+                        <div class="card-title-text">🏦 家庭现有资产 (单位：元)</div>
                         <div class="input-group-triple">
                             <div class="input-group">
                                 <label for="ast-cash">活期现金/存款</label>
@@ -830,7 +830,7 @@
 
                     <!-- 4. 家庭债务明细 -->
                     <div class="card">
-                        <div class="card-title-text">💳 家庭债务负担 (单位：万元)</div>
+                        <div class="card-title-text">💳 家庭债务负担 (单位：元)</div>
                         <div class="input-group-triple">
                             <div class="input-group">
                                 <label for="debt-house">房贷本金余额</label>
@@ -2421,31 +2421,31 @@
 
             // 计算汇总指标
             const totalAssets = fd['ast-cash'] + fd['ast-mmf'] + fd['ast-ashare'] + fd['ast-hk'] + 
-                                fd['ast-overseas'] + fd['ast-gold'] + fd['ast-house'] + fd['ast-insurance'] + fd['ast-others']; // 万元
+                                fd['ast-overseas'] + fd['ast-gold'] + fd['ast-house'] + fd['ast-insurance'] + fd['ast-others']; // 元
             
-            const totalLiabilities = fd['debt-house'] + fd['debt-car'] + fd['debt-consumption'] + fd['debt-biz']; // 万元
-            const netWorth = totalAssets - totalLiabilities; // 万元
+            const totalLiabilities = fd['debt-house'] + fd['debt-car'] + fd['debt-consumption'] + fd['debt-biz']; // 元
+            const netWorth = totalAssets - totalLiabilities; // 元
 
             const leverage = totalAssets > 0 ? (totalLiabilities / totalAssets) : 0.0;
             const repayIncomeRatio = fd['f-monthly-income'] > 0 ? (fd['debt-monthly-repay'] / fd['f-monthly-income']) : 0.0;
             const surplusRatio = fd['f-monthly-income'] > 0 ? (fd['f-surplus-income'] / fd['f-monthly-income']) : 0.0;
 
-            const liquidCash = fd['ast-cash'] + fd['ast-mmf']; // 万元
+            const liquidCash = fd['ast-cash'] + fd['ast-mmf']; // 元
             const monthlyFixedEx = fd['f-fixed-expense'] || 1.0;
-            const cashCoverageMonths = (liquidCash * 10000) / monthlyFixedEx;
+            const cashCoverageMonths = liquidCash / monthlyFixedEx;
 
-            const houseRatio = netWorth > 0.01 ? (fd['ast-house'] / netWorth) : 0.0;
+            const houseRatio = netWorth > 1.0 ? (fd['ast-house'] / netWorth) : 0.0;
 
             // 可投资资产 (排除房产与养老险价值)
             const investableAssets = fd['ast-cash'] + fd['ast-mmf'] + fd['ast-ashare'] + fd['ast-hk'] + 
-                                    fd['ast-overseas'] + fd['ast-gold'] + fd['ast-others']; // 万元
+                                    fd['ast-overseas'] + fd['ast-gold'] + fd['ast-others']; // 元
             
-            const equityAssets = fd['ast-ashare'] + fd['ast-hk'] + fd['ast-overseas']; // 万元
-            const equityInvestRatio = investableAssets > 0.01 ? (equityAssets / investableAssets) : 0.0;
+            const equityAssets = fd['ast-ashare'] + fd['ast-hk'] + fd['ast-overseas']; // 元
+            const equityInvestRatio = investableAssets > 1.0 ? (equityAssets / investableAssets) : 0.0;
 
             // 单一市场集中度 (权益资产大者占比)
             let concentration = 0.0;
-            if (equityAssets > 0.01) {
+            if (equityAssets > 1.0) {
                 const maxEquity = Math.max(fd['ast-ashare'], fd['ast-hk'], fd['ast-overseas']);
                 concentration = maxEquity / equityAssets;
             }
@@ -2492,9 +2492,9 @@
         // 将指标写入面板
         function renderFamilyMetrics() {
             const m = globalFamilyMetrics;
-            const hasData = m.totalAssets > 0.01 || m.fd['f-monthly-income'] > 0;
+            const hasData = m.totalAssets > 1.0 || m.fd['f-monthly-income'] > 0;
 
-            document.getElementById('m-net-worth').innerText = hasData ? `${m.netWorth.toFixed(1)} 万元` : '--';
+            document.getElementById('m-net-worth').innerText = hasData ? `${(m.netWorth / 10000.0).toFixed(1)} 万元` : '--';
             document.getElementById('m-leverage').innerText = hasData ? `${(m.leverage * 100).toFixed(1)}%` : '--';
             
             const leverageEl = document.getElementById('m-leverage');
@@ -2541,7 +2541,7 @@
         function evaluateFamilyProfile() {
             const m = globalFamilyMetrics;
             const fd = m.fd;
-            const hasData = m.totalAssets > 0.01 || fd['f-monthly-income'] > 0;
+            const hasData = m.totalAssets > 1.0 || fd['f-monthly-income'] > 0;
 
             if (!hasData) {
                 document.getElementById('profile-lbl').innerText = "未激活体检状态";
@@ -2564,7 +2564,7 @@
             
             // 是否有短期大额支出
             const hasShortTermLargeExpense = fd['expense-buyhouse'] || fd['expense-edu'] || fd['expense-med'] || fd['expense-biz'] || fd['expense-city'] || fd['expense-other'];
-            const cashAndMmfRatio = getFamilyInvestableAssetsRatio('ast-cash') + getFamilyInvestableAssetsRatio('ast-mmf');
+            const cashAndMmfRatio = m.investableAssets > 1.0 ? ((fd['ast-cash'] + fd['ast-mmf']) / m.investableAssets) : 0.0;
 
             if (m.leverage > 0.5 || m.repayIncomeRatio > 0.35) {
                 profileKey = "leverage";
@@ -2763,6 +2763,8 @@
             const assetLabels = ['活期/存款', '货基/短债', 'A股基金', '港股基金', '海外基金', '黄金基金', '房产估值', '养老金/保单', '其他资产'];
             const assetVals = [fd['ast-cash'], fd['ast-mmf'], fd['ast-ashare'], fd['ast-hk'], fd['ast-overseas'], fd['ast-gold'], fd['ast-house'], fd['ast-insurance'], fd['ast-others']];
             
+            const totalAssets = assetVals.reduce((a, b) => a + b, 0);
+
             const pieData = [{
                 values: assetVals,
                 labels: assetLabels,
@@ -2785,7 +2787,13 @@
             };
 
             const pieEl = document.getElementById('plotly-pie-assets');
-            if (pieEl) Plotly.newPlot('plotly-pie-assets', pieData, pieLayout, { responsive: true, displayModeBar: false });
+            if (pieEl) {
+                if (totalAssets > 1.0) {
+                    Plotly.newPlot('plotly-pie-assets', pieData, pieLayout, { responsive: true, displayModeBar: false });
+                } else {
+                    pieEl.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-secondary); font-size: 0.85rem;">暂无资产明细数据，无法绘制资产分布图</div>';
+                }
+            }
 
             // 收支/还债 Bar
             const barData = [
@@ -2809,7 +2817,14 @@
             };
 
             const barEl = document.getElementById('plotly-bar-debt');
-            if (barEl) Plotly.newPlot('plotly-bar-debt', barData, barLayout, { responsive: true, displayModeBar: false });
+            const hasBarData = fd['f-monthly-income'] > 0 || fd['f-fixed-expense'] > 0 || fd['debt-monthly-repay'] > 0 || fd['f-surplus-income'] > 0;
+            if (barEl) {
+                if (hasBarData) {
+                    Plotly.newPlot('plotly-bar-debt', barData, barLayout, { responsive: true, displayModeBar: false });
+                } else {
+                    barEl.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-secondary); font-size: 0.85rem;">暂无收支数据，无法绘制对比图</div>';
+                }
+            }
         }
 
         function saveFamilyToLocal() {
@@ -2842,7 +2857,7 @@
         // Markdown 报告生成器
         function generateFamilyMarkdownReport() {
             const m = globalFamilyMetrics;
-            if (!m.totalAssets) return "请先输入数据";
+            if (!m.totalAssets || m.totalAssets < 1.0) return "请先输入数据";
 
             const fd = m.fd;
             const profileTitle = document.getElementById('profile-lbl').innerText;
@@ -2868,7 +2883,7 @@
 ---
 
 ## 📐 二、核心财务健康指标对齐
-- **净资产总额**：${m.netWorth.toFixed(2)} 万元 （总资产 ${m.totalAssets.toFixed(2)} 万 / 总负债 ${m.totalLiabilities.toFixed(2)} 万）
+- **净资产总额**：${(m.netWorth / 10000.0).toFixed(2)} 万元 （总资产 ${(m.totalAssets / 10000.0).toFixed(2)} 万 / 总负债 ${(m.totalLiabilities / 10000.0).toFixed(2)} 万）
 - **资产负债率 (LVR)**：${(m.leverage * 100).toFixed(1)}% （安全警戒线: < 50%）
 - **月供收入比 (DSR)**：${(m.repayIncomeRatio * 100).toFixed(1)}% （安全警戒线: < 35%）
 - **月度结余率**：${(m.surplusRatio * 100).toFixed(1)}% （健康界限: >= 25%）
