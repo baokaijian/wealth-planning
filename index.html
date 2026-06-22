@@ -408,6 +408,16 @@
             border-color: var(--accent-emerald);
         }
 
+        .weight-input-field:disabled {
+            background-color: transparent;
+            border: 1px solid transparent;
+            color: var(--accent-blue);
+            cursor: not-allowed;
+            text-align: right;
+            opacity: 0.95;
+            -webkit-text-fill-color: var(--accent-blue);
+        }
+
         /* 页面选项卡机制 */
         .tab-content {
             display: none;
@@ -608,12 +618,12 @@
         </div>
 
         <nav>
-            <button class="nav-btn active" id="btn-tab-family" onclick="switchTab('tab-family')">🏥 家庭资产体检与配置建议</button>
-            <button class="nav-btn" id="btn-tab1" onclick="switchTab('tab1')">1. 资产配置与股息看板</button>
-            <button class="nav-btn" id="btn-tab2" onclick="switchTab('tab2')">2. 缓冲池与现金流模拟</button>
-            <button class="nav-btn" id="btn-tab3" onclick="switchTab('tab3')">3. 估值温度计与测算工具</button>
-            <button class="nav-btn" id="btn-tab4" onclick="switchTab('tab4')">4. 资产记账与再平衡提示</button>
-            <button class="nav-btn" id="btn-tab5" onclick="switchTab('tab5')">5. 风险压力测试</button>
+            <button class="nav-btn active" id="btn-tab-family" onclick="switchTab('tab-family')">1. 家庭资产体检与配置建议</button>
+            <button class="nav-btn" id="btn-tab1" onclick="switchTab('tab1')">2. 资产配置与股息测算看板</button>
+            <button class="nav-btn" id="btn-tab2" onclick="switchTab('tab2')">3. 现金缓冲池平滑模拟器</button>
+            <button class="nav-btn" id="btn-tab3" onclick="switchTab('tab3')">4. 估值温度计与测算工具</button>
+            <button class="nav-btn" id="btn-tab4" onclick="switchTab('tab4')">5. 年度资产再平衡测算</button>
+            <button class="nav-btn" id="btn-tab5" onclick="switchTab('tab5')">6. 风险压力测试</button>
         </nav>
 
         <div class="sidebar-config">
@@ -1628,7 +1638,7 @@
                         </td>
                         <td id="t1_invest_${code}">0.00 万元</td>
                         <td style="color:var(--accent-blue);font-weight: 500;">
-                            <input class="weight-input-field" type="number" id="y_val_${code}" step="0.1" min="0" max="20" value="${asset.yield > 0 ? asset.yield.toFixed(2) : ''}" placeholder="获取中..." oninput="userInputsChanged()" style="color:var(--accent-blue)">%
+                            <input class="weight-input-field" type="number" id="y_val_${code}" step="0.1" min="0" max="20" value="${asset.yield > 0 ? asset.yield.toFixed(2) : ''}" placeholder="获取中..." style="color:var(--accent-blue)" disabled readonly>%
                         </td>
                         <td id="t1_div_${code}">¥0</td>
                     </tr>
