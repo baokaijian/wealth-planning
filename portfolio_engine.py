@@ -1,0 +1,433 @@
+import datetime
+
+def calculate_portfolio(weights, assets, principal, buffer_seed, money_market_rate):
+    """
+    1. 组合收益测算
+    weights: dict of {code: weight_val (float 0-100)}
+    assets: dict or list of dicts.
+    """
+    if isinstance(assets, list):
+        assets_dict = {item['code']: item for item in assets}
+    else:
+        assets_dict = assets
+
+    invest_principal = max(principal - buffer_seed, 0.0)
+    total_weight = 0.0
+    blended_cash_yield = 0.0
+    blended_growth_return = 0.0
+    blended_total_return = 0.0
+
+    asset_details = []
+
+    for code, asset in assets_dict.items():
+        weight = float(weights.get(code, 0.0))
+        total_weight += weight
+
+        current_price = asset.get('price', 0.0)
+        current_yield = asset.get('yield') if asset.get('yield') is not None else asset.get('estimated_yield', 0.0)
+        est_return = asset.get('estimated_return') if asset.get('estimated_return') is not None else current_yield
+
+        allocated_amt = invest_principal * (weight / 100.0)
+        expected_annual_div = allocated_amt * (current_yield / 100.0) * 10000.0  # 元
+
+        asset_details.append({
+            'code': code,
+            'name': asset.get('name', ''),
+            'role': asset.get('role', ''),
+            'market': asset.get('market', ''),
+            'volatility_level': asset.get('volatility_level', ''),
+            'income_type': asset.get('income_type', ''),
+            'weight': weight,
+            'price': current_price,
+            'yield': current_yield,
+            'estimated_return': est_return,
+            'allocatedAmt': allocated_amt,
+            'expectedAnnualDiv': expected_annual_div,
+            'strategy_note': asset.get('strategy_note', ''),
+            'risk_note': asset.get('risk_note', '')
+        })
+
+        if asset.get('income_type') in ['dividend', 'cash_interest']:
+            blended_cash_yield += (weight / 100.0) * current_yield
+        if asset.get('income_type') == 'capital_growth':
+            blended_growth_return += (weight / 100.0) * est_return
+        
+        blended_total_return += (weight / 100.0) * est_return
+
+    expected_annual_dividend = invest_principal * (blended_cash_yield / 100.0) * 10000.0  # 元
+    expected_monthly_dividend = expected_annual_dividend / 12.0
+    expected_monthly_growth = invest_principal * (blended_growth_return / 100.0) * 10000.0 / 12.0
+
+    return {
+        'investPrincipal': invest_principal,
+        'totalWeight': total_weight,
+        'blendedCashYield': blended_cash_yield,
+        'blendedGrowthReturn': blended_growth_return,
+        'blendedTotalReturn': blended_total_return,
+        'expectedAnnualDividend': expected_annual_dividend,
+        'expectedMonthlyDividend': expected_monthly_dividend,
+        'expectedMonthlyGrowth': expected_monthly_growth,
+        'assetDetails': asset_details
+    }
+
+
+def simulate_cashflow(months_range, monthly_withdraw, buffer_seed, invest_principal, weights, assets, money_market_rate, rebalance_harvest):
+    """
+    2. 36个月缓冲池流转模拟
+    """
+    if isinstance(assets, list):
+        assets_dict = {item['code']: item for item in assets}
+    else:
+        assets_dict = assets
+
+    buffer_balance = [buffer_seed * 10000.0]  # 元
+    dividends_history = []
+    interest_earned_history = []
+    harvest_history = []
+    breached_at_month = None
+
+    for t in range(1, months_range + 1):
+        c_month = ((t - 1) % 12) + 1
+
+        # 1) 计算当月常规分红流入 (仅针对 income_type 为 dividend 或 cash_interest 的资产)
+        month_dividend = 0.0
+        for code, asset in assets_dict.items():
+            weight = float(weights.get(code, 0.0))
+            current_yield = asset.get('yield') if asset.get('yield') is not None else asset.get('estimated_yield', 0.0)
+
+            if asset.get('income_type') in ['dividend', 'cash_interest']:
+                dist_months = asset.get('distribution_months', {})
+                month_dist_ratio = dist_months.get(str(c_month)) or dist_months.get(c_month) or 0.0
+                if month_dist_ratio > 0.0:
+                    asset_value = invest_principal * (weight / 100.0) * 10000.0  # 元
+                    month_dividend += asset_value * (current_yield / 100.0) * month_dist_ratio
+
+        # 2) 年度再平衡超额成长变现 (Harvest) 机制
+        month_harvest = 0.0
+        if rebalance_harvest and (t % 12 == 0):
+            for code, asset in assets_dict.items():
+                weight = float(weights.get(code, 0.0))
+                if asset.get('income_type') == 'capital_growth':
+                    est_return = asset.get('estimated_return') or 8.0
+                    asset_value = invest_principal * (weight / 100.0) * 10000.0  # 元
+                    month_harvest += asset_value * (est_return / 100.0)
+
+        # 3) 缓冲池利息 (月度利息)
+        current_interest = buffer_balance[-1] * (money_market_rate / 12.0)
+
+        # 4) 缓冲池结转
+        next_balance = buffer_balance[-1] + month_dividend + month_harvest + current_interest - monthly_withdraw
+
+        dividends_history.append(month_dividend)
+        interest_earned_history.append(current_interest)
+        harvest_history.append(month_harvest)
+        buffer_balance.append(next_balance)
+
+        if next_balance < 0 and breached_at_month is None:
+            breached_at_month = t
+
+    buffer_history = buffer_balance[:-1]  # Remove last element to match months_range slice
+
+    return {
+        'bufferHistory': buffer_history,
+        'dividendsHistory': dividends_history,
+        'interestEarnedHistory': interest_earned_history,
+        'harvestHistory': harvest_history,
+        'breachedAtMonth': breached_at_month,
+        'minBuffer': min(buffer_history) if buffer_history else 0.0
+    }
+
+
+def get_dca_adjustment(history_data, index_code, role):
+    """
+    3. 估值分位温度计与 DCA 调节因子
+    """
+    fallback_res = {
+        'hasHistory': False,
+        'percentile': 50.0,
+        'factor': 1.0,
+        'pe': "--",
+        'pb': "--",
+        'dividend_yield': "--",
+        'valuationZone': "数据不足，保持基础计划",
+        'tips': "由于未找到此标的的估值历史序列，系统将采用基础配置计划，不进行动态调节。"
+    }
+    if not history_data:
+        return fallback_res
+
+    filtered = [item for item in history_data if item.get('index_code') == index_code]
+    if not filtered:
+        return fallback_res
+
+    # Sort by date
+    def get_date(item):
+        d_str = item.get('date', '1970-01-01')
+        try:
+            return datetime.datetime.strptime(d_str, '%Y-%m-%d')
+        except Exception:
+            return datetime.datetime.min
+    filtered.sort(key=get_date)
+
+    latest = filtered[-1]
+    
+    def safe_float(v):
+        try:
+            return float(v)
+        except (ValueError, TypeError):
+            return None
+
+    pe_list = [safe_float(item.get('pe')) for item in filtered if safe_float(item.get('pe')) is not None]
+    pb_list = [safe_float(item.get('pb')) for item in filtered if safe_float(item.get('pb')) is not None]
+    dy_list = [safe_float(item.get('dividend_yield')) for item in filtered if safe_float(item.get('dividend_yield')) is not None]
+
+    current_pe = safe_float(latest.get('pe'))
+    current_pb = safe_float(latest.get('pb'))
+    current_dy = safe_float(latest.get('dividend_yield'))
+
+    if current_pe is None: current_pe = 0.0
+    if current_pb is None: current_pb = 0.0
+    if current_dy is None: current_dy = 0.0
+
+    percentile = 50.0
+    factor = 1.0
+    valuation_zone = "合理估值区间 (估值适中)"
+    tips = ""
+
+    if role == 'dividend_income':
+        if dy_list:
+            count = sum(1 for y in dy_list if y < current_dy)
+            percentile = round((count / len(dy_list)) * 100, 1)
+        
+        if percentile >= 70.0:
+            valuation_zone = "极具性价比 (低估区域)"
+            factor = 1.3
+            tips = "提示：目前红利资产股息率处于历史较高百分位，具备优秀的派息性价比，定投系数已调升至 1.3x。"
+        elif percentile >= 30.0:
+            valuation_zone = "合理估值区间 (估值中性)"
+            factor = 1.0
+            tips = "提示：估值处于常态百分位，建议保持基础定投计划，定投系数 1.0x。"
+        else:
+            valuation_zone = "估值偏贵区间 (高估区域)"
+            factor = 0.5
+            tips = "提示：股息率已被估值上涨稀释，性价比偏低，定投系数下调至 0.5x 以控制建仓成本。"
+
+    elif role == 'domestic_beta':
+        if pe_list:
+            count = sum(1 for p in pe_list if p < current_pe)
+            percentile = round((count / len(pe_list)) * 100, 1)
+        
+        if percentile <= 30.0:
+            valuation_zone = "极具性价比 (国内宽基低估)"
+            factor = 1.2
+            tips = "提示：沪深300指数估值处于历史低估分位，长期配置性价比凸显，定投系数上调至 1.2x。"
+        elif percentile <= 70.0:
+            valuation_zone = "合理估值区间 (估值中性)"
+            factor = 1.0
+            tips = "提示：宽基估值处于历史常态水平，建议按基础定投稳步积累，系数 1.0x。"
+        else:
+            valuation_zone = "估值偏贵区间 (宽基估值高企)"
+            factor = 0.6
+            tips = "提示：沪深300估值已进入历史高估区域，适当下调定投金额，系数 0.6x。"
+
+    elif role == 'tech_growth':
+        if pe_list:
+            count = sum(1 for p in pe_list if p < current_pe)
+            percentile = round((count / len(pe_list)) * 100, 1)
+
+        if percentile <= 25.0:
+            valuation_zone = "超跌低估区间 (科技成长蓄势)"
+            factor = 1.3
+            tips = "提示：科技类资产估值进入历史极低分水位，具备极强向上增长弹性，定投系数调高至 1.3x。"
+        elif percentile <= 75.0:
+            valuation_zone = "合理估值区间 (估值中性)"
+            factor = 1.0
+            tips = "提示：科技指数估值温和，建议保持常规的小额定投频率，定投系数 1.0x。"
+        else:
+            valuation_zone = "情绪过热区间 (科技估值透支)"
+            factor = 0.4
+            tips = "提示：科技成长股情绪过热，估值高位溢价，为防范高位被套，定投系数下调至 0.4x。"
+
+    elif role == 'overseas_beta':
+        if pe_list:
+            count = sum(1 for p in pe_list if p < current_pe)
+            percentile = round((count / len(pe_list)) * 100, 1)
+
+        if percentile <= 30.0:
+            valuation_zone = "低估配置区域 (海外宽基低估)"
+            factor = 1.1
+            tips = "提示：海外指数估值偏低，定投系数微调至 1.1x。注意换汇点位，人民币过弱时溢价风险增加。"
+        elif percentile <= 70.0:
+            valuation_zone = "合理估值区间 (估值中性)"
+            factor = 1.0
+            tips = "提示：海外宽基估值合理，定投系数 1.0x。建议分批换汇以平滑汇率波动。"
+        else:
+            valuation_zone = "高估警戒区域 (海外宽基高估)"
+            factor = 0.5
+            tips = "提示：海外指数市盈率偏高，定投系数降低至 0.5x。防止高位接盘和人民币贬值被套双重风险。"
+
+    return {
+        'hasHistory': True,
+        'percentile': percentile,
+        'factor': factor,
+        'pe': f"{current_pe:.2f}",
+        'pb': f"{current_pb:.2f}",
+        'dividend_yield': f"{current_dy:.2f}%",
+        'valuationZone': valuation_zone,
+        'tips': tips
+    }
+
+
+def run_stress_test(weights, assets, invest_principal, monthly_withdraw, buffer_months, money_market_rate, stress_params):
+    """
+    4. 极端市况压力测试
+    stress_params: dict containing 'drawdown' (dict of role->pct) and 'dividendDrop' (dict of role->pct)
+    """
+    if isinstance(assets, list):
+        assets_dict = {item['code']: item for item in assets}
+    else:
+        assets_dict = assets
+
+    start_buffer = buffer_months * monthly_withdraw
+    stress_buffer_balance = [start_buffer]
+    stress_dividends_history = []
+    interest_earned_history = []
+    breached_at_month = None
+    months_range = 36
+
+    initial_portfolio_val = invest_principal * 10000.0  # 元
+    stressed_portfolio_val = 0.0
+
+    for code, asset in assets_dict.items():
+        weight = float(weights.get(code, 0.0))
+        asset_val = initial_portfolio_val * (weight / 100.0)
+        role = asset.get('role', '')
+
+        drawdown_ratio = stress_params.get('drawdown', {}).get(role, 30.0)
+        stressed_portfolio_val += asset_val * (1.0 - drawdown_ratio / 100.0)
+
+    max_net_worth_drawdown = ((initial_portfolio_val - stressed_portfolio_val) / initial_portfolio_val) * 100.0 if initial_portfolio_val > 0 else 0.0
+
+    for t in range(1, months_range + 1):
+        c_month = ((t - 1) % 12) + 1
+
+        month_dividend = 0.0
+        for code, asset in assets_dict.items():
+            weight = float(weights.get(code, 0.0))
+            current_yield = asset.get('yield') if asset.get('yield') is not None else asset.get('estimated_yield', 0.0)
+
+            if asset.get('income_type') in ['dividend', 'cash_interest']:
+                dist_months = asset.get('distribution_months', {})
+                month_dist_ratio = dist_months.get(str(c_month)) or dist_months.get(c_month) or 0.0
+                if month_dist_ratio > 0.0:
+                    asset_val = invest_principal * (weight / 100.0) * 10000.0  # 元
+                    role = asset.get('role', '')
+                    asset_drawdown = stress_params.get('drawdown', {}).get(role, 30.0)
+                    stressed_asset_val = asset_val * (1.0 - asset_drawdown / 100.0)
+
+                    div_drop = stress_params.get('dividendDrop', {}).get(role, 20.0)
+                    stressed_yield = current_yield * (1.0 - div_drop / 100.0)
+
+                    month_dividend += stressed_asset_val * (stressed_yield / 100.0) * month_dist_ratio
+
+        current_interest = stress_buffer_balance[-1] * (money_market_rate / 12.0)
+        next_balance = stress_buffer_balance[-1] + month_dividend + current_interest - monthly_withdraw
+
+        stress_dividends_history.append(month_dividend)
+        interest_earned_history.append(current_interest)
+        stress_buffer_balance.append(next_balance)
+
+        if next_balance < 0 and breached_at_month is None:
+            breached_at_month = t
+
+    stressed_buffer_history = stress_buffer_balance[:-1]
+
+    return {
+        'stressedBufferHistory': stressed_buffer_history,
+        'stressDividendsHistory': stress_dividends_history,
+        'interestEarnedHistory': interest_earned_history,
+        'breachedAtMonth': breached_at_month,
+        'maxNetWorthDrawdown': max_net_worth_drawdown,
+        'isBreached': breached_at_month is not None,
+        'minStressedBuffer': min(stressed_buffer_history) if stressed_buffer_history else 0.0
+    }
+
+
+def evaluate_family_profile(fd, investable_assets, net_worth, total_assets, leverage, repay_income_ratio, surplus_ratio, cash_coverage_months, investment_goal_codes, risk_tolerance_code):
+    """
+    5. 家庭财务画像体检
+    """
+    profile_key = "balanced"
+    profile_title = "⚖️ 均衡发展型家庭"
+    profile_diag = "家庭资产负债结构中性，流动性防线与增长资产比例处于大致平稳的状态。"
+    quote = "“维护资产流动性与成长性的平衡是长胜法则。不要冒无谓的风险，用纪律抵抗市场情绪。”"
+    border_color = "var(--text-secondary)"
+
+    safety = 30
+    longterm = 50
+    hedge = 20
+    reason = "红利负责稳健派息现金流，宽基与科技负责博取长期增值弹性，黄金对冲极端宏观不确定性，现金缓冲锁定日常开销，确保家庭无被迫割肉变现之忧。"
+
+    has_short_term_large_expense = (
+        fd.get('expense-buyhouse') or fd.get('expense-edu') or fd.get('expense-med') or 
+        fd.get('expense-biz') or fd.get('expense-city') or fd.get('expense-other')
+    )
+
+    is_low_cash = cash_coverage_months < 6
+    is_high_debt = leverage > 0.5 or repay_income_ratio > 0.35
+    is_low_surplus = surplus_ratio < 0.15
+
+    is_prohibit_aggressive = is_low_cash or is_high_debt or is_low_surplus
+
+    if is_high_debt:
+        profile_key = "leverage"
+        profile_title = "🚨 债务高锁型家庭"
+        profile_diag = "家庭负债率偏高，或每月贷款偿还比例已超出安全红线，现金流极易断裂。"
+        quote = "“别让时间约束变成情绪惩罚。高额负债不仅锁死了本金弹性，更放大了市场大跌时的心理恐慌。”"
+        border_color = "var(--accent-red)"
+        safety = 50
+        longterm = 30
+        hedge = 20
+        reason = "鉴于家庭负债偏高，安全防御资产应占据首要核心位置（50%），限制或禁止高波动的科技/海外成长性配置，防止市场下行与偿债支出重叠时被动清仓。"
+    elif is_low_cash or is_low_surplus:
+        profile_key = "tight"
+        profile_title = "⚠️ 现金流脆弱型家庭"
+        profile_diag = "月度储蓄率不足，或者应急备用金储备少于6个月固定生活费。"
+        quote = "“现金不是最便宜的资产，它是让你在市场底部拿到留在牌桌上的入场券。优先充实池水。”"
+        border_color = "var(--accent-red)"
+        safety = 60
+        longterm = 20
+        hedge = 20
+        reason = "优先使用流动资产和红利低波资产积攒至少12个月的应急现金防御墙（安全桶拉升至60%），待收支结余率与现金池充裕后，再逐步增配增长资产。"
+    elif cash_coverage_months >= 12 and surplus_ratio >= 0.25 and risk_tolerance_code >= 5:
+        profile_key = "stable"
+        profile_title = "💎 稳健积累型家庭"
+        profile_diag = "负债水平极低，每月结余能力强，且手握超过一年的固定开支现金储备，具备扎实的抗冲击底气。"
+        quote = "“这类家庭拥有极高的财务喘息空间，可以更加注重长期大类资产配置的‘再平衡纪律’，分享企业增长红利。”"
+        border_color = "var(--accent-emerald)"
+        safety = 20
+        longterm = 65
+        hedge = 15
+        reason = "由于财务底子扎实且风险承受期长，可缩减安全备用金至 20%，增配国内沪深300（经济Beta）、纳斯达克/科创50（科技增长）以及黄金对冲，最大化分享复利增值。"
+    elif investable_assets > 0.0 and ((fd.get('ast-cash', 0) + fd.get('ast-mmf', 0)) / investable_assets) > 0.7 and not has_short_term_large_expense:
+        profile_key = "conservative"
+        profile_title = "🛡️ 现金沉淀型家庭"
+        profile_diag = "家庭极度保守，绝大部分可投资资产以现金或货币基金沉淀，未能建立对抗通胀的被动权益防线。"
+        quote = "“全存现金的风险在于通货膨胀对实际购买力的隐性吞噬。安全感不应以未来购买力的缩水为隐性代价。”"
+        border_color = "var(--accent-blue)"
+        safety = 30
+        longterm = 55
+        hedge = 15
+        reason = "保留 6-12 个月应急现金，将其余长期闲置的积淀现金分批配置到被动宽基（国内+海外）和红利低波指基中，获取 6%~8% 的加权年化回报以战胜通胀风险。"
+
+    return {
+        'profileKey': profile_key,
+        'profileTitle': profile_title,
+        'profileDiag': profile_diag,
+        'quote': quote,
+        'borderColor': border_color,
+        'safety': safety,
+        'longterm': longterm,
+        'hedge': hedge,
+        'reason': reason,
+        'isProhibitAggressive': is_prohibit_aggressive
+    }

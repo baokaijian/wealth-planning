@@ -1265,5 +1265,1272 @@
     "dividend_yield": 5.78,
     "pe": 5.91,
     "pb": 0.65
+  },
+  {
+    "date": "2023-01-06",
+    "index_code": "000300",
+    "dividend_yield": 2.48,
+    "pe": 11.59,
+    "pb": 1.36
+  },
+  {
+    "date": "2023-01-13",
+    "index_code": "000300",
+    "dividend_yield": 2.5,
+    "pe": 11.54,
+    "pb": 1.35
+  },
+  {
+    "date": "2023-01-20",
+    "index_code": "000300",
+    "dividend_yield": 2.52,
+    "pe": 11.49,
+    "pb": 1.35
+  },
+  {
+    "date": "2023-01-27",
+    "index_code": "000300",
+    "dividend_yield": 2.53,
+    "pe": 11.49,
+    "pb": 1.34
+  },
+  {
+    "date": "2023-02-03",
+    "index_code": "000300",
+    "dividend_yield": 2.55,
+    "pe": 11.43,
+    "pb": 1.34
+  },
+  {
+    "date": "2023-02-10",
+    "index_code": "000300",
+    "dividend_yield": 2.57,
+    "pe": 11.39,
+    "pb": 1.33
+  },
+  {
+    "date": "2023-02-17",
+    "index_code": "000300",
+    "dividend_yield": 2.58,
+    "pe": 11.39,
+    "pb": 1.33
+  },
+  {
+    "date": "2023-02-24",
+    "index_code": "000300",
+    "dividend_yield": 2.6,
+    "pe": 11.35,
+    "pb": 1.32
+  },
+  {
+    "date": "2023-03-03",
+    "index_code": "000300",
+    "dividend_yield": 2.62,
+    "pe": 11.32,
+    "pb": 1.32
+  },
+  {
+    "date": "2023-03-10",
+    "index_code": "000300",
+    "dividend_yield": 2.64,
+    "pe": 11.28,
+    "pb": 1.31
+  },
+  {
+    "date": "2023-03-17",
+    "index_code": "000300",
+    "dividend_yield": 2.65,
+    "pe": 11.29,
+    "pb": 1.31
+  },
+  {
+    "date": "2023-03-24",
+    "index_code": "000300",
+    "dividend_yield": 2.67,
+    "pe": 11.26,
+    "pb": 1.3
+  },
+  {
+    "date": "2023-03-31",
+    "index_code": "000300",
+    "dividend_yield": 2.68,
+    "pe": 11.24,
+    "pb": 1.3
+  },
+  {
+    "date": "2023-04-07",
+    "index_code": "000300",
+    "dividend_yield": 2.7,
+    "pe": 11.24,
+    "pb": 1.3
+  },
+  {
+    "date": "2023-04-14",
+    "index_code": "000300",
+    "dividend_yield": 2.71,
+    "pe": 11.21,
+    "pb": 1.29
+  },
+  {
+    "date": "2023-04-21",
+    "index_code": "000300",
+    "dividend_yield": 2.73,
+    "pe": 11.19,
+    "pb": 1.28
+  },
+  {
+    "date": "2023-04-28",
+    "index_code": "000300",
+    "dividend_yield": 2.74,
+    "pe": 11.21,
+    "pb": 1.28
+  },
+  {
+    "date": "2023-05-05",
+    "index_code": "000300",
+    "dividend_yield": 2.76,
+    "pe": 11.18,
+    "pb": 1.28
+  },
+  {
+    "date": "2023-05-12",
+    "index_code": "000300",
+    "dividend_yield": 2.77,
+    "pe": 11.17,
+    "pb": 1.27
+  },
+  {
+    "date": "2023-05-19",
+    "index_code": "000300",
+    "dividend_yield": 2.78,
+    "pe": 11.2,
+    "pb": 1.27
+  },
+  {
+    "date": "2023-05-26",
+    "index_code": "000300",
+    "dividend_yield": 2.8,
+    "pe": 11.18,
+    "pb": 1.27
+  },
+  {
+    "date": "2023-06-02",
+    "index_code": "000300",
+    "dividend_yield": 2.81,
+    "pe": 11.15,
+    "pb": 1.26
+  },
+  {
+    "date": "2023-06-09",
+    "index_code": "000300",
+    "dividend_yield": 2.82,
+    "pe": 11.18,
+    "pb": 1.26
+  },
+  {
+    "date": "2023-06-16",
+    "index_code": "000300",
+    "dividend_yield": 2.84,
+    "pe": 11.17,
+    "pb": 1.25
+  },
+  {
+    "date": "2023-06-23",
+    "index_code": "000300",
+    "dividend_yield": 2.85,
+    "pe": 11.16,
+    "pb": 1.25
+  },
+  {
+    "date": "2023-06-30",
+    "index_code": "000300",
+    "dividend_yield": 2.86,
+    "pe": 11.15,
+    "pb": 1.25
+  },
+  {
+    "date": "2023-07-07",
+    "index_code": "000300",
+    "dividend_yield": 2.87,
+    "pe": 11.18,
+    "pb": 1.24
+  },
+  {
+    "date": "2023-07-14",
+    "index_code": "000300",
+    "dividend_yield": 2.88,
+    "pe": 11.17,
+    "pb": 1.24
+  },
+  {
+    "date": "2023-07-21",
+    "index_code": "000300",
+    "dividend_yield": 2.89,
+    "pe": 11.16,
+    "pb": 1.24
+  },
+  {
+    "date": "2023-07-28",
+    "index_code": "000300",
+    "dividend_yield": 2.9,
+    "pe": 11.2,
+    "pb": 1.24
+  },
+  {
+    "date": "2023-08-04",
+    "index_code": "000300",
+    "dividend_yield": 2.91,
+    "pe": 11.18,
+    "pb": 1.23
+  },
+  {
+    "date": "2023-08-11",
+    "index_code": "000300",
+    "dividend_yield": 2.92,
+    "pe": 11.17,
+    "pb": 1.23
+  },
+  {
+    "date": "2023-08-18",
+    "index_code": "000300",
+    "dividend_yield": 2.92,
+    "pe": 11.21,
+    "pb": 1.23
+  },
+  {
+    "date": "2023-08-25",
+    "index_code": "000300",
+    "dividend_yield": 2.93,
+    "pe": 11.2,
+    "pb": 1.22
+  },
+  {
+    "date": "2023-09-01",
+    "index_code": "000300",
+    "dividend_yield": 2.94,
+    "pe": 11.18,
+    "pb": 1.22
+  },
+  {
+    "date": "2023-09-08",
+    "index_code": "000300",
+    "dividend_yield": 2.94,
+    "pe": 11.22,
+    "pb": 1.22
+  },
+  {
+    "date": "2023-09-15",
+    "index_code": "000300",
+    "dividend_yield": 2.95,
+    "pe": 11.21,
+    "pb": 1.22
+  },
+  {
+    "date": "2023-09-22",
+    "index_code": "000300",
+    "dividend_yield": 2.96,
+    "pe": 11.21,
+    "pb": 1.22
+  },
+  {
+    "date": "2023-09-29",
+    "index_code": "000300",
+    "dividend_yield": 3.01,
+    "pe": 10.74,
+    "pb": 1.19
+  },
+  {
+    "date": "2023-10-06",
+    "index_code": "000300",
+    "dividend_yield": 2.97,
+    "pe": 11.18,
+    "pb": 1.21
+  },
+  {
+    "date": "2023-10-13",
+    "index_code": "000300",
+    "dividend_yield": 2.97,
+    "pe": 11.17,
+    "pb": 1.21
+  },
+  {
+    "date": "2023-10-20",
+    "index_code": "000300",
+    "dividend_yield": 2.98,
+    "pe": 11.17,
+    "pb": 1.21
+  },
+  {
+    "date": "2023-10-27",
+    "index_code": "000300",
+    "dividend_yield": 2.98,
+    "pe": 11.2,
+    "pb": 1.21
+  },
+  {
+    "date": "2023-11-03",
+    "index_code": "000300",
+    "dividend_yield": 2.98,
+    "pe": 11.18,
+    "pb": 1.21
+  },
+  {
+    "date": "2023-11-10",
+    "index_code": "000300",
+    "dividend_yield": 2.98,
+    "pe": 11.17,
+    "pb": 1.21
+  },
+  {
+    "date": "2023-11-17",
+    "index_code": "000300",
+    "dividend_yield": 2.98,
+    "pe": 11.2,
+    "pb": 1.21
+  },
+  {
+    "date": "2023-11-24",
+    "index_code": "000300",
+    "dividend_yield": 2.98,
+    "pe": 11.19,
+    "pb": 1.21
+  },
+  {
+    "date": "2023-12-01",
+    "index_code": "000300",
+    "dividend_yield": 2.98,
+    "pe": 11.17,
+    "pb": 1.21
+  },
+  {
+    "date": "2023-12-08",
+    "index_code": "000300",
+    "dividend_yield": 2.98,
+    "pe": 11.21,
+    "pb": 1.21
+  },
+  {
+    "date": "2023-12-15",
+    "index_code": "000300",
+    "dividend_yield": 2.98,
+    "pe": 11.2,
+    "pb": 1.21
+  },
+  {
+    "date": "2023-12-22",
+    "index_code": "000300",
+    "dividend_yield": 2.97,
+    "pe": 11.18,
+    "pb": 1.21
+  },
+  {
+    "date": "2023-12-29",
+    "index_code": "000300",
+    "dividend_yield": 2.97,
+    "pe": 11.22,
+    "pb": 1.21
+  },
+  {
+    "date": "2024-01-05",
+    "index_code": "000300",
+    "dividend_yield": 2.97,
+    "pe": 11.18,
+    "pb": 1.21
+  },
+  {
+    "date": "2024-01-12",
+    "index_code": "000300",
+    "dividend_yield": 2.96,
+    "pe": 11.17,
+    "pb": 1.21
+  },
+  {
+    "date": "2024-01-19",
+    "index_code": "000300",
+    "dividend_yield": 2.96,
+    "pe": 11.2,
+    "pb": 1.22
+  },
+  {
+    "date": "2024-01-26",
+    "index_code": "000300",
+    "dividend_yield": 2.95,
+    "pe": 11.18,
+    "pb": 1.22
+  },
+  {
+    "date": "2024-02-02",
+    "index_code": "000300",
+    "dividend_yield": 2.95,
+    "pe": 11.16,
+    "pb": 1.22
+  },
+  {
+    "date": "2024-02-09",
+    "index_code": "000300",
+    "dividend_yield": 2.94,
+    "pe": 11.19,
+    "pb": 1.22
+  },
+  {
+    "date": "2024-02-16",
+    "index_code": "000300",
+    "dividend_yield": 2.93,
+    "pe": 11.17,
+    "pb": 1.22
+  },
+  {
+    "date": "2024-02-23",
+    "index_code": "000300",
+    "dividend_yield": 2.92,
+    "pe": 11.16,
+    "pb": 1.23
+  },
+  {
+    "date": "2024-03-01",
+    "index_code": "000300",
+    "dividend_yield": 2.92,
+    "pe": 11.14,
+    "pb": 1.23
+  },
+  {
+    "date": "2024-03-08",
+    "index_code": "000300",
+    "dividend_yield": 2.91,
+    "pe": 11.17,
+    "pb": 1.23
+  },
+  {
+    "date": "2024-03-15",
+    "index_code": "000300",
+    "dividend_yield": 2.9,
+    "pe": 11.16,
+    "pb": 1.23
+  },
+  {
+    "date": "2024-03-22",
+    "index_code": "000300",
+    "dividend_yield": 2.89,
+    "pe": 11.15,
+    "pb": 1.24
+  },
+  {
+    "date": "2024-03-29",
+    "index_code": "000300",
+    "dividend_yield": 2.87,
+    "pe": 11.18,
+    "pb": 1.24
+  },
+  {
+    "date": "2024-04-05",
+    "index_code": "000300",
+    "dividend_yield": 2.87,
+    "pe": 11.16,
+    "pb": 1.24
+  },
+  {
+    "date": "2024-04-12",
+    "index_code": "000300",
+    "dividend_yield": 2.86,
+    "pe": 11.15,
+    "pb": 1.25
+  },
+  {
+    "date": "2024-04-19",
+    "index_code": "000300",
+    "dividend_yield": 2.84,
+    "pe": 11.18,
+    "pb": 1.25
+  },
+  {
+    "date": "2024-04-26",
+    "index_code": "000300",
+    "dividend_yield": 2.83,
+    "pe": 11.17,
+    "pb": 1.26
+  },
+  {
+    "date": "2024-05-03",
+    "index_code": "000300",
+    "dividend_yield": 2.82,
+    "pe": 11.15,
+    "pb": 1.26
+  },
+  {
+    "date": "2024-05-10",
+    "index_code": "000300",
+    "dividend_yield": 2.81,
+    "pe": 11.15,
+    "pb": 1.26
+  },
+  {
+    "date": "2024-05-17",
+    "index_code": "000300",
+    "dividend_yield": 2.79,
+    "pe": 11.19,
+    "pb": 1.27
+  },
+  {
+    "date": "2024-05-24",
+    "index_code": "000300",
+    "dividend_yield": 2.78,
+    "pe": 11.18,
+    "pb": 1.27
+  },
+  {
+    "date": "2024-05-31",
+    "index_code": "000300",
+    "dividend_yield": 2.76,
+    "pe": 11.18,
+    "pb": 1.27
+  },
+  {
+    "date": "2024-06-07",
+    "index_code": "000300",
+    "dividend_yield": 2.75,
+    "pe": 11.21,
+    "pb": 1.28
+  },
+  {
+    "date": "2024-06-14",
+    "index_code": "000300",
+    "dividend_yield": 2.73,
+    "pe": 11.21,
+    "pb": 1.28
+  },
+  {
+    "date": "2024-06-21",
+    "index_code": "000300",
+    "dividend_yield": 2.72,
+    "pe": 11.21,
+    "pb": 1.29
+  },
+  {
+    "date": "2024-06-28",
+    "index_code": "000300",
+    "dividend_yield": 2.7,
+    "pe": 11.26,
+    "pb": 1.29
+  },
+  {
+    "date": "2024-07-05",
+    "index_code": "000300",
+    "dividend_yield": 2.69,
+    "pe": 11.26,
+    "pb": 1.3
+  },
+  {
+    "date": "2024-07-12",
+    "index_code": "000300",
+    "dividend_yield": 2.67,
+    "pe": 11.26,
+    "pb": 1.3
+  },
+  {
+    "date": "2024-07-19",
+    "index_code": "000300",
+    "dividend_yield": 2.65,
+    "pe": 11.32,
+    "pb": 1.31
+  },
+  {
+    "date": "2024-07-26",
+    "index_code": "000300",
+    "dividend_yield": 2.64,
+    "pe": 11.33,
+    "pb": 1.31
+  },
+  {
+    "date": "2024-08-02",
+    "index_code": "000300",
+    "dividend_yield": 2.62,
+    "pe": 11.33,
+    "pb": 1.32
+  },
+  {
+    "date": "2024-08-09",
+    "index_code": "000300",
+    "dividend_yield": 2.6,
+    "pe": 11.39,
+    "pb": 1.32
+  },
+  {
+    "date": "2024-08-16",
+    "index_code": "000300",
+    "dividend_yield": 2.59,
+    "pe": 11.41,
+    "pb": 1.33
+  },
+  {
+    "date": "2024-08-23",
+    "index_code": "000300",
+    "dividend_yield": 2.57,
+    "pe": 11.43,
+    "pb": 1.33
+  },
+  {
+    "date": "2024-08-30",
+    "index_code": "000300",
+    "dividend_yield": 2.56,
+    "pe": 11.45,
+    "pb": 1.34
+  },
+  {
+    "date": "2024-09-06",
+    "index_code": "000300",
+    "dividend_yield": 2.54,
+    "pe": 11.5,
+    "pb": 1.34
+  },
+  {
+    "date": "2024-09-13",
+    "index_code": "000300",
+    "dividend_yield": 2.52,
+    "pe": 11.53,
+    "pb": 1.35
+  },
+  {
+    "date": "2024-09-20",
+    "index_code": "000300",
+    "dividend_yield": 2.5,
+    "pe": 11.55,
+    "pb": 1.35
+  },
+  {
+    "date": "2024-09-27",
+    "index_code": "000300",
+    "dividend_yield": 2.53,
+    "pe": 11.13,
+    "pb": 1.33
+  },
+  {
+    "date": "2024-10-04",
+    "index_code": "000300",
+    "dividend_yield": 2.47,
+    "pe": 11.61,
+    "pb": 1.36
+  },
+  {
+    "date": "2024-10-11",
+    "index_code": "000300",
+    "dividend_yield": 2.46,
+    "pe": 11.64,
+    "pb": 1.37
+  },
+  {
+    "date": "2024-10-18",
+    "index_code": "000300",
+    "dividend_yield": 2.44,
+    "pe": 11.72,
+    "pb": 1.37
+  },
+  {
+    "date": "2024-10-25",
+    "index_code": "000300",
+    "dividend_yield": 2.42,
+    "pe": 11.76,
+    "pb": 1.38
+  },
+  {
+    "date": "2024-11-01",
+    "index_code": "000300",
+    "dividend_yield": 2.4,
+    "pe": 11.78,
+    "pb": 1.38
+  },
+  {
+    "date": "2024-11-08",
+    "index_code": "000300",
+    "dividend_yield": 2.38,
+    "pe": 11.87,
+    "pb": 1.39
+  },
+  {
+    "date": "2024-11-15",
+    "index_code": "000300",
+    "dividend_yield": 2.37,
+    "pe": 11.91,
+    "pb": 1.39
+  },
+  {
+    "date": "2024-11-22",
+    "index_code": "000300",
+    "dividend_yield": 2.35,
+    "pe": 11.95,
+    "pb": 1.4
+  },
+  {
+    "date": "2024-11-29",
+    "index_code": "000300",
+    "dividend_yield": 2.33,
+    "pe": 12.04,
+    "pb": 1.4
+  },
+  {
+    "date": "2024-12-06",
+    "index_code": "000300",
+    "dividend_yield": 2.32,
+    "pe": 12.08,
+    "pb": 1.41
+  },
+  {
+    "date": "2024-12-13",
+    "index_code": "000300",
+    "dividend_yield": 2.3,
+    "pe": 12.12,
+    "pb": 1.41
+  },
+  {
+    "date": "2024-12-20",
+    "index_code": "000300",
+    "dividend_yield": 2.29,
+    "pe": 12.17,
+    "pb": 1.42
+  },
+  {
+    "date": "2024-12-27",
+    "index_code": "000300",
+    "dividend_yield": 2.27,
+    "pe": 12.27,
+    "pb": 1.42
+  },
+  {
+    "date": "2025-01-03",
+    "index_code": "000300",
+    "dividend_yield": 2.26,
+    "pe": 12.29,
+    "pb": 1.43
+  },
+  {
+    "date": "2025-01-10",
+    "index_code": "000300",
+    "dividend_yield": 2.24,
+    "pe": 12.34,
+    "pb": 1.43
+  },
+  {
+    "date": "2025-01-17",
+    "index_code": "000300",
+    "dividend_yield": 2.22,
+    "pe": 12.44,
+    "pb": 1.44
+  },
+  {
+    "date": "2025-01-24",
+    "index_code": "000300",
+    "dividend_yield": 2.21,
+    "pe": 12.49,
+    "pb": 1.44
+  },
+  {
+    "date": "2025-01-31",
+    "index_code": "000300",
+    "dividend_yield": 2.2,
+    "pe": 12.54,
+    "pb": 1.45
+  },
+  {
+    "date": "2025-02-07",
+    "index_code": "000300",
+    "dividend_yield": 2.18,
+    "pe": 12.62,
+    "pb": 1.45
+  },
+  {
+    "date": "2025-02-14",
+    "index_code": "000300",
+    "dividend_yield": 2.17,
+    "pe": 12.67,
+    "pb": 1.45
+  },
+  {
+    "date": "2025-02-21",
+    "index_code": "000300",
+    "dividend_yield": 2.15,
+    "pe": 12.71,
+    "pb": 1.46
+  },
+  {
+    "date": "2025-02-28",
+    "index_code": "000300",
+    "dividend_yield": 2.14,
+    "pe": 12.81,
+    "pb": 1.46
+  },
+  {
+    "date": "2025-03-07",
+    "index_code": "000300",
+    "dividend_yield": 2.13,
+    "pe": 12.86,
+    "pb": 1.47
+  },
+  {
+    "date": "2025-03-14",
+    "index_code": "000300",
+    "dividend_yield": 2.12,
+    "pe": 12.9,
+    "pb": 1.47
+  },
+  {
+    "date": "2025-03-21",
+    "index_code": "000300",
+    "dividend_yield": 2.1,
+    "pe": 12.95,
+    "pb": 1.47
+  },
+  {
+    "date": "2025-03-28",
+    "index_code": "000300",
+    "dividend_yield": 2.09,
+    "pe": 13.04,
+    "pb": 1.48
+  },
+  {
+    "date": "2025-04-04",
+    "index_code": "000300",
+    "dividend_yield": 2.08,
+    "pe": 13.07,
+    "pb": 1.48
+  },
+  {
+    "date": "2025-04-11",
+    "index_code": "000300",
+    "dividend_yield": 2.07,
+    "pe": 13.11,
+    "pb": 1.48
+  },
+  {
+    "date": "2025-04-18",
+    "index_code": "000300",
+    "dividend_yield": 2.06,
+    "pe": 13.19,
+    "pb": 1.49
+  },
+  {
+    "date": "2025-04-25",
+    "index_code": "000300",
+    "dividend_yield": 2.05,
+    "pe": 13.23,
+    "pb": 1.49
+  },
+  {
+    "date": "2025-05-02",
+    "index_code": "000300",
+    "dividend_yield": 2.04,
+    "pe": 13.25,
+    "pb": 1.49
+  },
+  {
+    "date": "2025-05-09",
+    "index_code": "000300",
+    "dividend_yield": 2.03,
+    "pe": 13.33,
+    "pb": 1.49
+  },
+  {
+    "date": "2025-05-16",
+    "index_code": "000300",
+    "dividend_yield": 2.03,
+    "pe": 13.36,
+    "pb": 1.5
+  },
+  {
+    "date": "2025-05-23",
+    "index_code": "000300",
+    "dividend_yield": 2.02,
+    "pe": 13.39,
+    "pb": 1.5
+  },
+  {
+    "date": "2025-05-30",
+    "index_code": "000300",
+    "dividend_yield": 2.01,
+    "pe": 13.42,
+    "pb": 1.5
+  },
+  {
+    "date": "2025-06-06",
+    "index_code": "000300",
+    "dividend_yield": 2.01,
+    "pe": 13.47,
+    "pb": 1.5
+  },
+  {
+    "date": "2025-06-13",
+    "index_code": "000300",
+    "dividend_yield": 2.0,
+    "pe": 13.49,
+    "pb": 1.5
+  },
+  {
+    "date": "2025-06-20",
+    "index_code": "000300",
+    "dividend_yield": 2.0,
+    "pe": 13.51,
+    "pb": 1.5
+  },
+  {
+    "date": "2025-06-27",
+    "index_code": "000300",
+    "dividend_yield": 1.99,
+    "pe": 13.56,
+    "pb": 1.51
+  },
+  {
+    "date": "2025-07-04",
+    "index_code": "000300",
+    "dividend_yield": 1.99,
+    "pe": 13.56,
+    "pb": 1.51
+  },
+  {
+    "date": "2025-07-11",
+    "index_code": "000300",
+    "dividend_yield": 1.99,
+    "pe": 13.57,
+    "pb": 1.51
+  },
+  {
+    "date": "2025-07-18",
+    "index_code": "000300",
+    "dividend_yield": 1.98,
+    "pe": 13.62,
+    "pb": 1.51
+  },
+  {
+    "date": "2025-07-25",
+    "index_code": "000300",
+    "dividend_yield": 1.98,
+    "pe": 13.62,
+    "pb": 1.51
+  },
+  {
+    "date": "2025-08-01",
+    "index_code": "000300",
+    "dividend_yield": 1.98,
+    "pe": 13.6,
+    "pb": 1.51
+  },
+  {
+    "date": "2025-08-08",
+    "index_code": "000300",
+    "dividend_yield": 1.98,
+    "pe": 13.64,
+    "pb": 1.51
+  },
+  {
+    "date": "2025-08-15",
+    "index_code": "000300",
+    "dividend_yield": 1.98,
+    "pe": 13.63,
+    "pb": 1.51
+  },
+  {
+    "date": "2025-08-22",
+    "index_code": "000300",
+    "dividend_yield": 1.98,
+    "pe": 13.62,
+    "pb": 1.51
+  },
+  {
+    "date": "2025-08-29",
+    "index_code": "000300",
+    "dividend_yield": 2.03,
+    "pe": 13.15,
+    "pb": 1.49
+  },
+  {
+    "date": "2025-09-05",
+    "index_code": "000300",
+    "dividend_yield": 1.98,
+    "pe": 13.62,
+    "pb": 1.51
+  },
+  {
+    "date": "2025-09-12",
+    "index_code": "000300",
+    "dividend_yield": 1.98,
+    "pe": 13.59,
+    "pb": 1.51
+  },
+  {
+    "date": "2025-09-19",
+    "index_code": "000300",
+    "dividend_yield": 2.03,
+    "pe": 13.11,
+    "pb": 1.49
+  },
+  {
+    "date": "2025-09-26",
+    "index_code": "000300",
+    "dividend_yield": 2.04,
+    "pe": 13.08,
+    "pb": 1.48
+  },
+  {
+    "date": "2025-10-03",
+    "index_code": "000300",
+    "dividend_yield": 2.0,
+    "pe": 13.5,
+    "pb": 1.5
+  },
+  {
+    "date": "2025-10-10",
+    "index_code": "000300",
+    "dividend_yield": 2.0,
+    "pe": 13.46,
+    "pb": 1.5
+  },
+  {
+    "date": "2025-10-17",
+    "index_code": "000300",
+    "dividend_yield": 2.0,
+    "pe": 13.47,
+    "pb": 1.5
+  },
+  {
+    "date": "2025-10-24",
+    "index_code": "000300",
+    "dividend_yield": 2.01,
+    "pe": 13.43,
+    "pb": 1.5
+  },
+  {
+    "date": "2025-10-31",
+    "index_code": "000300",
+    "dividend_yield": 2.02,
+    "pe": 13.38,
+    "pb": 1.5
+  },
+  {
+    "date": "2025-11-07",
+    "index_code": "000300",
+    "dividend_yield": 2.02,
+    "pe": 13.37,
+    "pb": 1.5
+  },
+  {
+    "date": "2025-11-14",
+    "index_code": "000300",
+    "dividend_yield": 2.03,
+    "pe": 13.32,
+    "pb": 1.49
+  },
+  {
+    "date": "2025-11-21",
+    "index_code": "000300",
+    "dividend_yield": 2.04,
+    "pe": 13.27,
+    "pb": 1.49
+  },
+  {
+    "date": "2025-11-28",
+    "index_code": "000300",
+    "dividend_yield": 2.05,
+    "pe": 13.26,
+    "pb": 1.49
+  },
+  {
+    "date": "2025-12-05",
+    "index_code": "000300",
+    "dividend_yield": 2.06,
+    "pe": 13.19,
+    "pb": 1.49
+  },
+  {
+    "date": "2025-12-12",
+    "index_code": "000300",
+    "dividend_yield": 2.07,
+    "pe": 13.13,
+    "pb": 1.48
+  },
+  {
+    "date": "2025-12-19",
+    "index_code": "000300",
+    "dividend_yield": 2.07,
+    "pe": 13.12,
+    "pb": 1.48
+  },
+  {
+    "date": "2025-12-26",
+    "index_code": "000300",
+    "dividend_yield": 2.09,
+    "pe": 13.05,
+    "pb": 1.48
+  },
+  {
+    "date": "2026-01-02",
+    "index_code": "000300",
+    "dividend_yield": 2.1,
+    "pe": 12.97,
+    "pb": 1.47
+  },
+  {
+    "date": "2026-01-09",
+    "index_code": "000300",
+    "dividend_yield": 2.11,
+    "pe": 12.95,
+    "pb": 1.47
+  },
+  {
+    "date": "2026-01-16",
+    "index_code": "000300",
+    "dividend_yield": 2.12,
+    "pe": 12.88,
+    "pb": 1.47
+  },
+  {
+    "date": "2026-01-23",
+    "index_code": "000300",
+    "dividend_yield": 2.13,
+    "pe": 12.81,
+    "pb": 1.46
+  },
+  {
+    "date": "2026-01-30",
+    "index_code": "000300",
+    "dividend_yield": 2.15,
+    "pe": 12.74,
+    "pb": 1.46
+  },
+  {
+    "date": "2026-02-06",
+    "index_code": "000300",
+    "dividend_yield": 2.16,
+    "pe": 12.71,
+    "pb": 1.46
+  },
+  {
+    "date": "2026-02-13",
+    "index_code": "000300",
+    "dividend_yield": 2.17,
+    "pe": 12.64,
+    "pb": 1.45
+  },
+  {
+    "date": "2026-02-20",
+    "index_code": "000300",
+    "dividend_yield": 2.19,
+    "pe": 12.57,
+    "pb": 1.45
+  },
+  {
+    "date": "2026-02-27",
+    "index_code": "000300",
+    "dividend_yield": 2.2,
+    "pe": 12.54,
+    "pb": 1.44
+  },
+  {
+    "date": "2026-03-06",
+    "index_code": "000300",
+    "dividend_yield": 2.21,
+    "pe": 12.47,
+    "pb": 1.44
+  },
+  {
+    "date": "2026-03-13",
+    "index_code": "000300",
+    "dividend_yield": 2.23,
+    "pe": 12.4,
+    "pb": 1.43
+  },
+  {
+    "date": "2026-03-20",
+    "index_code": "000300",
+    "dividend_yield": 2.25,
+    "pe": 12.33,
+    "pb": 1.43
+  },
+  {
+    "date": "2026-03-27",
+    "index_code": "000300",
+    "dividend_yield": 2.26,
+    "pe": 12.31,
+    "pb": 1.43
+  },
+  {
+    "date": "2026-04-03",
+    "index_code": "000300",
+    "dividend_yield": 2.28,
+    "pe": 12.22,
+    "pb": 1.42
+  },
+  {
+    "date": "2026-04-10",
+    "index_code": "000300",
+    "dividend_yield": 2.29,
+    "pe": 12.15,
+    "pb": 1.42
+  },
+  {
+    "date": "2026-04-17",
+    "index_code": "000300",
+    "dividend_yield": 2.31,
+    "pe": 12.13,
+    "pb": 1.41
+  },
+  {
+    "date": "2026-04-24",
+    "index_code": "000300",
+    "dividend_yield": 2.32,
+    "pe": 12.06,
+    "pb": 1.41
+  },
+  {
+    "date": "2026-05-01",
+    "index_code": "000300",
+    "dividend_yield": 2.34,
+    "pe": 11.99,
+    "pb": 1.4
+  },
+  {
+    "date": "2026-05-08",
+    "index_code": "000300",
+    "dividend_yield": 2.36,
+    "pe": 11.97,
+    "pb": 1.4
+  },
+  {
+    "date": "2026-05-15",
+    "index_code": "000300",
+    "dividend_yield": 2.37,
+    "pe": 11.91,
+    "pb": 1.39
+  },
+  {
+    "date": "2026-05-22",
+    "index_code": "000300",
+    "dividend_yield": 2.39,
+    "pe": 11.85,
+    "pb": 1.39
+  },
+  {
+    "date": "2026-05-29",
+    "index_code": "000300",
+    "dividend_yield": 2.46,
+    "pe": 11.33,
+    "pb": 1.36
+  },
+  {
+    "date": "2026-06-05",
+    "index_code": "000300",
+    "dividend_yield": 2.43,
+    "pe": 11.76,
+    "pb": 1.38
+  },
+  {
+    "date": "2026-06-12",
+    "index_code": "000300",
+    "dividend_yield": 2.44,
+    "pe": 11.7,
+    "pb": 1.37
+  },
+  {
+    "date": "2026-06-19",
+    "index_code": "000300",
+    "dividend_yield": 2.51,
+    "pe": 11.19,
+    "pb": 1.34
   }
 ]

@@ -18,13 +18,16 @@ except Exception as e:
 
 # ETF基准参数 (基准价格, 基准股息率)，用于根据最新价格反算实时股息率
 ETF_BASE = {
+    '511880': {'base_price': 100.0, 'base_yield': 1.8},
     '512890': {'base_price': 1.17, 'base_yield': 4.5},
     '515450': {'base_price': 1.43, 'base_yield': 4.2},
     '510880': {'base_price': 3.20, 'base_yield': 4.0},
-    '515080': {'base_price': 1.50, 'base_yield': 4.1},
     '513530': {'base_price': 1.61, 'base_yield': 4.8},
-    '511360': {'base_price': 108.0, 'base_yield': 2.5},
-    '518880': {'base_price': 4.50, 'base_yield': 0.0}
+    '510300': {'base_price': 3.50, 'base_yield': 1.5},
+    '588000': {'base_price': 0.80, 'base_yield': 0.2},
+    '513100': {'base_price': 1.30, 'base_yield': 0.5},
+    '518880': {'base_price': 4.50, 'base_yield': 0.0},
+    '511360': {'base_price': 108.0, 'base_yield': 2.5}
 }
 
 url = f"http://qt.gtimg.cn/q={','.join(SEC_IDS)}"
