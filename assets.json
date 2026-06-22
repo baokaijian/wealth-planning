@@ -1,0 +1,79 @@
+[
+  {
+    "code": "512890",
+    "name": "中证红利低波 ETF",
+    "type": "ETF",
+    "category": "A股红利",
+    "target_index": "中证红利低波指数",
+    "weight": 25.0,
+    "estimated_yield": 4.5,
+    "distribution_months": {"7": 0.5, "12": 0.5},
+    "risk_note": "A股市场波动风险及分红不及预期风险"
+  },
+  {
+    "code": "515450",
+    "name": "标普大盘红利低波 ETF",
+    "type": "ETF",
+    "category": "A股红利",
+    "target_index": "标普大盘红利低波指数",
+    "weight": 15.0,
+    "estimated_yield": 4.2,
+    "distribution_months": {"7": 1.0},
+    "risk_note": "标普大盘红利指数成分股分红调整风险"
+  },
+  {
+    "code": "510880",
+    "name": "华泰柏瑞红利 ETF",
+    "type": "ETF",
+    "category": "A股红利",
+    "target_index": "上证红利指数",
+    "weight": 15.0,
+    "estimated_yield": 4.0,
+    "distribution_months": {"12": 1.0},
+    "risk_note": "上证红利指数集中度偏高风险"
+  },
+  {
+    "code": "515080",
+    "name": "招商中证红利 ETF",
+    "type": "ETF",
+    "category": "A股红利",
+    "target_index": "中证红利指数",
+    "weight": 15.0,
+    "estimated_yield": 4.1,
+    "distribution_months": {"12": 1.0},
+    "risk_note": "中证红利指数样本股业绩下滑风险"
+  },
+  {
+    "code": "513530",
+    "name": "恒生红利低波 ETF",
+    "type": "ETF",
+    "category": "港股红利",
+    "target_index": "恒生红利低波指数",
+    "weight": 15.0,
+    "estimated_yield": 4.8,
+    "distribution_months": {"7": 0.5, "12": 0.5},
+    "risk_note": "港股通红利税（20%）扣减及汇率波动风险"
+  },
+  {
+    "code": "511360",
+    "name": "中债信用债 ETF",
+    "type": "ETF",
+    "category": "债券基金",
+    "target_index": "中债-信用债指数",
+    "weight": 10.0,
+    "estimated_yield": 2.5,
+    "distribution_months": {"6": 0.5, "12": 0.5},
+    "risk_note": "债券信用违约及利率上行价格波动风险"
+  },
+  {
+    "code": "518880",
+    "name": "华安黄金 ETF",
+    "type": "ETF",
+    "category": "商品基金",
+    "target_index": "黄金现货实盘价格",
+    "weight": 5.0,
+    "estimated_yield": 0.0,
+    "distribution_months": {},
+    "risk_note": "黄金资产无固定派息，主要面临金价及汇率波动风险"
+  }
+]

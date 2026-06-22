@@ -84,18 +84,39 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 初始配置参数：资产数据结构
+# 初始配置参数：资产数据结构 (从 assets.json 动态加载)
 # ==========================================
-DEFAULT_ASSETS = {
-    '512890': {'name': '中证红利低波 ETF', 'type': 'ETF', 'weight': 20.0, 'yield': 4.5, 'months': {7: 0.5, 12: 0.5}},
-    '515450': {'name': '标普大盘红利低波 ETF', 'type': 'ETF', 'weight': 15.0, 'yield': 4.2, 'months': {7: 1.0}},
-    '513530': {'name': '恒生红利低波 ETF', 'type': 'ETF', 'weight': 15.0, 'yield': 4.8, 'months': {7: 0.5, 12: 0.5}},
-    '600941': {'name': '中国移动 (个股)', 'type': 'Stock', 'weight': 10.0, 'yield': 6.0, 'months': {6: 0.6, 9: 0.4}},
-    '600900': {'name': '长江电力 (个股)', 'type': 'Stock', 'weight': 10.0, 'yield': 3.71, 'months': {7: 1.0}},
-    '601398': {'name': '工商银行 (个股)', 'type': 'Stock', 'weight': 10.0, 'yield': 5.5, 'months': {7: 0.7, 12: 0.3}},
-    '601088': {'name': '中国神华 (个股)', 'type': 'Stock', 'weight': 10.0, 'yield': 4.77, 'months': {7: 1.0}},
-    '601668': {'name': '中国建筑 (个股)', 'type': 'Stock', 'weight': 10.0, 'yield': 5.52, 'months': {6: 1.0}}
-}
+import os
+import json
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+assets_path = os.path.join(script_dir, 'assets.json')
+
+try:
+    with open(assets_path, 'r', encoding='utf-8') as f:
+        assets_list = json.load(f)
+    DEFAULT_ASSETS = {}
+    for item in assets_list:
+        code = item['code']
+        months_int = {int(k): v for k, v in item['distribution_months'].items()}
+        DEFAULT_ASSETS[code] = {
+            'name': item['name'],
+            'type': item['type'],
+            'weight': item['weight'],
+            'yield': item['estimated_yield'],
+            'months': months_int
+        }
+except Exception as e:
+    # 备用硬编码以防万一
+    DEFAULT_ASSETS = {
+        '512890': {'name': '中证红利低波 ETF', 'type': 'ETF', 'weight': 25.0, 'yield': 4.5, 'months': {7: 0.5, 12: 0.5}},
+        '515450': {'name': '标普大盘红利低波 ETF', 'type': 'ETF', 'weight': 15.0, 'yield': 4.2, 'months': {7: 1.0}},
+        '510880': {'name': '华泰柏瑞红利 ETF', 'type': 'ETF', 'weight': 15.0, 'yield': 4.0, 'months': {12: 1.0}},
+        '515080': {'name': '招商中证红利 ETF', 'type': 'ETF', 'weight': 15.0, 'yield': 4.1, 'months': {12: 1.0}},
+        '513530': {'name': '恒生红利低波 ETF', 'type': 'ETF', 'weight': 15.0, 'yield': 4.8, 'months': {7: 0.5, 12: 0.5}},
+        '511360': {'name': '中债信用债 ETF', 'type': 'ETF', 'weight': 10.0, 'yield': 2.5, 'months': {6: 0.5, 12: 0.5}},
+        '518880': {'name': '华安黄金 ETF', 'type': 'ETF', 'weight': 5.0, 'yield': 0.0, 'months': {}}
+    }
 
 # ==========================================
 # 侧边栏：核心交互设置
@@ -104,7 +125,7 @@ st.sidebar.markdown("<h2 style='color:#10B981;text-align:center;margin-bottom:20
 
 menu = st.sidebar.radio(
     "功能模块导航",
-    ["1. 资产配置与股息看板", "2. 缓冲池与现金流模拟", "3. 估值温度计与建仓建议", "4. 资产记账与年度平衡"],
+    ["1. 资产配置与股息看板", "2. 缓冲池与现金流模拟", "3. 估值温度计与测算工具", "4. 资产记账与再平衡提示"],
     index=0
 )
 
@@ -371,11 +392,11 @@ elif menu == "2. 缓冲池与现金流模拟":
         }))
 
 # ==========================================
-# 模块 3: 估值温度计与建仓建议
+# 模块 3: 估值温度计与测算工具
 # ==========================================
-elif menu == "3. 估值温度计与建仓建议":
-    st.markdown("<h1 style='color:#FFFFFF; margin-bottom:10px;'>🌡️ 估值温度计与建仓智能助手</h1>", unsafe_allow_html=True)
-    st.write("红利策略的核心法则：**在股息率高（估值便宜）时加大买入，在股息率低（估值昂贵）时减少或暂停买入**。本模块监控红利指数温度，并动态生成建仓额度建议。")
+elif menu == "3. 估值温度计与测算工具":
+    st.markdown("<h1 style='color:#FFFFFF; margin-bottom:10px;'>🌡️ 估值温度计与测算助手</h1>", unsafe_allow_html=True)
+    st.write("红利策略的核心法则：**在股息率高（估值便宜）时加大买入，在股息率低（估值昂贵）时减少或暂停买入**。本模块监控红利指数温度，并进行额度测算。")
     
     # 模拟数据：红利低波指数的历史股息率波动 (例如 3.8% ~ 6.2%)
     np.random.seed(42)
@@ -395,17 +416,17 @@ elif menu == "3. 估值温度计与建仓建议":
         valuation_zone = "极具性价比（股息率高，估值便宜）"
         factor = 1.3
         color = "#10B981" # 绿色
-        tips = "建议：市场目前股息回报极为丰厚，建议加大配置买入额度！"
+        tips = "提示：市场目前股息回报极为丰厚，可参考加大配置买入额度！"
     elif percentile >= 30.0:
         valuation_zone = "估值合理（股息率适中）"
         factor = 1.0
         color = "#F59E0B" # 黄色
-        tips = "建议：估值处于正常水平，建议保持既定的定投节奏买入。"
+        tips = "提示：估值处于正常水平，可保持既定的定投节奏买入。"
     else:
         valuation_zone = "估值偏贵（股息率较低）"
         factor = 0.5
         color = "#EF4444" # 红色
-        tips = "建议：指数估值过热，股息吸引力下降，建议减少或暂停定投建仓，资金暂留货币基金。"
+        tips = "提示：指数估值过热，股息吸引力下降，可参考减少或暂停定投，资金暂留货币基金。"
         
     st.markdown("### 📊 指数估值温度仪")
     t_col1, t_col2, t_col3 = st.columns(3)
@@ -438,22 +459,22 @@ elif menu == "3. 估值温度计与建仓建议":
     </div>
     """, unsafe_allow_html=True)
     
-    # 建仓金额建议
-    st.markdown("### 🎯 动态定投建仓方案生成")
+    # 定投金额测算
+    st.markdown("### 🎯 动态定投测算方案生成")
     base_dca = st.number_input("您的基础月定投金额 (万元)", min_value=1.0, max_value=200.0, value=32.3, step=1.0)
     adjusted_dca = base_dca * factor
     
-    st.markdown(f"基于动态调节因子 **{factor}x**，本月推荐建仓总金额为 **{adjusted_dca:.2f}** 万元。")
+    st.markdown(f"基于动态调节因子 **{factor}x**，本月测算总金额为 **{adjusted_dca:.2f}** 万元。")
     
-    # 推荐明细表
+    # 测算明细表
     rec_data = []
     for code, info in DEFAULT_ASSETS.items():
         rec_amt = adjusted_dca * (info['weight']/100.0)
         rec_data.append({
-            '证券代码': code,
-            '证券名称': info['name'],
+            '基金代码': code,
+            '基金名称': info['name'],
             '配置占比': f"{info['weight']}%",
-            '本月买入推荐金额 (元)': f"¥{rec_amt * 10000:,.0f}"
+            '本月测算买入金额 (元)': f"¥{rec_amt * 10000:,.0f}"
         })
     st.table(pd.DataFrame(rec_data))
     
@@ -488,28 +509,21 @@ elif menu == "3. 估值温度计与建仓建议":
 # ==========================================
 # 模块 4: 资产记账与年度平衡
 # ==========================================
-elif menu == "4. 资产记账与年度平衡":
+elif menu == "4. 资产记账与再平衡提示":
     st.markdown("<h1 style='color:#FFFFFF; margin-bottom:10px;'>⚖️ 个人持仓账本与资产再平衡</h1>", unsafe_allow_html=True)
-    st.write("长期运行中，各资产随市价涨跌，其权重会偏离预定的目标比例。一般建议**每年年底**检查一次，对偏离度较大的资产进行买卖纠偏。")
+    st.write("长期运行中，各资产随市价涨跌，其权重会偏离预定的目标比例。一般建议**每年年底**检查一次，并提供再平衡提示。")
     
     st.markdown("### 📝 输入您的当前持仓市值")
-    st.write("请在下方输入您目前在每只基金和个股的实际持仓市值（单位：万元），系统将自动帮您测算再平衡方案。")
+    st.write("请在下方输入您目前在每只基金的实际持仓市值（单位：万元），系统将自动帮您测算再平衡方案。")
     
     user_values = {}
     cols_ledger = st.columns(4)
     
     idx = 0
-    # 预设一组带有偏离的模拟市值
-    mock_values = {
-        '512890': 78.0,
-        '515450': 50.0,
-        '513530': 65.0,
-        '600941': 42.0,
-        '600900': 35.0,
-        '601398': 38.0,
-        '601088': 44.0,
-        '601668': 36.0
-    }
+    # 预设一组带有偏离的模拟市值 (基于默认本金 400 万的权重进行偏离计算，比如 80%)
+    mock_values = {}
+    for code, info in DEFAULT_ASSETS.items():
+        mock_values[code] = round(400.0 * (info['weight'] / 100.0) * 0.8, 1)
     
     for code, info in DEFAULT_ASSETS.items():
         col = cols_ledger[idx % 4]
@@ -531,7 +545,7 @@ elif menu == "4. 资产记账与年度平衡":
     if total_hold_val <= 0:
         st.warning("请输入您当期的持仓数据以进行再平衡测算。")
     else:
-        st.markdown("### 📊 再平衡操作指导")
+        st.markdown("### 📊 再平衡提示")
         st.write(f"当前投资组合总市值为 **{total_hold_val:.2f}** 万元 (不含缓冲池现金)。")
         
         rebalance_rows = []
@@ -546,18 +560,18 @@ elif menu == "4. 资产记账与年度平衡":
             
             action = "持平"
             if adjust_value > 0.5:
-                action = f"🟢 买入 {adjust_value:.2f} 万元"
+                action = f"🟢 测算应买入 {adjust_value:.2f} 万元"
             elif adjust_value < -0.5:
-                action = f"🔴 卖出 {-adjust_value:.2f} 万元"
+                action = f"🔴 测算应卖出 {-adjust_value:.2f} 万元"
                 
             rebalance_rows.append({
-                '证券名称': info['name'],
+                '基金名称': info['name'],
                 '目标比例': f"{info['weight']:.1f}%",
                 '实际比例': f"{actual_pct*100:.1f}%",
                 '偏离度': f"{diff_pct*100:+.1f}%",
                 '当前持仓': f"{user_values[code]:.2f} 万元",
                 '合理目标持仓': f"{ideal_value:.2f} 万元",
-                '再平衡操作建议': action
+                '再平衡提示': action
             })
             
         rebalance_df = pd.DataFrame(rebalance_rows)
