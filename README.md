@@ -21,13 +21,17 @@
 5. **⚡ 风险压力测试**  
    支持自定义极端市场参数（分红下降比例、常规 ETF 回撤、港股资产回撤、备用金月份），逐月投影 36 个月内现金缓冲池水位的衰减曲线，输出 12/24/36 个月现金流是否会被击穿的评估。
 
+6. **🏥 家庭资产体检与配置建议**  
+   提供一站式、零服务器上传、纯本地运行的家庭财务健康体检。涵盖家庭基本信息、资产负债明细及风险性格约束，智能推导财务健康画像（如债务高锁、现金脆弱、权益高波动型等），生成对应的“安全/成长/对冲”三桶防线比例建议，并支持一键导出 JSON 及复制 Markdown 格式的完整体检报告。
+
 ---
 
 ## 🛠️ 本地运行方式
 
 ### 方案 A：静态网页运行 (推荐，轻量便携)
 本项目包含完整的单页静态 Web 应用，可以直接使用浏览器双击打开：
-- 直接打开根目录的 [index.html](file:///Users/baokaijian/Project/gemini-invest/index.html)。
+- 主页看板：直接打开根目录的 [index.html](file:///Users/baokaijian/Project/gemini-invest/index.html)。
+- 家庭资产体检页：直接打开根目录的 [family_profile.html](file:///Users/baokaijian/Project/gemini-invest/family_profile.html)。
 - 或者在终端使用 python 起一个本地网页服务：
   ```bash
   python3 -m http.server 8000
