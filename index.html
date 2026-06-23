@@ -1535,7 +1535,7 @@
         <div id="tab6-view" class="tab-content">
             <div class="alert-banner alert-info" style="margin-bottom: 20px;">
                 <strong>人生财富游戏</strong><br>
-                本模块是中国家庭财富教育模拟，不复制任何现有桌游规则。每回合代表 1 年，覆盖 22 岁大学毕业到 60 岁退休的过程。成长资产浮盈不会计入稳定现金流，只有分红、票息、租金、利息计入被动现金流。
+                本模块是中国家庭财富教育模拟，不复制任何现有桌游规则。每回合代表 1 年，覆盖 22 岁大学毕业到 60 岁退休的过程。开局身份与城市随机生成，不允许手动选择；成长资产浮盈不会计入稳定现金流，只有分红、票息、租金、利息计入被动现金流。
             </div>
 
             <div class="grid-cards">
@@ -1567,18 +1567,38 @@
 
             <div class="card" style="margin-bottom: 20px; display:flex; gap: 12px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
                 <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                    <select id="wg-career-select" style="padding:8px 12px; background:var(--bg-primary); color:#fff; border:1px solid var(--card-border); border-radius:6px;">
-                        <option value="white_collar">普通白领 / 新一线</option>
-                        <option value="public_sector">体制内 / 二线</option>
-                        <option value="internet">互联网 / 一线</option>
-                        <option value="freelancer">自由职业 / 新一线</option>
-                        <option value="small_business">小微经营者 / 三线</option>
-                    </select>
-                    <button onclick="startWealthGame()" style="background:var(--accent-emerald); color:#04111A; border:none; padding:9px 14px; border-radius:6px; font-weight:700; cursor:pointer;">新开局</button>
+                    <button onclick="startWealthGame()" style="background:var(--accent-emerald); color:#04111A; border:none; padding:9px 14px; border-radius:6px; font-weight:700; cursor:pointer;">随机新开局</button>
                     <button onclick="advanceWealthGame('balanced')" style="background:var(--accent-blue); color:white; border:none; padding:9px 14px; border-radius:6px; font-weight:700; cursor:pointer;">下一年：均衡决策</button>
                     <button onclick="resetWealthGame()" style="background:rgba(239,68,68,0.15); color:var(--accent-red); border:1px solid rgba(239,68,68,0.35); padding:9px 14px; border-radius:6px; font-weight:700; cursor:pointer;">重置</button>
                 </div>
                 <div id="wg-status-chip" style="font-size:0.85rem; color:var(--text-secondary);">本地存档未载入</div>
+            </div>
+
+            <div class="flex-row-layouts" style="margin-bottom:20px;">
+                <div class="flex-col-left">
+                    <div class="card">
+                        <div class="card-title-text" style="margin-bottom:10px;">身份收入支出对比</div>
+                        <div style="color:var(--text-secondary); font-size:0.82rem; margin-bottom:10px;">以新一线城市为例，展示随机身份的月收入、基础消费与租住成本。</div>
+                        <div style="overflow-x:auto;">
+                            <table style="font-size:0.82rem;">
+                                <thead><tr><th>身份</th><th>月收入</th><th>基础消费</th><th>住房</th><th>必要支出</th></tr></thead>
+                                <tbody id="wg-identity-comparison"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-col-right">
+                    <div class="card">
+                        <div class="card-title-text" style="margin-bottom:10px;">城市收入支出对比</div>
+                        <div style="color:var(--text-secondary); font-size:0.82rem; margin-bottom:10px;">以普通白领为例，展示随机城市对月收入、消费和住房成本的影响。</div>
+                        <div style="overflow-x:auto;">
+                            <table style="font-size:0.82rem;">
+                                <thead><tr><th>城市</th><th>月收入</th><th>基础消费</th><th>住房</th><th>必要支出</th></tr></thead>
+                                <tbody id="wg-city-comparison"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="flex-row-layouts">
@@ -3576,12 +3596,61 @@ ${avoidList}
         const WEALTH_GAME_START_AGE = 22;
         const WEALTH_GAME_RETIREMENT_AGE = 60;
         const WEALTH_GAME_CAREERS = {
-            white_collar: { label: '普通白领', city: '新一线', salary: 12000, expense: 6200, taxRate: 0.17, housing: 2500, cash: 30000, stage: '单身' },
-            public_sector: { label: '体制内', city: '二线', salary: 9500, expense: 5200, taxRate: 0.14, housing: 1800, cash: 40000, stage: '单身' },
-            internet: { label: '互联网从业者', city: '一线', salary: 22000, expense: 10500, taxRate: 0.24, housing: 5200, cash: 50000, stage: '单身' },
-            freelancer: { label: '自由职业者', city: '新一线', salary: 15000, expense: 7000, taxRate: 0.12, housing: 2600, cash: 35000, stage: '单身' },
-            small_business: { label: '小微经营者', city: '三线', salary: 18000, expense: 8200, taxRate: 0.10, housing: 1800, cash: 60000, stage: '已婚' }
+            white_collar: { label: '普通白领', baseSalary: 9500, baseExpense: 4200, taxRate: 0.15, cash: 30000, stage: '单身', cityIncomeSensitivity: 0.9, incomeVolatility: 1.0 },
+            public_sector: { label: '体制内', baseSalary: 8200, baseExpense: 3800, taxRate: 0.12, cash: 45000, stage: '单身', cityIncomeSensitivity: 0.55, incomeVolatility: 0.55 },
+            internet: { label: '互联网从业者', baseSalary: 16500, baseExpense: 5400, taxRate: 0.23, cash: 52000, stage: '单身', cityIncomeSensitivity: 1.35, incomeVolatility: 1.35 },
+            manufacturing: { label: '制造业技术岗', baseSalary: 7800, baseExpense: 3600, taxRate: 0.12, cash: 26000, stage: '单身', cityIncomeSensitivity: 0.75, incomeVolatility: 0.9 },
+            finance: { label: '金融从业者', baseSalary: 15500, baseExpense: 5600, taxRate: 0.25, cash: 60000, stage: '单身', cityIncomeSensitivity: 1.25, incomeVolatility: 1.25 },
+            freelancer: { label: '自由职业者', baseSalary: 11000, baseExpense: 4500, taxRate: 0.10, cash: 35000, stage: '单身', cityIncomeSensitivity: 0.9, incomeVolatility: 1.45 },
+            small_business: { label: '小微经营者', baseSalary: 13500, baseExpense: 5200, taxRate: 0.10, cash: 65000, stage: '已婚', cityIncomeSensitivity: 0.85, incomeVolatility: 1.6 }
         };
+
+        const WEALTH_GAME_CITIES = {
+            first_tier: { label: '一线城市', incomeFactor: 1.28, expenseFactor: 1.35, housing: 5800, cashFactor: 1.25 },
+            new_tier1: { label: '新一线城市', incomeFactor: 1.10, expenseFactor: 1.14, housing: 3200, cashFactor: 1.05 },
+            second_tier: { label: '二线城市', incomeFactor: 0.95, expenseFactor: 0.96, housing: 2200, cashFactor: 0.92 },
+            third_tier: { label: '三线城市', incomeFactor: 0.78, expenseFactor: 0.80, housing: 1400, cashFactor: 0.78 },
+            county: { label: '县城/低线城市', incomeFactor: 0.62, expenseFactor: 0.66, housing: 900, cashFactor: 0.65 }
+        };
+
+        const WEALTH_GAME_LEGACY_PROFILES = {
+            white_collar: { identityKey: 'white_collar', cityKey: 'new_tier1' },
+            public_sector: { identityKey: 'public_sector', cityKey: 'second_tier' },
+            internet: { identityKey: 'internet', cityKey: 'first_tier' },
+            freelancer: { identityKey: 'freelancer', cityKey: 'new_tier1' },
+            small_business: { identityKey: 'small_business', cityKey: 'third_tier' }
+        };
+
+        function buildWealthGameProfile(identityKey = 'white_collar', cityKey = 'new_tier1') {
+            const identity = WEALTH_GAME_CAREERS[identityKey] || WEALTH_GAME_CAREERS.white_collar;
+            const city = WEALTH_GAME_CITIES[cityKey] || WEALTH_GAME_CITIES.new_tier1;
+            const adjustedIncomeFactor = 1 + ((city.incomeFactor - 1) * identity.cityIncomeSensitivity);
+            return {
+                identityKey,
+                cityKey,
+                label: identity.label,
+                city: city.label,
+                salary: Math.round(identity.baseSalary * adjustedIncomeFactor / 100) * 100,
+                expense: Math.round(identity.baseExpense * city.expenseFactor / 100) * 100,
+                taxRate: identity.taxRate,
+                housing: city.housing,
+                cash: Math.round(identity.cash * city.cashFactor / 1000) * 1000,
+                stage: identity.stage,
+                incomeVolatility: identity.incomeVolatility
+            };
+        }
+
+        function pickRandomWealthGameKey(source) {
+            const keys = Object.keys(source);
+            return keys[Math.floor(Math.random() * keys.length)];
+        }
+
+        function createRandomWealthGame() {
+            return wealthGameEngine.createGame(
+                pickRandomWealthGameKey(WEALTH_GAME_CAREERS),
+                pickRandomWealthGameKey(WEALTH_GAME_CITIES)
+            );
+        }
 
         const WEALTH_GAME_EVENTS = [
             { name: '行业奖金到账', type: 'life', cash: 20000, text: '全年项目奖金到账，现金增加。', weight: 8 },
@@ -3597,10 +3666,15 @@ ${avoidList}
         ];
 
         const wealthGameEngine = {
-            createGame(profileKey = 'white_collar') {
-                const profile = WEALTH_GAME_CAREERS[profileKey] || WEALTH_GAME_CAREERS.white_collar;
+            createGame(profileKey = 'white_collar', cityKey = null) {
+                const legacyProfile = WEALTH_GAME_LEGACY_PROFILES[profileKey];
+                const identityKey = legacyProfile ? legacyProfile.identityKey : profileKey;
+                const resolvedCityKey = cityKey || legacyProfile?.cityKey || 'new_tier1';
+                const profile = buildWealthGameProfile(identityKey, resolvedCityKey);
                 const stateGame = {
-                    profileKey,
+                    profileKey: identityKey,
+                    identityKey,
+                    cityKey: resolvedCityKey,
                     career: profile.label,
                     city: profile.city,
                     age: WEALTH_GAME_START_AGE,
@@ -3609,6 +3683,7 @@ ${avoidList}
                     familyStage: profile.stage,
                     salary: profile.salary,
                     taxRate: profile.taxRate,
+                    incomeVolatility: profile.incomeVolatility,
                     essentialExpense: profile.expense + profile.housing,
                     insurancePremium: 300,
                     educationExpense: 0,
@@ -3721,7 +3796,8 @@ ${avoidList}
             calculateMetrics(gameState, event = {}) {
                 const a = gameState.assets;
                 const d = gameState.debts;
-                const activeIncome = Math.max(0, gameState.salary * 12 * (1 - gameState.taxRate) * (1 + (event.incomeShock || 0)));
+                const incomeShock = (event.incomeShock || 0) * (gameState.incomeVolatility || 1);
+                const activeIncome = Math.max(0, gameState.salary * 12 * (1 - gameState.taxRate) * (1 + incomeShock));
                 const passiveIncome =
                     a.moneyMarket * 0.018 +
                     a.bond * 0.026 +
@@ -3772,9 +3848,10 @@ ${avoidList}
         function getWealthGameState() {
             if (!state.wealthGame) {
                 const stored = localStorage.getItem(WEALTH_GAME_STORAGE_KEY);
-                state.wealthGame = stored ? JSON.parse(stored) : wealthGameEngine.createGame('white_collar');
-                if (!state.wealthGame.year || !state.wealthGame.retirementAge) {
-                    state.wealthGame = wealthGameEngine.createGame(state.wealthGame.profileKey || 'white_collar');
+                state.wealthGame = stored ? JSON.parse(stored) : createRandomWealthGame();
+                if (!state.wealthGame.year || !state.wealthGame.retirementAge || !state.wealthGame.cityKey || !state.wealthGame.identityKey) {
+                    const legacy = WEALTH_GAME_LEGACY_PROFILES[state.wealthGame.profileKey] || {};
+                    state.wealthGame = wealthGameEngine.createGame(legacy.identityKey || state.wealthGame.profileKey || 'white_collar', legacy.cityKey || state.wealthGame.cityKey || 'new_tier1');
                     saveWealthGameState();
                 }
             }
@@ -3790,22 +3867,21 @@ ${avoidList}
                 getWealthGameState();
             } catch (e) {
                 console.error('财富游戏存档损坏，已重置', e);
-                state.wealthGame = wealthGameEngine.createGame('white_collar');
+                state.wealthGame = createRandomWealthGame();
                 saveWealthGameState();
             }
             renderWealthGame();
         }
 
         function startWealthGame() {
-            const profileKey = document.getElementById('wg-career-select')?.value || 'white_collar';
-            state.wealthGame = wealthGameEngine.createGame(profileKey);
+            state.wealthGame = createRandomWealthGame();
             saveWealthGameState();
             renderWealthGame();
         }
 
         function resetWealthGame() {
             localStorage.removeItem(WEALTH_GAME_STORAGE_KEY);
-            state.wealthGame = wealthGameEngine.createGame('white_collar');
+            state.wealthGame = createRandomWealthGame();
             saveWealthGameState();
             renderWealthGame();
         }
@@ -3856,7 +3932,7 @@ ${avoidList}
             `).join('');
 
             const cashflowRows = [
-                ['主动收入', metrics.activeIncome, '工资/经营收入，扣除简化税费'],
+                ['主动收入', metrics.activeIncome, `月收入基准 ${formatCny(game.salary)}，按城市和身份调整`],
                 ['被动现金流', metrics.passiveIncome, '仅分红、票息、租金、利息、副业净流入'],
                 ['必要支出', -metrics.essentialExpense, '生活、住房、教育、赡养、保险'],
                 ['债务支出', -metrics.debtPayment, '房贷、消费贷、信用卡、经营贷'],
@@ -3874,7 +3950,38 @@ ${avoidList}
             const adviceEl = document.getElementById('wg-advice');
             adviceEl.className = `alert-banner ${game.status === '现金流破产' || metrics.annualCashflow < 0 ? 'alert-warning' : 'alert-success'}`;
             adviceEl.innerHTML = `<strong>教学建议：</strong>${advice}<br><span style="display:block;margin-top:6px;">家庭压力指数：${metrics.stressScore}/100；胜利进度：${game.freedomStreak}/3 年；退休节点：${game.retirementAge || WEALTH_GAME_RETIREMENT_AGE} 岁。</span>`;
+            renderWealthGameComparison();
             renderWealthGameChart();
+        }
+
+        function renderWealthGameComparison() {
+            const identityBody = document.getElementById('wg-identity-comparison');
+            if (identityBody) {
+                identityBody.innerHTML = Object.keys(WEALTH_GAME_CAREERS).map(key => {
+                    const p = buildWealthGameProfile(key, 'new_tier1');
+                    return `<tr>
+                        <td>${p.label}</td>
+                        <td>${formatCny(p.salary)}</td>
+                        <td>${formatCny(p.expense)}</td>
+                        <td>${formatCny(p.housing)}</td>
+                        <td>${formatCny(p.expense + p.housing)}</td>
+                    </tr>`;
+                }).join('');
+            }
+
+            const cityBody = document.getElementById('wg-city-comparison');
+            if (cityBody) {
+                cityBody.innerHTML = Object.keys(WEALTH_GAME_CITIES).map(key => {
+                    const p = buildWealthGameProfile('white_collar', key);
+                    return `<tr>
+                        <td>${p.city}</td>
+                        <td>${formatCny(p.salary)}</td>
+                        <td>${formatCny(p.expense)}</td>
+                        <td>${formatCny(p.housing)}</td>
+                        <td>${formatCny(p.expense + p.housing)}</td>
+                    </tr>`;
+                }).join('');
+            }
         }
 
         function renderWealthGameChart() {

@@ -1323,18 +1323,60 @@ elif menu == "6. 风险压力测试":
 # ==========================================
 elif menu == "7. 人生财富游戏":
     st.markdown("<h1 style='color:#FFFFFF; margin-bottom:10px;'>🎮 人生财富游戏</h1>", unsafe_allow_html=True)
-    st.info("本模块是中国家庭财富教育模拟，不复制任何现有桌游规则。每回合代表 1 年，覆盖 22 岁大学毕业到 60 岁退休的过程。成长资产浮盈不计入稳定现金流，只有分红、票息、租金、利息和副业净流入计入被动现金流。")
+    st.info("本模块是中国家庭财富教育模拟，不复制任何现有桌游规则。每回合代表 1 年，覆盖 22 岁大学毕业到 60 岁退休的过程。开局身份与城市随机生成，不允许手动选择；成长资产浮盈不计入稳定现金流，只有分红、票息、租金、利息和副业净流入计入被动现金流。")
 
     WEALTH_GAME_START_AGE = 22
     WEALTH_GAME_RETIREMENT_AGE = 60
 
     career_profiles = {
-        "white_collar": {"label": "普通白领", "city": "新一线", "salary": 12000, "expense": 6200, "tax_rate": 0.17, "housing": 2500, "cash": 30000, "stage": "单身"},
-        "public_sector": {"label": "体制内", "city": "二线", "salary": 9500, "expense": 5200, "tax_rate": 0.14, "housing": 1800, "cash": 40000, "stage": "单身"},
-        "internet": {"label": "互联网从业者", "city": "一线", "salary": 22000, "expense": 10500, "tax_rate": 0.24, "housing": 5200, "cash": 50000, "stage": "单身"},
-        "freelancer": {"label": "自由职业者", "city": "新一线", "salary": 15000, "expense": 7000, "tax_rate": 0.12, "housing": 2600, "cash": 35000, "stage": "单身"},
-        "small_business": {"label": "小微经营者", "city": "三线", "salary": 18000, "expense": 8200, "tax_rate": 0.10, "housing": 1800, "cash": 60000, "stage": "已婚"}
+        "white_collar": {"label": "普通白领", "base_salary": 9500, "base_expense": 4200, "tax_rate": 0.15, "cash": 30000, "stage": "单身", "city_income_sensitivity": 0.9, "income_volatility": 1.0},
+        "public_sector": {"label": "体制内", "base_salary": 8200, "base_expense": 3800, "tax_rate": 0.12, "cash": 45000, "stage": "单身", "city_income_sensitivity": 0.55, "income_volatility": 0.55},
+        "internet": {"label": "互联网从业者", "base_salary": 16500, "base_expense": 5400, "tax_rate": 0.23, "cash": 52000, "stage": "单身", "city_income_sensitivity": 1.35, "income_volatility": 1.35},
+        "manufacturing": {"label": "制造业技术岗", "base_salary": 7800, "base_expense": 3600, "tax_rate": 0.12, "cash": 26000, "stage": "单身", "city_income_sensitivity": 0.75, "income_volatility": 0.9},
+        "finance": {"label": "金融从业者", "base_salary": 15500, "base_expense": 5600, "tax_rate": 0.25, "cash": 60000, "stage": "单身", "city_income_sensitivity": 1.25, "income_volatility": 1.25},
+        "freelancer": {"label": "自由职业者", "base_salary": 11000, "base_expense": 4500, "tax_rate": 0.10, "cash": 35000, "stage": "单身", "city_income_sensitivity": 0.9, "income_volatility": 1.45},
+        "small_business": {"label": "小微经营者", "base_salary": 13500, "base_expense": 5200, "tax_rate": 0.10, "cash": 65000, "stage": "已婚", "city_income_sensitivity": 0.85, "income_volatility": 1.6}
     }
+
+    city_profiles = {
+        "first_tier": {"label": "一线城市", "income_factor": 1.28, "expense_factor": 1.35, "housing": 5800, "cash_factor": 1.25},
+        "new_tier1": {"label": "新一线城市", "income_factor": 1.10, "expense_factor": 1.14, "housing": 3200, "cash_factor": 1.05},
+        "second_tier": {"label": "二线城市", "income_factor": 0.95, "expense_factor": 0.96, "housing": 2200, "cash_factor": 0.92},
+        "third_tier": {"label": "三线城市", "income_factor": 0.78, "expense_factor": 0.80, "housing": 1400, "cash_factor": 0.78},
+        "county": {"label": "县城/低线城市", "income_factor": 0.62, "expense_factor": 0.66, "housing": 900, "cash_factor": 0.65}
+    }
+
+    legacy_profiles = {
+        "white_collar": {"identity_key": "white_collar", "city_key": "new_tier1"},
+        "public_sector": {"identity_key": "public_sector", "city_key": "second_tier"},
+        "internet": {"identity_key": "internet", "city_key": "first_tier"},
+        "freelancer": {"identity_key": "freelancer", "city_key": "new_tier1"},
+        "small_business": {"identity_key": "small_business", "city_key": "third_tier"}
+    }
+
+    def build_wealth_profile(identity_key="white_collar", city_key="new_tier1"):
+        identity = career_profiles.get(identity_key, career_profiles["white_collar"])
+        city = city_profiles.get(city_key, city_profiles["new_tier1"])
+        adjusted_income_factor = 1 + ((city["income_factor"] - 1) * identity["city_income_sensitivity"])
+        return {
+            "identity_key": identity_key,
+            "city_key": city_key,
+            "label": identity["label"],
+            "city": city["label"],
+            "salary": round(identity["base_salary"] * adjusted_income_factor / 100) * 100,
+            "expense": round(identity["base_expense"] * city["expense_factor"] / 100) * 100,
+            "tax_rate": identity["tax_rate"],
+            "housing": city["housing"],
+            "cash": round(identity["cash"] * city["cash_factor"] / 1000) * 1000,
+            "stage": identity["stage"],
+            "income_volatility": identity["income_volatility"]
+        }
+
+    def create_random_wealth_game():
+        return create_wealth_game(
+            random.choice(list(career_profiles.keys())),
+            random.choice(list(city_profiles.keys()))
+        )
 
     game_events = [
         {"name": "行业奖金到账", "cash": 20000, "text": "全年项目奖金到账，现金增加。", "weight": 8},
@@ -1349,10 +1391,15 @@ elif menu == "7. 人生财富游戏":
         {"name": "平稳年份", "text": "没有重大事件，纪律比运气更重要。", "weight": 16}
     ]
 
-    def create_wealth_game(profile_key="white_collar"):
-        p = career_profiles.get(profile_key, career_profiles["white_collar"])
+    def create_wealth_game(profile_key="white_collar", city_key=None):
+        legacy_profile = legacy_profiles.get(profile_key)
+        identity_key = legacy_profile["identity_key"] if legacy_profile else profile_key
+        resolved_city_key = city_key or (legacy_profile["city_key"] if legacy_profile else "new_tier1")
+        p = build_wealth_profile(identity_key, resolved_city_key)
         game = {
-            "profile_key": profile_key,
+            "profile_key": identity_key,
+            "identity_key": identity_key,
+            "city_key": resolved_city_key,
             "career": p["label"],
             "city": p["city"],
             "age": WEALTH_GAME_START_AGE,
@@ -1361,6 +1408,7 @@ elif menu == "7. 人生财富游戏":
             "family_stage": p["stage"],
             "salary": p["salary"],
             "tax_rate": p["tax_rate"],
+            "income_volatility": p["income_volatility"],
             "essential_base": p["expense"] + p["housing"],
             "insurance_premium": 300,
             "education_expense": 0,
@@ -1385,7 +1433,8 @@ elif menu == "7. 人生财富游戏":
     def calculate_wealth_metrics(game, event):
         assets = game["assets"]
         debts = game["debts"]
-        active_income = max(0, game["salary"] * 12 * (1 - game["tax_rate"]) * (1 + event.get("income_shock", 0)))
+        income_shock = event.get("income_shock", 0) * game.get("income_volatility", 1)
+        active_income = max(0, game["salary"] * 12 * (1 - game["tax_rate"]) * (1 + income_shock))
         passive_income = (
             assets["money_market"] * 0.018 +
             assets["bond"] * 0.026 +
@@ -1512,20 +1561,36 @@ elif menu == "7. 人生财富游戏":
         return "现金流结构相对稳健。保持预算纪律，分散资产，别把成长资产浮盈当作稳定收入。"
 
     if "wealth_game_state" not in st.session_state:
-        st.session_state.wealth_game_state = create_wealth_game("white_collar")
-    elif "year" not in st.session_state.wealth_game_state:
-        st.session_state.wealth_game_state = create_wealth_game(st.session_state.wealth_game_state.get("profile_key", "white_collar"))
+        st.session_state.wealth_game_state = create_random_wealth_game()
+    elif "year" not in st.session_state.wealth_game_state or "city_key" not in st.session_state.wealth_game_state or "identity_key" not in st.session_state.wealth_game_state:
+        stored_game = st.session_state.wealth_game_state
+        legacy = legacy_profiles.get(stored_game.get("profile_key", "white_collar"), {})
+        st.session_state.wealth_game_state = create_wealth_game(
+            legacy.get("identity_key", stored_game.get("profile_key", "white_collar")),
+            legacy.get("city_key", stored_game.get("city_key", "new_tier1"))
+        )
 
-    profile_choice = st.selectbox(
-        "选择开局职业画像",
-        list(career_profiles.keys()),
-        format_func=lambda k: f"{career_profiles[k]['label']} / {career_profiles[k]['city']}",
-        index=list(career_profiles.keys()).index(st.session_state.wealth_game_state.get("profile_key", "white_collar"))
-    )
+    id_col, city_col = st.columns(2)
+    with id_col:
+        st.markdown("### 身份收入支出对比")
+        identity_rows = []
+        for key in career_profiles:
+            p = build_wealth_profile(key, "new_tier1")
+            identity_rows.append((p["label"], p["salary"], p["expense"], p["housing"], p["expense"] + p["housing"]))
+        st.caption("以新一线城市为例，展示随机身份的月收入、基础消费与租住成本。")
+        st.dataframe(pd.DataFrame(identity_rows, columns=["身份", "月收入", "基础消费", "住房", "必要支出"]), use_container_width=True, hide_index=True)
+    with city_col:
+        st.markdown("### 城市收入支出对比")
+        city_rows = []
+        for key in city_profiles:
+            p = build_wealth_profile("white_collar", key)
+            city_rows.append((p["city"], p["salary"], p["expense"], p["housing"], p["expense"] + p["housing"]))
+        st.caption("以普通白领为例，展示随机城市对月收入、消费和住房成本的影响。")
+        st.dataframe(pd.DataFrame(city_rows, columns=["城市", "月收入", "基础消费", "住房", "必要支出"]), use_container_width=True, hide_index=True)
 
     c1, c2, c3, c4, c5, c6 = st.columns(6)
-    if c1.button("新开局", use_container_width=True):
-        st.session_state.wealth_game_state = create_wealth_game(profile_choice)
+    if c1.button("随机新开局", use_container_width=True):
+        st.session_state.wealth_game_state = create_random_wealth_game()
         st.rerun()
     if c2.button("下一年：均衡", use_container_width=True):
         st.session_state.wealth_game_state = advance_wealth_game(st.session_state.wealth_game_state, "balanced")
@@ -1540,7 +1605,7 @@ elif menu == "7. 人生财富游戏":
         st.session_state.wealth_game_state = advance_wealth_game(st.session_state.wealth_game_state, "debt")
         st.rerun()
     if c6.button("重置", use_container_width=True):
-        st.session_state.wealth_game_state = create_wealth_game("white_collar")
+        st.session_state.wealth_game_state = create_random_wealth_game()
         st.rerun()
 
     game = st.session_state.wealth_game_state
@@ -1580,7 +1645,7 @@ elif menu == "7. 人生财富游戏":
     with right:
         st.markdown("### 现金流表")
         cashflow_rows = [
-            ("主动收入", metrics["active_income"], "工资/经营收入，扣除简化税费"),
+            ("主动收入", metrics["active_income"], f"月收入基准 ¥{game['salary']:,.0f}，按城市和身份调整"),
             ("被动现金流", metrics["passive_income"], "仅分红、票息、租金、利息、副业净流入"),
             ("必要支出", -metrics["essential_expense"], "生活、住房、教育、赡养、保险"),
             ("债务支出", -metrics["debt_payment"], "房贷、消费贷、信用卡、经营贷"),
