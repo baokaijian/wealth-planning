@@ -1400,13 +1400,22 @@ elif menu == "7. 人生财富游戏":
     game_events = [
         {"name": "行业奖金到账", "cash": 20000, "text": "全年项目奖金到账，现金增加。", "weight": 8},
         {"name": "家电维修", "cash": -8000, "text": "家庭大件维修，必要支出上升。", "weight": 8},
-        {"name": "父母体检与药费", "cash": -12000, "text": "赡养老人支出出现，现金流韧性被检验。", "weight": 7},
+        {"name": "父母体检与药费", "cash": -12000, "debt_type": "consumer_loan", "text": "赡养老人支出出现，现金流韧性被检验。", "weight": 7},
+        {"name": "本人住院治疗", "cash": -42000, "debt_type": "consumer_loan", "text": "突发疾病产生医疗支出；现金不足会自动转为消费贷并按月付息。", "weight": 5},
+        {"name": "家庭意外支出", "cash": -55000, "debt_type": "consumer_loan", "text": "家庭成员遭遇意外，需要立刻动用现金；不足部分转为贷款。", "weight": 4},
+        {"name": "子女教育大额缴费", "cash": -22000, "debt_type": "credit_card", "text": "教育缴费集中发生，若现金不足会形成信用卡/短债压力。", "weight": 5},
+        {"name": "车辆维修与保险", "cash": -12000, "debt_type": "credit_card", "text": "车辆维修、保险或交通罚款集中支出，考验现金缓冲。", "weight": 4},
+        {"name": "结婚与组建家庭", "family_event": "marriage", "text": "进入结婚阶段，将发生婚礼、搬家和家庭共同生活支出。", "weight": 4},
+        {"name": "孩子出生", "family_event": "childbirth", "text": "家庭迎来孩子，将发生生产、月嫂/育儿和长期教育支出。", "weight": 4},
+        {"name": "家庭购房计划", "purchase": "house", "text": "家庭进入购房节点，将根据所在城市触发首付、房贷和住房支出变化。", "weight": 2},
+        {"name": "通勤购车需求", "purchase": "car", "text": "工作通勤或家庭出行需要买车，将产生首付、车贷和养车支出。", "weight": 3},
+        {"name": "旅行娱乐消费", "purchase": "leisure", "text": "本年发生旅行、娱乐或大额消费体验支出，现金不足会转为信用卡债务。", "weight": 5},
         {"name": "技能证书通过", "salary_boost": 0.02, "text": "技能提升带来工资小幅增长。", "weight": 6},
-        {"name": "裁员风险", "income_shock": -0.18, "cash": -8000, "text": "行业波动导致全年收入下降。", "weight": 5},
+        {"name": "裁员风险", "income_shock": -0.18, "cash": -8000, "debt_type": "credit_card", "text": "行业波动导致全年收入下降。", "weight": 5},
         {"name": "A股回撤", "asset_shock": {"stock": -0.08, "dividend": -0.04, "overseas_tech": -0.06}, "text": "权益市场回撤，浮动市值下降，但不计入稳定现金流。", "weight": 7},
         {"name": "红利分红季", "bonus_passive": 6000, "text": "红利资产年度分红到账，计入被动现金流。", "weight": 6},
         {"name": "黄金上涨", "asset_shock": {"gold": 0.05}, "text": "避险资产上涨，对冲组合波动。", "weight": 4},
-        {"name": "创业试错", "business_shock": 0.04, "cash": -20000, "text": "副业/小生意年度投入带来未来现金流可能性，也消耗现金。", "weight": 4},
+        {"name": "创业试错", "business_shock": 0.04, "cash": -20000, "debt_type": "business_loan", "text": "副业/小生意年度投入带来未来现金流可能性，也消耗现金。", "weight": 4},
         {"name": "平稳年份", "text": "没有重大事件，纪律比运气更重要。", "weight": 16}
     ]
 
@@ -1428,6 +1437,8 @@ elif menu == "7. 人生财富游戏":
             "salary": p["salary"],
             "tax_rate": p["tax_rate"],
             "income_volatility": p["income_volatility"],
+            "base_living_expense": p["expense"],
+            "housing_expense": p["housing"],
             "essential_base": p["expense"] + p["housing"],
             "insurance_premium": 300,
             "education_expense": 0,
@@ -1436,8 +1447,9 @@ elif menu == "7. 人生财富游戏":
             "freedom_streak": 0,
             "status": "进行中",
             "last_event": {"name": "开局", "text": "从第一份稳定现金流开始，先活下来，再谈增长。"},
-            "assets": {"cash": p["cash"], "money_market": 0, "bond": 0, "stock": 0, "dividend": 0, "overseas_tech": 0, "gold": 0, "house": 0, "reit": 0, "side_business": 0},
-            "debts": {"mortgage": 0, "consumer_loan": 0, "credit_card": 0, "business_loan": 0},
+            "last_decision": {"name": "开局", "text": "尚未做出年度决策。"},
+            "assets": {"cash": p["cash"], "money_market": 0, "bond": 0, "stock": 0, "dividend": 0, "overseas_tech": 0, "gold": 0, "house": 0, "car": 0, "reit": 0, "side_business": 0},
+            "debts": {"mortgage": 0, "car_loan": 0, "consumer_loan": 0, "credit_card": 0, "business_loan": 0},
             "history": []
         }
         record_wealth_year(game, calculate_wealth_metrics(game, {}))
@@ -1463,8 +1475,10 @@ elif menu == "7. 人生财富游戏":
             assets["side_business"] * 0.12 +
             event.get("bonus_passive", 0)
         )
-        debt_payment = debts["mortgage"] * 0.048 + debts["consumer_loan"] * 0.30 + debts["credit_card"] * 0.60 + debts["business_loan"] * 0.216
-        monthly_essential_expense = game["essential_base"] + game["insurance_premium"] + game["education_expense"] + game["elder_expense"]
+        debt_payment = debts.get("mortgage", 0) * 0.048 + debts.get("car_loan", 0) * 0.12 + debts.get("consumer_loan", 0) * 0.30 + debts.get("credit_card", 0) * 0.60 + debts.get("business_loan", 0) * 0.216
+        base_living_expense = game.get("base_living_expense", game.get("essential_base", 0))
+        housing_expense = game.get("housing_expense", 0)
+        monthly_essential_expense = base_living_expense + housing_expense + game["insurance_premium"] + game["education_expense"] + game["elder_expense"]
         essential_expense = monthly_essential_expense * 12
         annual_cashflow = active_income + passive_income - essential_expense - debt_payment
         total_assets = sum(assets.values())
@@ -1501,6 +1515,87 @@ elif menu == "7. 人生财富游戏":
         })
         game["history"] = game["history"][-40:]
 
+    def finance_cash_cost(game, amount, debt_type="consumer_loan"):
+        cost = max(0, amount)
+        assets = game["assets"]
+        debts = game["debts"]
+        available = max(0, assets.get("cash", 0))
+        paid_by_cash = min(available, cost)
+        shortfall = cost - paid_by_cash
+        assets["cash"] = available - paid_by_cash
+        if shortfall > 0:
+            debts[debt_type] = debts.get(debt_type, 0) + shortfall
+        return shortfall
+
+    def apply_house_purchase(game):
+        assets = game["assets"]
+        debts = game["debts"]
+        if assets.get("house", 0) > 0:
+            repair_cost = max(15000, game.get("housing_expense", 0) * 6)
+            shortfall = finance_cash_cost(game, repair_cost, "consumer_loan")
+            suffix = f"，现金不足新增消费贷 ¥{shortfall:,.0f}" if shortfall > 0 else ""
+            return f"已有房产，本年发生装修/维修 ¥{repair_cost:,.0f}{suffix}。"
+        monthly_housing = game.get("housing_expense", max(1200, game.get("essential_base", 0) * 0.3))
+        house_price = round(max(300000, monthly_housing * 360) / 10000) * 10000
+        down_payment = round(house_price * 0.3 / 10000) * 10000
+        shortfall = finance_cash_cost(game, down_payment, "consumer_loan")
+        assets["house"] += house_price
+        debts["mortgage"] = debts.get("mortgage", 0) + (house_price - down_payment)
+        game["housing_expense"] = round(monthly_housing * 0.25)
+        suffix = f"；首付不足部分转消费贷 ¥{shortfall:,.0f}" if shortfall > 0 else ""
+        return f"购入房产 ¥{house_price:,.0f}，首付 ¥{down_payment:,.0f}，新增房贷 ¥{house_price - down_payment:,.0f}{suffix}。"
+
+    def apply_car_purchase(game):
+        assets = game["assets"]
+        debts = game["debts"]
+        if assets.get("car", 0) > 0:
+            upkeep_cost = 12000
+            shortfall = finance_cash_cost(game, upkeep_cost, "credit_card")
+            suffix = f"，现金不足新增信用卡债务 ¥{shortfall:,.0f}" if shortfall > 0 else ""
+            return f"已有车辆，本年车辆保养、保险和停车支出 ¥{upkeep_cost:,.0f}{suffix}。"
+        car_price = round(max(80000, game["salary"] * 8) / 1000) * 1000
+        down_payment = round(car_price * 0.3 / 1000) * 1000
+        shortfall = finance_cash_cost(game, down_payment, "credit_card")
+        assets["car"] = assets.get("car", 0) + round(car_price * 0.85)
+        debts["car_loan"] = debts.get("car_loan", 0) + (car_price - down_payment)
+        game["base_living_expense"] = game.get("base_living_expense", game.get("essential_base", 0)) + 1200
+        suffix = f"，首付不足新增信用卡债务 ¥{shortfall:,.0f}" if shortfall > 0 else ""
+        return f"购车 ¥{car_price:,.0f}，首付 ¥{down_payment:,.0f}，新增车贷 ¥{car_price - down_payment:,.0f}；每月养车支出增加约 ¥1,200{suffix}。"
+
+    def apply_leisure_expense(game):
+        leisure_cost = round(max(8000, game["salary"] * 1.2) / 1000) * 1000
+        shortfall = finance_cash_cost(game, leisure_cost, "credit_card")
+        suffix = f"；现金不足新增信用卡债务 ¥{shortfall:,.0f}，后续按月付息" if shortfall > 0 else ""
+        return f"旅行、娱乐和消费体验支出 ¥{leisure_cost:,.0f}{suffix}。"
+
+    def apply_family_event(game, family_event):
+        if family_event == "marriage":
+            if game["family_stage"] != "单身":
+                family_support_cost = round(max(10000, game["salary"] * 0.8) / 1000) * 1000
+                shortfall = finance_cash_cost(game, family_support_cost, "credit_card")
+                suffix = f"，现金不足新增信用卡债务 ¥{shortfall:,.0f}" if shortfall > 0 else ""
+                return f"已进入家庭阶段，本年发生亲友礼金、家庭聚会或搬家支出 ¥{family_support_cost:,.0f}{suffix}。"
+            wedding_cost = round(max(60000, game["salary"] * 6) / 10000) * 10000
+            shortfall = finance_cash_cost(game, wedding_cost, "consumer_loan")
+            game["family_stage"] = "已婚"
+            game["base_living_expense"] = game.get("base_living_expense", game.get("essential_base", 0)) + 2500
+            game["insurance_premium"] += 180
+            suffix = f"；现金不足新增消费贷 ¥{shortfall:,.0f}" if shortfall > 0 else ""
+            return f"结婚支出 ¥{wedding_cost:,.0f}，家庭共同生活每月支出增加约 ¥2,500，保障预算增加约 ¥180/月{suffix}。"
+        if family_event == "childbirth":
+            if game["family_stage"] == "单身":
+                game["family_stage"] = "已婚"
+                game["base_living_expense"] = game.get("base_living_expense", game.get("essential_base", 0)) + 1800
+            birth_cost = round(max(40000, game["salary"] * 4) / 10000) * 10000
+            shortfall = finance_cash_cost(game, birth_cost, "consumer_loan")
+            game["family_stage"] = game["family_stage"] if "育儿" in game["family_stage"] else f"{game['family_stage']}育儿"
+            game["base_living_expense"] = game.get("base_living_expense", game.get("essential_base", 0)) + 2200
+            game["education_expense"] += 1800
+            game["insurance_premium"] += 160
+            suffix = f"；现金不足新增消费贷 ¥{shortfall:,.0f}" if shortfall > 0 else ""
+            return f"生育与产后照护支出 ¥{birth_cost:,.0f}，每月育儿生活支出增加约 ¥2,200，教育储备增加约 ¥1,800/月{suffix}。"
+        return ""
+
     def apply_wealth_decision(game, action):
         assets = game["assets"]
         debts = game["debts"]
@@ -1508,6 +1603,7 @@ elif menu == "7. 人生财富游戏":
             move = min(assets["cash"], 36000)
             assets["cash"] -= move
             assets["money_market"] += move
+            game["last_decision"] = {"name": "建应急金", "text": f"转入货币基金 ¥{move:,.0f}，增强现金缓冲。"}
         elif action == "invest":
             invest = min(assets["cash"], 48000)
             assets["cash"] -= invest
@@ -1515,24 +1611,68 @@ elif menu == "7. 人生财富游戏":
             assets["dividend"] += invest * 0.35
             assets["bond"] += invest * 0.15
             assets["gold"] += invest * 0.15
+            game["last_decision"] = {"name": "长期定投", "text": f"投入 ¥{invest:,.0f} 到股票、红利、债券和黄金组合。"}
         elif action == "debt":
-            repay = min(assets["cash"], debts["consumer_loan"] + debts["credit_card"] + debts["business_loan"], 60000)
+            repay = min(assets["cash"], debts.get("consumer_loan", 0) + debts.get("credit_card", 0) + debts.get("business_loan", 0) + debts.get("car_loan", 0), 60000)
             assets["cash"] -= repay
-            for key in ["credit_card", "consumer_loan", "business_loan"]:
-                used = min(debts[key], repay)
-                debts[key] -= used
-                repay -= used
+            remaining = repay
+            for key in ["credit_card", "consumer_loan", "business_loan", "car_loan"]:
+                used = min(debts.get(key, 0), remaining)
+                debts[key] = max(0, debts.get(key, 0) - used)
+                remaining -= used
+            game["last_decision"] = {"name": "提前还债", "text": f"偿还高息债务 ¥{repay:,.0f}，降低后续月度利息压力。"}
+        elif action == "buy_house":
+            if assets.get("house", 0) > 0:
+                repair_cost = max(15000, game.get("housing_expense", 0) * 6)
+                shortfall = finance_cash_cost(game, repair_cost, "consumer_loan")
+                suffix = f"，现金不足新增消费贷 ¥{shortfall:,.0f}" if shortfall > 0 else ""
+                game["last_decision"] = {"name": "房屋维护", "text": f"已有房产，本年发生装修/维修 ¥{repair_cost:,.0f}{suffix}。"}
+            else:
+                monthly_housing = game.get("housing_expense", max(1200, game.get("essential_base", 0) * 0.3))
+                house_price = round(max(300000, monthly_housing * 360) / 10000) * 10000
+                down_payment = round(house_price * 0.3 / 10000) * 10000
+                shortfall = finance_cash_cost(game, down_payment, "consumer_loan")
+                assets["house"] += house_price
+                debts["mortgage"] = debts.get("mortgage", 0) + (house_price - down_payment)
+                game["housing_expense"] = round(monthly_housing * 0.25)
+                suffix = f"；首付不足部分转消费贷 ¥{shortfall:,.0f}" if shortfall > 0 else ""
+                game["last_decision"] = {"name": "买房", "text": f"购入房产 ¥{house_price:,.0f}，首付 ¥{down_payment:,.0f}，新增房贷 ¥{house_price - down_payment:,.0f}{suffix}。"}
+        elif action == "buy_car":
+            if assets.get("car", 0) > 0:
+                upkeep_cost = 12000
+                shortfall = finance_cash_cost(game, upkeep_cost, "credit_card")
+                suffix = f"，现金不足新增信用卡债务 ¥{shortfall:,.0f}" if shortfall > 0 else ""
+                game["last_decision"] = {"name": "养车支出", "text": f"已有车辆，本年车辆保养、保险和停车支出 ¥{upkeep_cost:,.0f}{suffix}。"}
+            else:
+                car_price = round(max(80000, game["salary"] * 8) / 1000) * 1000
+                down_payment = round(car_price * 0.3 / 1000) * 1000
+                shortfall = finance_cash_cost(game, down_payment, "credit_card")
+                assets["car"] = assets.get("car", 0) + round(car_price * 0.85)
+                debts["car_loan"] = debts.get("car_loan", 0) + (car_price - down_payment)
+                game["base_living_expense"] = game.get("base_living_expense", game.get("essential_base", 0)) + 1200
+                suffix = f"，首付不足新增信用卡债务 ¥{shortfall:,.0f}" if shortfall > 0 else ""
+                game["last_decision"] = {"name": "买车", "text": f"购车 ¥{car_price:,.0f}，首付 ¥{down_payment:,.0f}，新增车贷 ¥{car_price - down_payment:,.0f}；每月养车支出增加约 ¥1,200{suffix}。"}
         elif action == "skill":
-            assets["cash"] -= 12000
+            shortfall = finance_cash_cost(game, 12000, "credit_card")
             game["salary"] *= 1.03
             assets["side_business"] += 6000
+            suffix = f"；现金不足新增信用卡债务 ¥{shortfall:,.0f}" if shortfall > 0 else ""
+            game["last_decision"] = {"name": "提升技能", "text": f"投入培训/副业试错 ¥12,000，月收入提升 3%{suffix}。"}
         elif action == "insurance":
             game["insurance_premium"] += 120
-            assets["cash"] -= 2000
+            shortfall = finance_cash_cost(game, 2000, "credit_card")
+            suffix = f"；现金不足新增信用卡债务 ¥{shortfall:,.0f}" if shortfall > 0 else ""
+            game["last_decision"] = {"name": "补足保险", "text": f"补充保障支出 ¥2,000，每月保费增加约 ¥120{suffix}。"}
+        elif action == "leisure":
+            leisure_cost = round(max(8000, game["salary"] * 1.2) / 1000) * 1000
+            shortfall = finance_cash_cost(game, leisure_cost, "credit_card")
+            suffix = f"；现金不足新增信用卡债务 ¥{shortfall:,.0f}，后续按月付息" if shortfall > 0 else ""
+            game["last_decision"] = {"name": "游乐消费", "text": f"旅行、娱乐和消费体验支出 ¥{leisure_cost:,.0f}{suffix}。"}
         else:
             move = min(assets["cash"], 18000)
             assets["cash"] -= move
             assets["money_market"] += move
+            game["last_decision"] = {"name": "均衡决策", "text": f"默认将 ¥{move:,.0f} 转入货币基金，先提高安全垫。"}
 
     def advance_wealth_game(game, action):
         if game["status"] != "进行中":
@@ -1540,8 +1680,20 @@ elif menu == "7. 人生财富游戏":
         apply_wealth_decision(game, action)
         event = choose_wealth_event()
         assets = game["assets"]
-        if event.get("cash"):
+        if event.get("cash", 0) > 0:
             assets["cash"] += event["cash"]
+        if event.get("cash", 0) < 0:
+            shortfall = finance_cash_cost(game, abs(event["cash"]), event.get("debt_type", "credit_card"))
+            if shortfall > 0:
+                event["text"] += f" 现金不足，新增贷款 ¥{shortfall:,.0f}，后续将按月产生利息/还款压力。"
+        if event.get("purchase") == "house":
+            event["text"] += f" {apply_house_purchase(game)}"
+        if event.get("purchase") == "car":
+            event["text"] += f" {apply_car_purchase(game)}"
+        if event.get("purchase") == "leisure":
+            event["text"] += f" {apply_leisure_expense(game)}"
+        if event.get("family_event"):
+            event["text"] += f" {apply_family_event(game, event['family_event'])}"
         if event.get("salary_boost"):
             game["salary"] *= (1 + event["salary_boost"])
         if event.get("business_shock"):
@@ -1550,18 +1702,27 @@ elif menu == "7. 人生财富游戏":
             assets[key] = max(0, assets.get(key, 0) * (1 + shock))
         metrics = calculate_wealth_metrics(game, event)
         assets["cash"] += metrics["annual_cashflow"]
-        game["negative_cashflow_streak"] = game["negative_cashflow_streak"] + 1 if metrics["annual_cashflow"] < 0 and assets["cash"] <= 0 else 0
-        game["freedom_streak"] = game["freedom_streak"] + 1 if metrics["passive_income"] >= metrics["essential_expense"] and metrics["emergency_months"] >= 12 else 0
+        cashflow_loan = 0
+        if assets["cash"] < 0:
+            cashflow_loan = abs(assets["cash"])
+            assets["cash"] = 0
+            game["debts"]["credit_card"] = game["debts"].get("credit_card", 0) + cashflow_loan
+            event["text"] += f" 年度现金流缺口 ¥{cashflow_loan:,.0f} 已转为信用卡/短债，后续按月付息。"
+        final_metrics = calculate_wealth_metrics(game, event)
+        game["negative_cashflow_streak"] = game["negative_cashflow_streak"] + 1 if metrics["annual_cashflow"] < 0 and cashflow_loan > 0 else 0
+        game["freedom_streak"] = game["freedom_streak"] + 1 if final_metrics["passive_income"] >= final_metrics["essential_expense"] and final_metrics["emergency_months"] >= 12 else 0
         game["last_event"] = event
         game["year"] += 1
         game["age"] += 1
         if game["freedom_streak"] >= 3:
             game["status"] = "财务韧性胜利"
-        if game["negative_cashflow_streak"] >= 2 or metrics["debt_ratio"] > 0.9:
+        if game["negative_cashflow_streak"] >= 2 or final_metrics["debt_ratio"] > 0.9:
             game["status"] = "现金流破产"
         if game["status"] == "进行中" and game["age"] >= game.get("retirement_age", WEALTH_GAME_RETIREMENT_AGE):
             game["status"] = "退休未达成"
-        record_wealth_year(game, metrics)
+        final_metrics["annual_cashflow"] = metrics["annual_cashflow"]
+        final_metrics["monthly_cashflow"] = metrics["annual_cashflow"]
+        record_wealth_year(game, final_metrics)
         return game
 
     def wealth_advice(game, metrics):
@@ -1610,7 +1771,7 @@ elif menu == "7. 人生财富游戏":
     st.caption("随机开局只会从下列代表性画像中抽取；当前开局组合会标注为“当前”。")
     st.dataframe(pd.DataFrame(profile_rows, columns=["身份", "城市", "月收入", "基础消费", "住房", "必要支出", "初始现金", "画像特征"]), use_container_width=True, hide_index=True)
 
-    c1, c2, c3, c4, c5, c6 = st.columns(6)
+    c1, c2, c3, c4, c5 = st.columns(5)
     if c1.button("随机新开局", use_container_width=True):
         st.session_state.wealth_game_state = create_random_wealth_game()
         st.rerun()
@@ -1626,7 +1787,14 @@ elif menu == "7. 人生财富游戏":
     if c5.button("还债", use_container_width=True):
         st.session_state.wealth_game_state = advance_wealth_game(st.session_state.wealth_game_state, "debt")
         st.rerun()
-    if c6.button("重置", use_container_width=True):
+    d1, d2, d3 = st.columns(3)
+    if d1.button("提升技能", use_container_width=True):
+        st.session_state.wealth_game_state = advance_wealth_game(st.session_state.wealth_game_state, "skill")
+        st.rerun()
+    if d2.button("补保险", use_container_width=True):
+        st.session_state.wealth_game_state = advance_wealth_game(st.session_state.wealth_game_state, "insurance")
+        st.rerun()
+    if d3.button("重置", use_container_width=True):
         st.session_state.wealth_game_state = create_random_wealth_game()
         st.rerun()
 
@@ -1645,6 +1813,8 @@ elif menu == "7. 人生财富游戏":
     for col, (label, value, color) in zip([m1, m2, m3, m4, m5, m6], cards):
         col.markdown(f"<div class='card'><div class='metric-label'>{label}</div><div class='metric-value' style='color:{color};'>{value}</div></div>", unsafe_allow_html=True)
 
+    st.markdown(f"### 年度决策：{game.get('last_decision', {}).get('name', '开局')}")
+    st.write(game.get("last_decision", {}).get("text", ""))
     st.markdown(f"### 事件卡：{game['last_event']['name']}")
     st.write(game["last_event"]["text"])
     st.warning(f"教学建议：{wealth_advice(game, metrics)}  家庭压力指数：{metrics['stress_score']}/100；胜利进度：{game['freedom_streak']}/3 年；退休节点：{game.get('retirement_age', WEALTH_GAME_RETIREMENT_AGE)} 岁。")
@@ -1660,8 +1830,9 @@ elif menu == "7. 人生财富游戏":
             ("红利资产", game["assets"]["dividend"], "分红计入被动现金流"),
             ("海外科技", game["assets"]["overseas_tech"], "高波动成长资产"),
             ("黄金", game["assets"]["gold"], "对冲资产"),
+            ("车辆", game["assets"].get("car", 0), "自用车，折旧资产，买车后增加车贷和养车支出"),
             ("房产/REITs/副业", game["assets"]["house"] + game["assets"]["reit"] + game["assets"]["side_business"], "租金或经营净流入计入被动现金流"),
-            ("总负债", -metrics["total_debts"], "房贷/消费贷/信用卡/经营贷")
+            ("总负债", -metrics["total_debts"], "房贷/车贷/消费贷/信用卡/经营贷")
         ]
         st.dataframe(pd.DataFrame(balance_rows, columns=["项目", "金额", "说明"]), use_container_width=True, hide_index=True)
     with right:
@@ -1670,7 +1841,7 @@ elif menu == "7. 人生财富游戏":
             ("主动收入", metrics["active_income"], f"月收入基准 ¥{game['salary']:,.0f}，按城市和身份调整"),
             ("被动现金流", metrics["passive_income"], "仅分红、票息、租金、利息、副业净流入"),
             ("必要支出", -metrics["essential_expense"], "生活、住房、教育、赡养、保险"),
-            ("债务支出", -metrics["debt_payment"], "房贷、消费贷、信用卡、经营贷"),
+            ("债务支出", -metrics["debt_payment"], "房贷、车贷、消费贷、信用卡、经营贷按月付息/还款折算"),
             ("年度现金流", metrics["annual_cashflow"], "全年入账后影响现金余额")
         ]
         st.dataframe(pd.DataFrame(cashflow_rows, columns=["项目", "年度金额", "口径"]), use_container_width=True, hide_index=True)

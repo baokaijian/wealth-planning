@@ -1613,7 +1613,7 @@
 
                 <div class="flex-col-right">
                     <div class="card" style="margin-bottom:20px;">
-                        <div class="card-title-text" style="margin-bottom:15px;">本月决策</div>
+                        <div class="card-title-text" style="margin-bottom:15px;">年度决策</div>
                         <div style="display:grid; gap:10px;">
                             <button onclick="advanceWealthGame('save')" style="padding:10px;border-radius:6px;border:1px solid rgba(16,185,129,0.35);background:rgba(16,185,129,0.08);color:var(--accent-emerald);font-weight:700;cursor:pointer;">增加储蓄 / 建应急金</button>
                             <button onclick="advanceWealthGame('invest')" style="padding:10px;border-radius:6px;border:1px solid rgba(59,130,246,0.35);background:rgba(59,130,246,0.08);color:var(--accent-blue);font-weight:700;cursor:pointer;">长期定投 / 增加资产</button>
@@ -3650,13 +3650,22 @@ ${avoidList}
         const WEALTH_GAME_EVENTS = [
             { name: '行业奖金到账', type: 'life', cash: 20000, text: '全年项目奖金到账，现金增加。', weight: 8 },
             { name: '家电维修', type: 'life', cash: -8000, text: '家庭大件维修，必要支出上升。', weight: 8 },
-            { name: '父母体检与药费', type: 'life', cash: -12000, text: '赡养老人支出出现，现金流韧性被检验。', weight: 7 },
+            { name: '父母体检与药费', type: 'life', cash: -12000, debtType: 'consumerLoan', text: '赡养老人支出出现，现金流韧性被检验。', weight: 7 },
+            { name: '本人住院治疗', type: 'life', cash: -42000, debtType: 'consumerLoan', text: '突发疾病产生医疗支出；现金不足会自动转为消费贷并按月付息。', weight: 5 },
+            { name: '家庭意外支出', type: 'life', cash: -55000, debtType: 'consumerLoan', text: '家庭成员遭遇意外，需要立刻动用现金；不足部分转为贷款。', weight: 4 },
+            { name: '子女教育大额缴费', type: 'life', cash: -22000, debtType: 'creditCard', text: '教育缴费集中发生，若现金不足会形成信用卡/短债压力。', weight: 5 },
+            { name: '车辆维修与保险', type: 'life', cash: -12000, debtType: 'creditCard', text: '车辆维修、保险或交通罚款集中支出，考验现金缓冲。', weight: 4 },
+            { name: '结婚与组建家庭', type: 'life', familyEvent: 'marriage', text: '进入结婚阶段，将发生婚礼、搬家和家庭共同生活支出。', weight: 4 },
+            { name: '孩子出生', type: 'life', familyEvent: 'childbirth', text: '家庭迎来孩子，将发生生产、月嫂/育儿和长期教育支出。', weight: 4 },
+            { name: '家庭购房计划', type: 'life', purchase: 'house', text: '家庭进入购房节点，将根据所在城市触发首付、房贷和住房支出变化。', weight: 2 },
+            { name: '通勤购车需求', type: 'life', purchase: 'car', text: '工作通勤或家庭出行需要买车，将产生首付、车贷和养车支出。', weight: 3 },
+            { name: '旅行娱乐消费', type: 'life', purchase: 'leisure', text: '本年发生旅行、娱乐或大额消费体验支出，现金不足会转为信用卡债务。', weight: 5 },
             { name: '技能证书通过', type: 'life', salaryBoost: 0.02, text: '技能提升带来工资小幅增长。', weight: 6 },
-            { name: '裁员风险', type: 'life', incomeShock: -0.18, cash: -8000, text: '行业波动导致全年收入下降。', weight: 5 },
+            { name: '裁员风险', type: 'life', incomeShock: -0.18, cash: -8000, debtType: 'creditCard', text: '行业波动导致全年收入下降。', weight: 5 },
             { name: 'A股回撤', type: 'market', assetShock: { stock: -0.08, dividend: -0.04, overseasTech: -0.06 }, text: '权益市场回撤，浮动市值下降，但不计入稳定现金流。', weight: 7 },
             { name: '红利分红季', type: 'market', bonusPassive: 6000, text: '红利资产年度分红到账，计入被动现金流。', weight: 6 },
             { name: '黄金上涨', type: 'market', assetShock: { gold: 0.05 }, text: '避险资产上涨，对冲组合波动。', weight: 4 },
-            { name: '创业试错', type: 'life', businessShock: 0.04, cash: -20000, text: '副业/小生意年度投入带来未来现金流可能性，也消耗现金。', weight: 4 },
+            { name: '创业试错', type: 'life', businessShock: 0.04, cash: -20000, debtType: 'businessLoan', text: '副业/小生意年度投入带来未来现金流可能性，也消耗现金。', weight: 4 },
             { name: '平稳年份', type: 'life', text: '没有重大事件，纪律比运气更重要。', weight: 16 }
         ];
 
@@ -3679,6 +3688,8 @@ ${avoidList}
                     salary: profile.salary,
                     taxRate: profile.taxRate,
                     incomeVolatility: profile.incomeVolatility,
+                    baseLivingExpense: profile.expense,
+                    housingExpense: profile.housing,
                     essentialExpense: profile.expense + profile.housing,
                     insurancePremium: 300,
                     educationExpense: 0,
@@ -3687,6 +3698,7 @@ ${avoidList}
                     freedomStreak: 0,
                     status: '进行中',
                     lastEvent: { name: '开局', text: '从第一份稳定现金流开始，先活下来，再谈增长。' },
+                    lastDecision: { name: '开局', text: '尚未做出年度决策。' },
                     assets: {
                         cash: profile.cash,
                         moneyMarket: 0,
@@ -3696,11 +3708,13 @@ ${avoidList}
                         overseasTech: 0,
                         gold: 0,
                         house: 0,
+                        car: 0,
                         reit: 0,
                         sideBusiness: 0
                     },
                     debts: {
                         mortgage: 0,
+                        carLoan: 0,
                         consumerLoan: 0,
                         creditCard: 0,
                         businessLoan: 0
@@ -3717,6 +3731,84 @@ ${avoidList}
                 });
                 return { ...pool[Math.floor(Math.random() * pool.length)] };
             },
+            financeCashCost(gameState, amount, debtType = 'consumerLoan') {
+                const cost = Math.max(0, amount);
+                const available = Math.max(0, gameState.assets.cash || 0);
+                const paidByCash = Math.min(available, cost);
+                const shortfall = cost - paidByCash;
+                gameState.assets.cash = available - paidByCash;
+                if (shortfall > 0) {
+                    gameState.debts[debtType] = (gameState.debts[debtType] || 0) + shortfall;
+                }
+                return shortfall;
+            },
+            applyHousePurchase(gameState) {
+                const a = gameState.assets;
+                const d = gameState.debts;
+                if (a.house > 0) {
+                    const repairCost = Math.max(15000, (gameState.housingExpense || 0) * 6);
+                    const shortfall = this.financeCashCost(gameState, repairCost, 'consumerLoan');
+                    return `已有房产，本年发生装修/维修 ${formatCny(repairCost)}${shortfall > 0 ? `，现金不足新增消费贷 ${formatCny(shortfall)}` : ''}。`;
+                }
+                const monthlyHousing = gameState.housingExpense || Math.max(1200, gameState.essentialExpense * 0.3);
+                const housePrice = Math.round(Math.max(300000, monthlyHousing * 360) / 10000) * 10000;
+                const downPayment = Math.round(housePrice * 0.3 / 10000) * 10000;
+                const shortfall = this.financeCashCost(gameState, downPayment, 'consumerLoan');
+                a.house += housePrice;
+                d.mortgage = (d.mortgage || 0) + (housePrice - downPayment);
+                gameState.housingExpense = Math.round(monthlyHousing * 0.25);
+                return `购入房产 ${formatCny(housePrice)}，首付 ${formatCny(downPayment)}，新增房贷 ${formatCny(housePrice - downPayment)}${shortfall > 0 ? `；首付不足部分转消费贷 ${formatCny(shortfall)}` : ''}。`;
+            },
+            applyCarPurchase(gameState) {
+                const a = gameState.assets;
+                const d = gameState.debts;
+                if ((a.car || 0) > 0) {
+                    const upkeepCost = 12000;
+                    const shortfall = this.financeCashCost(gameState, upkeepCost, 'creditCard');
+                    return `已有车辆，本年车辆保养、保险和停车支出 ${formatCny(upkeepCost)}${shortfall > 0 ? `，现金不足新增信用卡债务 ${formatCny(shortfall)}` : ''}。`;
+                }
+                const carPrice = Math.round(Math.max(80000, gameState.salary * 8) / 1000) * 1000;
+                const downPayment = Math.round(carPrice * 0.3 / 1000) * 1000;
+                const shortfall = this.financeCashCost(gameState, downPayment, 'creditCard');
+                a.car = (a.car || 0) + Math.round(carPrice * 0.85);
+                d.carLoan = (d.carLoan || 0) + (carPrice - downPayment);
+                gameState.baseLivingExpense = (gameState.baseLivingExpense || gameState.essentialExpense) + 1200;
+                return `购车 ${formatCny(carPrice)}，首付 ${formatCny(downPayment)}，新增车贷 ${formatCny(carPrice - downPayment)}；每月养车支出增加约 ¥1,200${shortfall > 0 ? `，首付不足新增信用卡债务 ${formatCny(shortfall)}` : ''}。`;
+            },
+            applyLeisureExpense(gameState) {
+                const leisureCost = Math.round(Math.max(8000, gameState.salary * 1.2) / 1000) * 1000;
+                const shortfall = this.financeCashCost(gameState, leisureCost, 'creditCard');
+                return `旅行、娱乐和消费体验支出 ${formatCny(leisureCost)}${shortfall > 0 ? `；现金不足新增信用卡债务 ${formatCny(shortfall)}，后续按月付息` : ''}。`;
+            },
+            applyFamilyEvent(gameState, familyEvent) {
+                if (familyEvent === 'marriage') {
+                    if (gameState.familyStage !== '单身') {
+                        const familySupportCost = Math.round(Math.max(10000, gameState.salary * 0.8) / 1000) * 1000;
+                        const shortfall = this.financeCashCost(gameState, familySupportCost, 'creditCard');
+                        return `已进入家庭阶段，本年发生亲友礼金、家庭聚会或搬家支出 ${formatCny(familySupportCost)}${shortfall > 0 ? `，现金不足新增信用卡债务 ${formatCny(shortfall)}` : ''}。`;
+                    }
+                    const weddingCost = Math.round(Math.max(60000, gameState.salary * 6) / 10000) * 10000;
+                    const shortfall = this.financeCashCost(gameState, weddingCost, 'consumerLoan');
+                    gameState.familyStage = '已婚';
+                    gameState.baseLivingExpense = (gameState.baseLivingExpense || gameState.essentialExpense) + 2500;
+                    gameState.insurancePremium += 180;
+                    return `结婚支出 ${formatCny(weddingCost)}，家庭共同生活每月支出增加约 ¥2,500，保障预算增加约 ¥180/月${shortfall > 0 ? `；现金不足新增消费贷 ${formatCny(shortfall)}` : ''}。`;
+                }
+                if (familyEvent === 'childbirth') {
+                    if (gameState.familyStage === '单身') {
+                        gameState.familyStage = '已婚';
+                        gameState.baseLivingExpense = (gameState.baseLivingExpense || gameState.essentialExpense) + 1800;
+                    }
+                    const birthCost = Math.round(Math.max(40000, gameState.salary * 4) / 10000) * 10000;
+                    const shortfall = this.financeCashCost(gameState, birthCost, 'consumerLoan');
+                    gameState.familyStage = gameState.familyStage.includes('育儿') ? gameState.familyStage : `${gameState.familyStage}育儿`;
+                    gameState.baseLivingExpense = (gameState.baseLivingExpense || gameState.essentialExpense) + 2200;
+                    gameState.educationExpense += 1800;
+                    gameState.insurancePremium += 160;
+                    return `生育与产后照护支出 ${formatCny(birthCost)}，每月育儿生活支出增加约 ¥2,200，教育储备增加约 ¥1,800/月${shortfall > 0 ? `；现金不足新增消费贷 ${formatCny(shortfall)}` : ''}。`;
+                }
+                return '';
+            },
             applyDecision(gameState, action) {
                 const a = gameState.assets;
                 const d = gameState.debts;
@@ -3724,6 +3816,7 @@ ${avoidList}
                     const move = Math.min(a.cash, 36000);
                     a.cash -= move;
                     a.moneyMarket += move;
+                    gameState.lastDecision = { name: '建应急金', text: `转入货币基金 ${formatCny(move)}，增强现金缓冲。` };
                 } else if (action === 'invest') {
                     const invest = Math.min(a.cash, 48000);
                     a.cash -= invest;
@@ -3731,34 +3824,77 @@ ${avoidList}
                     a.dividend += invest * 0.35;
                     a.bond += invest * 0.15;
                     a.gold += invest * 0.15;
+                    gameState.lastDecision = { name: '长期定投', text: `投入 ${formatCny(invest)} 到股票、红利、债券和黄金组合。` };
                 } else if (action === 'debt') {
-                    const totalDebt = d.consumerLoan + d.creditCard + d.businessLoan;
+                    const totalDebt = (d.consumerLoan || 0) + (d.creditCard || 0) + (d.businessLoan || 0) + (d.carLoan || 0);
                     const repay = Math.min(a.cash, totalDebt, 60000);
                     a.cash -= repay;
-                    if (d.creditCard > 0) {
-                        const r = Math.min(d.creditCard, repay);
-                        d.creditCard -= r;
-                    } else if (d.consumerLoan > 0) {
-                        const r = Math.min(d.consumerLoan, repay);
-                        d.consumerLoan -= r;
+                    let remaining = repay;
+                    ['creditCard', 'consumerLoan', 'businessLoan', 'carLoan'].forEach(key => {
+                        const used = Math.min(d[key] || 0, remaining);
+                        d[key] = Math.max(0, (d[key] || 0) - used);
+                        remaining -= used;
+                    });
+                    gameState.lastDecision = { name: '提前还债', text: `偿还高息债务 ${formatCny(repay)}，降低后续月度利息压力。` };
+                } else if (action === 'buy_house') {
+                    if (a.house > 0) {
+                        const repairCost = Math.max(15000, (gameState.housingExpense || 0) * 6);
+                        const shortfall = this.financeCashCost(gameState, repairCost, 'consumerLoan');
+                        gameState.lastDecision = { name: '房屋维护', text: `已有房产，本年发生装修/维修 ${formatCny(repairCost)}${shortfall > 0 ? `，现金不足新增消费贷 ${formatCny(shortfall)}` : ''}。` };
                     } else {
-                        d.businessLoan = Math.max(0, d.businessLoan - repay);
+                        const monthlyHousing = gameState.housingExpense || Math.max(1200, gameState.essentialExpense * 0.3);
+                        const housePrice = Math.round(Math.max(300000, monthlyHousing * 360) / 10000) * 10000;
+                        const downPayment = Math.round(housePrice * 0.3 / 10000) * 10000;
+                        const shortfall = this.financeCashCost(gameState, downPayment, 'consumerLoan');
+                        a.house += housePrice;
+                        d.mortgage = (d.mortgage || 0) + (housePrice - downPayment);
+                        gameState.housingExpense = Math.round(monthlyHousing * 0.25);
+                        gameState.lastDecision = { name: '买房', text: `购入房产 ${formatCny(housePrice)}，首付 ${formatCny(downPayment)}，新增房贷 ${formatCny(housePrice - downPayment)}${shortfall > 0 ? `；首付不足部分转消费贷 ${formatCny(shortfall)}` : ''}。` };
+                    }
+                } else if (action === 'buy_car') {
+                    if ((a.car || 0) > 0) {
+                        const upkeepCost = 12000;
+                        const shortfall = this.financeCashCost(gameState, upkeepCost, 'creditCard');
+                        gameState.lastDecision = { name: '养车支出', text: `已有车辆，本年车辆保养、保险和停车支出 ${formatCny(upkeepCost)}${shortfall > 0 ? `，现金不足新增信用卡债务 ${formatCny(shortfall)}` : ''}。` };
+                    } else {
+                        const carPrice = Math.round(Math.max(80000, gameState.salary * 8) / 1000) * 1000;
+                        const downPayment = Math.round(carPrice * 0.3 / 1000) * 1000;
+                        const shortfall = this.financeCashCost(gameState, downPayment, 'creditCard');
+                        a.car = (a.car || 0) + Math.round(carPrice * 0.85);
+                        d.carLoan = (d.carLoan || 0) + (carPrice - downPayment);
+                        gameState.baseLivingExpense = (gameState.baseLivingExpense || gameState.essentialExpense) + 1200;
+                        gameState.lastDecision = { name: '买车', text: `购车 ${formatCny(carPrice)}，首付 ${formatCny(downPayment)}，新增车贷 ${formatCny(carPrice - downPayment)}；每月通勤养车支出增加约 ¥1,200${shortfall > 0 ? `，首付不足新增信用卡债务 ${formatCny(shortfall)}` : ''}。` };
                     }
                 } else if (action === 'skill') {
-                    a.cash -= 12000;
+                    const shortfall = this.financeCashCost(gameState, 12000, 'creditCard');
                     gameState.salary *= 1.03;
                     a.sideBusiness += 6000;
+                    gameState.lastDecision = { name: '提升技能', text: `投入培训/副业试错 ${formatCny(12000)}，月收入提升 3%${shortfall > 0 ? `；现金不足新增信用卡债务 ${formatCny(shortfall)}` : ''}。` };
                 } else if (action === 'insurance') {
                     gameState.insurancePremium += 120;
-                    a.cash -= 2000;
+                    const shortfall = this.financeCashCost(gameState, 2000, 'creditCard');
+                    gameState.lastDecision = { name: '补足保险', text: `补充保障支出 ${formatCny(2000)}，每月保费增加约 ¥120${shortfall > 0 ? `；现金不足新增信用卡债务 ${formatCny(shortfall)}` : ''}。` };
+                } else if (action === 'leisure') {
+                    const leisureCost = Math.round(Math.max(8000, gameState.salary * 1.2) / 1000) * 1000;
+                    const shortfall = this.financeCashCost(gameState, leisureCost, 'creditCard');
+                    gameState.lastDecision = { name: '游乐消费', text: `旅行、娱乐和消费体验支出 ${formatCny(leisureCost)}${shortfall > 0 ? `；现金不足新增信用卡债务 ${formatCny(shortfall)}，后续按月付息` : ''}。` };
                 } else {
                     const reserve = Math.min(a.cash, 18000);
                     a.cash -= reserve;
                     a.moneyMarket += reserve;
+                    gameState.lastDecision = { name: '均衡决策', text: `默认将 ${formatCny(reserve)} 转入货币基金，先提高安全垫。` };
                 }
             },
             applyEvent(gameState, event) {
-                if (event.cash) gameState.assets.cash += event.cash;
+                if (event.cash > 0) gameState.assets.cash += event.cash;
+                if (event.cash < 0) {
+                    const shortfall = this.financeCashCost(gameState, Math.abs(event.cash), event.debtType || 'creditCard');
+                    if (shortfall > 0) event.text += ` 现金不足，新增贷款 ${formatCny(shortfall)}，后续将按月产生利息/还款压力。`;
+                }
+                if (event.purchase === 'house') event.text += ` ${this.applyHousePurchase(gameState)}`;
+                if (event.purchase === 'car') event.text += ` ${this.applyCarPurchase(gameState)}`;
+                if (event.purchase === 'leisure') event.text += ` ${this.applyLeisureExpense(gameState)}`;
+                if (event.familyEvent) event.text += ` ${this.applyFamilyEvent(gameState, event.familyEvent)}`;
                 if (event.salaryBoost) gameState.salary *= (1 + event.salaryBoost);
                 if (event.businessShock) gameState.assets.sideBusiness *= (1 + event.businessShock);
                 if (event.assetShock) {
@@ -3774,15 +3910,23 @@ ${avoidList}
                 this.applyEvent(gameState, event);
                 const metrics = this.calculateMetrics(gameState, event);
                 gameState.assets.cash += metrics.annualCashflow;
-                gameState.negativeCashflowStreak = metrics.annualCashflow < 0 && gameState.assets.cash <= 0 ? gameState.negativeCashflowStreak + 1 : 0;
-                gameState.freedomStreak = metrics.passiveIncome >= metrics.essentialExpense && metrics.emergencyMonths >= 12 ? gameState.freedomStreak + 1 : 0;
+                let cashflowLoan = 0;
+                if (gameState.assets.cash < 0) {
+                    cashflowLoan = Math.abs(gameState.assets.cash);
+                    gameState.assets.cash = 0;
+                    gameState.debts.creditCard = (gameState.debts.creditCard || 0) + cashflowLoan;
+                    event.text += ` 年度现金流缺口 ${formatCny(cashflowLoan)} 已转为信用卡/短债，后续按月付息。`;
+                }
+                const finalMetrics = this.calculateMetrics(gameState, event);
+                gameState.negativeCashflowStreak = metrics.annualCashflow < 0 && cashflowLoan > 0 ? gameState.negativeCashflowStreak + 1 : 0;
+                gameState.freedomStreak = finalMetrics.passiveIncome >= finalMetrics.essentialExpense && finalMetrics.emergencyMonths >= 12 ? gameState.freedomStreak + 1 : 0;
                 gameState.lastEvent = event;
                 gameState.year += 1;
                 gameState.age += 1;
                 if (gameState.freedomStreak >= 3) gameState.status = '财务韧性胜利';
-                if (gameState.negativeCashflowStreak >= 2 || metrics.debtRatio > 0.9) gameState.status = '现金流破产';
+                if (gameState.negativeCashflowStreak >= 2 || finalMetrics.debtRatio > 0.9) gameState.status = '现金流破产';
                 if (gameState.status === '进行中' && gameState.age >= (gameState.retirementAge || WEALTH_GAME_RETIREMENT_AGE)) gameState.status = '退休未达成';
-                this.recordYear(gameState, metrics);
+                this.recordYear(gameState, { ...finalMetrics, annualCashflow: metrics.annualCashflow, monthlyCashflow: metrics.annualCashflow });
                 return gameState;
             },
             nextMonth(gameState, action = 'balanced') {
@@ -3801,8 +3945,10 @@ ${avoidList}
                     a.house * 0.022 +
                     a.sideBusiness * 0.12 +
                     (event.bonusPassive || 0);
-                const debtPayment = d.mortgage * 0.048 + d.consumerLoan * 0.30 + d.creditCard * 0.60 + d.businessLoan * 0.216;
-                const monthlyEssentialExpense = gameState.essentialExpense + gameState.insurancePremium + gameState.educationExpense + gameState.elderExpense;
+                const debtPayment = (d.mortgage || 0) * 0.048 + (d.carLoan || 0) * 0.12 + (d.consumerLoan || 0) * 0.30 + (d.creditCard || 0) * 0.60 + (d.businessLoan || 0) * 0.216;
+                const baseLivingExpense = gameState.baseLivingExpense ?? gameState.essentialExpense;
+                const housingExpense = gameState.housingExpense ?? 0;
+                const monthlyEssentialExpense = baseLivingExpense + housingExpense + gameState.insurancePremium + gameState.educationExpense + gameState.elderExpense;
                 const essentialExpense = monthlyEssentialExpense * 12;
                 const annualCashflow = activeIncome + passiveIncome - essentialExpense - debtPayment;
                 const totalAssets = Object.values(a).reduce((sum, v) => sum + v, 0);
@@ -3909,7 +4055,7 @@ ${avoidList}
             document.getElementById('wg-emergency-months').innerText = `${metrics.emergencyMonths.toFixed(1)} 个月`;
             document.getElementById('wg-networth-debt').innerText = `${formatCny(metrics.netWorth)} / ${(metrics.debtRatio * 100).toFixed(1)}%`;
             document.getElementById('wg-status-chip').innerText = `${game.career} | ${game.city} | ${game.age} 岁 / 第 ${game.year} 年 | ${game.status}`;
-            document.getElementById('wg-event-card').innerHTML = `<strong>${game.lastEvent?.name || '开局'}</strong><br><span style="color:var(--text-secondary);">${game.lastEvent?.text || ''}</span>`;
+            document.getElementById('wg-event-card').innerHTML = `<strong>年度决策：${game.lastDecision?.name || '开局'}</strong><br><span style="color:var(--text-secondary);">${game.lastDecision?.text || ''}</span><br><br><strong>事件卡：${game.lastEvent?.name || '开局'}</strong><br><span style="color:var(--text-secondary);">${game.lastEvent?.text || ''}</span>`;
 
             const assetRows = [
                 ['现金', game.assets.cash, '用于应急和年度周转'],
@@ -3919,8 +4065,9 @@ ${avoidList}
                 ['红利资产', game.assets.dividend, '分红计入被动现金流'],
                 ['海外科技', game.assets.overseasTech, '高波动成长资产'],
                 ['黄金', game.assets.gold, '对冲资产'],
+                ['车辆', game.assets.car || 0, '自用车，折旧资产，买车后增加车贷和养车支出'],
                 ['房产/REITs/副业', game.assets.house + game.assets.reit + game.assets.sideBusiness, '租金或经营净流入计入被动现金流'],
-                ['总负债', -metrics.totalDebts, '房贷/消费贷/信用卡/经营贷']
+                ['总负债', -metrics.totalDebts, '房贷/车贷/消费贷/信用卡/经营贷']
             ];
             document.getElementById('wg-balance-table').innerHTML = assetRows.map(row => `
                 <tr>
@@ -3934,7 +4081,7 @@ ${avoidList}
                 ['主动收入', metrics.activeIncome, `月收入基准 ${formatCny(game.salary)}，按城市和身份调整`],
                 ['被动现金流', metrics.passiveIncome, '仅分红、票息、租金、利息、副业净流入'],
                 ['必要支出', -metrics.essentialExpense, '生活、住房、教育、赡养、保险'],
-                ['债务支出', -metrics.debtPayment, '房贷、消费贷、信用卡、经营贷'],
+                ['债务支出', -metrics.debtPayment, '房贷、车贷、消费贷、信用卡、经营贷按月付息/还款折算'],
                 ['年度现金流', metrics.annualCashflow, '全年入账后影响现金余额']
             ];
             document.getElementById('wg-cashflow-table').innerHTML = cashflowRows.map(row => `
