@@ -1354,6 +1354,18 @@ elif menu == "7. 人生财富游戏":
         "small_business": {"identity_key": "small_business", "city_key": "third_tier"}
     }
 
+    profile_options = [
+        {"identity_key": "internet", "city_key": "first_tier", "note": "高收入高支出，高波动"},
+        {"identity_key": "finance", "city_key": "first_tier", "note": "高收入高税费，职业周期敏感"},
+        {"identity_key": "white_collar", "city_key": "new_tier1", "note": "典型城市白领现金流"},
+        {"identity_key": "freelancer", "city_key": "new_tier1", "note": "收入弹性高，稳定性较弱"},
+        {"identity_key": "public_sector", "city_key": "second_tier", "note": "收入较稳，支出适中"},
+        {"identity_key": "manufacturing", "city_key": "second_tier", "note": "技术岗收入稳健，弹性有限"},
+        {"identity_key": "white_collar", "city_key": "second_tier", "note": "收入支出相对均衡"},
+        {"identity_key": "small_business", "city_key": "third_tier", "note": "经营现金流波动较大"},
+        {"identity_key": "public_sector", "city_key": "county", "note": "低线稳定型，收入和支出都低"}
+    ]
+
     def build_wealth_profile(identity_key="white_collar", city_key="new_tier1"):
         identity = career_profiles.get(identity_key, career_profiles["white_collar"])
         city = city_profiles.get(city_key, city_profiles["new_tier1"])
@@ -1373,9 +1385,16 @@ elif menu == "7. 人生财富游戏":
         }
 
     def create_random_wealth_game():
+        option = random.choice(profile_options)
         return create_wealth_game(
-            random.choice(list(career_profiles.keys())),
-            random.choice(list(city_profiles.keys()))
+            option["identity_key"],
+            option["city_key"]
+        )
+
+    def is_profile_option(game):
+        return any(
+            option["identity_key"] == game.get("identity_key") and option["city_key"] == game.get("city_key")
+            for option in profile_options
         )
 
     game_events = [
@@ -1569,24 +1588,27 @@ elif menu == "7. 人生财富游戏":
             legacy.get("identity_key", stored_game.get("profile_key", "white_collar")),
             legacy.get("city_key", stored_game.get("city_key", "new_tier1"))
         )
+    if not is_profile_option(st.session_state.wealth_game_state):
+        st.session_state.wealth_game_state = create_random_wealth_game()
 
-    id_col, city_col = st.columns(2)
-    with id_col:
-        st.markdown("### 身份收入支出对比")
-        identity_rows = []
-        for key in career_profiles:
-            p = build_wealth_profile(key, "new_tier1")
-            identity_rows.append((p["label"], p["salary"], p["expense"], p["housing"], p["expense"] + p["housing"]))
-        st.caption("以新一线城市为例，展示随机身份的月收入、基础消费与租住成本。")
-        st.dataframe(pd.DataFrame(identity_rows, columns=["身份", "月收入", "基础消费", "住房", "必要支出"]), use_container_width=True, hide_index=True)
-    with city_col:
-        st.markdown("### 城市收入支出对比")
-        city_rows = []
-        for key in city_profiles:
-            p = build_wealth_profile("white_collar", key)
-            city_rows.append((p["city"], p["salary"], p["expense"], p["housing"], p["expense"] + p["housing"]))
-        st.caption("以普通白领为例，展示随机城市对月收入、消费和住房成本的影响。")
-        st.dataframe(pd.DataFrame(city_rows, columns=["城市", "月收入", "基础消费", "住房", "必要支出"]), use_container_width=True, hide_index=True)
+    current_game = st.session_state.wealth_game_state
+    st.markdown("### 代表性身份 × 城市组合表")
+    profile_rows = []
+    for option in profile_options:
+        p = build_wealth_profile(option["identity_key"], option["city_key"])
+        is_current = current_game.get("identity_key") == option["identity_key"] and current_game.get("city_key") == option["city_key"]
+        profile_rows.append((
+            f"{p['label']}（当前）" if is_current else p["label"],
+            p["city"],
+            p["salary"],
+            p["expense"],
+            p["housing"],
+            p["expense"] + p["housing"],
+            p["cash"],
+            option["note"]
+        ))
+    st.caption("随机开局只会从下列代表性画像中抽取；当前开局组合会标注为“当前”。")
+    st.dataframe(pd.DataFrame(profile_rows, columns=["身份", "城市", "月收入", "基础消费", "住房", "必要支出", "初始现金", "画像特征"]), use_container_width=True, hide_index=True)
 
     c1, c2, c3, c4, c5, c6 = st.columns(6)
     if c1.button("随机新开局", use_container_width=True):
