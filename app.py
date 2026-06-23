@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 import os
 import json
+import random
 from datetime import datetime
 
 # 导入计算引擎
@@ -193,7 +194,8 @@ menu = st.sidebar.radio(
         "3. 现金缓冲池平滑模拟器",
         "4. 估值温度计与测算工具",
         "5. 年度资产再平衡测算",
-        "6. 风险压力测试"
+        "6. 风险压力测试",
+        "7. 人生财富游戏"
     ],
     index=0
 )
@@ -1315,3 +1317,293 @@ elif menu == "6. 风险压力测试":
         height=320
     )
     st.plotly_chart(fig_stress, use_container_width=True)
+
+# ==========================================
+# 模块 7: 人生财富游戏
+# ==========================================
+elif menu == "7. 人生财富游戏":
+    st.markdown("<h1 style='color:#FFFFFF; margin-bottom:10px;'>🎮 人生财富游戏</h1>", unsafe_allow_html=True)
+    st.info("本模块是中国家庭财富教育模拟，不复制任何现有桌游规则。每回合代表 1 年，覆盖 22 岁大学毕业到 60 岁退休的过程。成长资产浮盈不计入稳定现金流，只有分红、票息、租金、利息和副业净流入计入被动现金流。")
+
+    WEALTH_GAME_START_AGE = 22
+    WEALTH_GAME_RETIREMENT_AGE = 60
+
+    career_profiles = {
+        "white_collar": {"label": "普通白领", "city": "新一线", "salary": 12000, "expense": 6200, "tax_rate": 0.17, "housing": 2500, "cash": 30000, "stage": "单身"},
+        "public_sector": {"label": "体制内", "city": "二线", "salary": 9500, "expense": 5200, "tax_rate": 0.14, "housing": 1800, "cash": 40000, "stage": "单身"},
+        "internet": {"label": "互联网从业者", "city": "一线", "salary": 22000, "expense": 10500, "tax_rate": 0.24, "housing": 5200, "cash": 50000, "stage": "单身"},
+        "freelancer": {"label": "自由职业者", "city": "新一线", "salary": 15000, "expense": 7000, "tax_rate": 0.12, "housing": 2600, "cash": 35000, "stage": "单身"},
+        "small_business": {"label": "小微经营者", "city": "三线", "salary": 18000, "expense": 8200, "tax_rate": 0.10, "housing": 1800, "cash": 60000, "stage": "已婚"}
+    }
+
+    game_events = [
+        {"name": "行业奖金到账", "cash": 20000, "text": "全年项目奖金到账，现金增加。", "weight": 8},
+        {"name": "家电维修", "cash": -8000, "text": "家庭大件维修，必要支出上升。", "weight": 8},
+        {"name": "父母体检与药费", "cash": -12000, "text": "赡养老人支出出现，现金流韧性被检验。", "weight": 7},
+        {"name": "技能证书通过", "salary_boost": 0.02, "text": "技能提升带来工资小幅增长。", "weight": 6},
+        {"name": "裁员风险", "income_shock": -0.18, "cash": -8000, "text": "行业波动导致全年收入下降。", "weight": 5},
+        {"name": "A股回撤", "asset_shock": {"stock": -0.08, "dividend": -0.04, "overseas_tech": -0.06}, "text": "权益市场回撤，浮动市值下降，但不计入稳定现金流。", "weight": 7},
+        {"name": "红利分红季", "bonus_passive": 6000, "text": "红利资产年度分红到账，计入被动现金流。", "weight": 6},
+        {"name": "黄金上涨", "asset_shock": {"gold": 0.05}, "text": "避险资产上涨，对冲组合波动。", "weight": 4},
+        {"name": "创业试错", "business_shock": 0.04, "cash": -20000, "text": "副业/小生意年度投入带来未来现金流可能性，也消耗现金。", "weight": 4},
+        {"name": "平稳年份", "text": "没有重大事件，纪律比运气更重要。", "weight": 16}
+    ]
+
+    def create_wealth_game(profile_key="white_collar"):
+        p = career_profiles.get(profile_key, career_profiles["white_collar"])
+        game = {
+            "profile_key": profile_key,
+            "career": p["label"],
+            "city": p["city"],
+            "age": WEALTH_GAME_START_AGE,
+            "year": 1,
+            "retirement_age": WEALTH_GAME_RETIREMENT_AGE,
+            "family_stage": p["stage"],
+            "salary": p["salary"],
+            "tax_rate": p["tax_rate"],
+            "essential_base": p["expense"] + p["housing"],
+            "insurance_premium": 300,
+            "education_expense": 0,
+            "elder_expense": 0,
+            "negative_cashflow_streak": 0,
+            "freedom_streak": 0,
+            "status": "进行中",
+            "last_event": {"name": "开局", "text": "从第一份稳定现金流开始，先活下来，再谈增长。"},
+            "assets": {"cash": p["cash"], "money_market": 0, "bond": 0, "stock": 0, "dividend": 0, "overseas_tech": 0, "gold": 0, "house": 0, "reit": 0, "side_business": 0},
+            "debts": {"mortgage": 0, "consumer_loan": 0, "credit_card": 0, "business_loan": 0},
+            "history": []
+        }
+        record_wealth_year(game, calculate_wealth_metrics(game, {}))
+        return game
+
+    def choose_wealth_event():
+        pool = []
+        for event in game_events:
+            pool.extend([event] * event["weight"])
+        return dict(random.choice(pool))
+
+    def calculate_wealth_metrics(game, event):
+        assets = game["assets"]
+        debts = game["debts"]
+        active_income = max(0, game["salary"] * 12 * (1 - game["tax_rate"]) * (1 + event.get("income_shock", 0)))
+        passive_income = (
+            assets["money_market"] * 0.018 +
+            assets["bond"] * 0.026 +
+            assets["dividend"] * 0.036 +
+            assets["reit"] * 0.042 +
+            assets["house"] * 0.022 +
+            assets["side_business"] * 0.12 +
+            event.get("bonus_passive", 0)
+        )
+        debt_payment = debts["mortgage"] * 0.048 + debts["consumer_loan"] * 0.30 + debts["credit_card"] * 0.60 + debts["business_loan"] * 0.216
+        monthly_essential_expense = game["essential_base"] + game["insurance_premium"] + game["education_expense"] + game["elder_expense"]
+        essential_expense = monthly_essential_expense * 12
+        annual_cashflow = active_income + passive_income - essential_expense - debt_payment
+        total_assets = sum(assets.values())
+        total_debts = sum(debts.values())
+        net_worth = total_assets - total_debts
+        debt_ratio = total_debts / total_assets if total_assets > 0 else 0
+        emergency_months = max(0, (assets["cash"] + assets["money_market"]) / monthly_essential_expense) if monthly_essential_expense > 0 else 0
+        stress_score = min(100, round(debt_ratio * 55 + max(0, 12 - emergency_months) * 3 + (20 if annual_cashflow < 0 else 0)))
+        return {
+            "active_income": active_income,
+            "passive_income": passive_income,
+            "debt_payment": debt_payment,
+            "essential_expense": essential_expense,
+            "annual_cashflow": annual_cashflow,
+            "monthly_cashflow": annual_cashflow,
+            "total_assets": total_assets,
+            "total_debts": total_debts,
+            "net_worth": net_worth,
+            "debt_ratio": debt_ratio,
+            "emergency_months": emergency_months,
+            "stress_score": stress_score
+        }
+
+    def record_wealth_year(game, metrics):
+        game["history"].append({
+            "year": game["year"],
+            "age": game["age"],
+            "cashflow": metrics["annual_cashflow"],
+            "passive_income": metrics["passive_income"],
+            "emergency_months": metrics["emergency_months"],
+            "net_worth": metrics["net_worth"],
+            "debt_ratio": metrics["debt_ratio"],
+            "stress_score": metrics["stress_score"]
+        })
+        game["history"] = game["history"][-40:]
+
+    def apply_wealth_decision(game, action):
+        assets = game["assets"]
+        debts = game["debts"]
+        if action == "save":
+            move = min(assets["cash"], 36000)
+            assets["cash"] -= move
+            assets["money_market"] += move
+        elif action == "invest":
+            invest = min(assets["cash"], 48000)
+            assets["cash"] -= invest
+            assets["stock"] += invest * 0.35
+            assets["dividend"] += invest * 0.35
+            assets["bond"] += invest * 0.15
+            assets["gold"] += invest * 0.15
+        elif action == "debt":
+            repay = min(assets["cash"], debts["consumer_loan"] + debts["credit_card"] + debts["business_loan"], 60000)
+            assets["cash"] -= repay
+            for key in ["credit_card", "consumer_loan", "business_loan"]:
+                used = min(debts[key], repay)
+                debts[key] -= used
+                repay -= used
+        elif action == "skill":
+            assets["cash"] -= 12000
+            game["salary"] *= 1.03
+            assets["side_business"] += 6000
+        elif action == "insurance":
+            game["insurance_premium"] += 120
+            assets["cash"] -= 2000
+        else:
+            move = min(assets["cash"], 18000)
+            assets["cash"] -= move
+            assets["money_market"] += move
+
+    def advance_wealth_game(game, action):
+        if game["status"] != "进行中":
+            return game
+        apply_wealth_decision(game, action)
+        event = choose_wealth_event()
+        assets = game["assets"]
+        if event.get("cash"):
+            assets["cash"] += event["cash"]
+        if event.get("salary_boost"):
+            game["salary"] *= (1 + event["salary_boost"])
+        if event.get("business_shock"):
+            assets["side_business"] *= (1 + event["business_shock"])
+        for key, shock in event.get("asset_shock", {}).items():
+            assets[key] = max(0, assets.get(key, 0) * (1 + shock))
+        metrics = calculate_wealth_metrics(game, event)
+        assets["cash"] += metrics["annual_cashflow"]
+        game["negative_cashflow_streak"] = game["negative_cashflow_streak"] + 1 if metrics["annual_cashflow"] < 0 and assets["cash"] <= 0 else 0
+        game["freedom_streak"] = game["freedom_streak"] + 1 if metrics["passive_income"] >= metrics["essential_expense"] and metrics["emergency_months"] >= 12 else 0
+        game["last_event"] = event
+        game["year"] += 1
+        game["age"] += 1
+        if game["freedom_streak"] >= 3:
+            game["status"] = "财务韧性胜利"
+        if game["negative_cashflow_streak"] >= 2 or metrics["debt_ratio"] > 0.9:
+            game["status"] = "现金流破产"
+        if game["status"] == "进行中" and game["age"] >= game.get("retirement_age", WEALTH_GAME_RETIREMENT_AGE):
+            game["status"] = "退休未达成"
+        record_wealth_year(game, metrics)
+        return game
+
+    def wealth_advice(game, metrics):
+        if game["status"] == "财务韧性胜利":
+            return "你已连续 3 年做到被动现金流覆盖年度必要支出，并保有 12 个月以上应急金。下一步是控制杠杆和分散风险。"
+        if game["status"] == "现金流破产":
+            return "现金流已经断裂。复盘重点不是追逐高收益，而是降低固定支出、处理高息债务、重建应急金。"
+        if game["status"] == "退休未达成":
+            return "已经到 60 岁退休节点但尚未达成被动现金流覆盖必要支出的状态。复盘重点是更早控制支出、降低杠杆并增加稳定现金流资产。"
+        if metrics["emergency_months"] < 6:
+            return "应急金不足 6 个月，优先储蓄和货币基金，不急于加大高波动资产。"
+        if metrics["debt_ratio"] > 0.6:
+            return "负债率偏高，优先处理信用卡、消费贷和经营贷，避免被利息吞噬现金流。"
+        if metrics["passive_income"] < metrics["essential_expense"] * 0.3:
+            return "被动现金流还弱，红利、票息、租金和副业现金流需要逐步积累。"
+        return "现金流结构相对稳健。保持预算纪律，分散资产，别把成长资产浮盈当作稳定收入。"
+
+    if "wealth_game_state" not in st.session_state:
+        st.session_state.wealth_game_state = create_wealth_game("white_collar")
+    elif "year" not in st.session_state.wealth_game_state:
+        st.session_state.wealth_game_state = create_wealth_game(st.session_state.wealth_game_state.get("profile_key", "white_collar"))
+
+    profile_choice = st.selectbox(
+        "选择开局职业画像",
+        list(career_profiles.keys()),
+        format_func=lambda k: f"{career_profiles[k]['label']} / {career_profiles[k]['city']}",
+        index=list(career_profiles.keys()).index(st.session_state.wealth_game_state.get("profile_key", "white_collar"))
+    )
+
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
+    if c1.button("新开局", use_container_width=True):
+        st.session_state.wealth_game_state = create_wealth_game(profile_choice)
+        st.rerun()
+    if c2.button("下一年：均衡", use_container_width=True):
+        st.session_state.wealth_game_state = advance_wealth_game(st.session_state.wealth_game_state, "balanced")
+        st.rerun()
+    if c3.button("建应急金", use_container_width=True):
+        st.session_state.wealth_game_state = advance_wealth_game(st.session_state.wealth_game_state, "save")
+        st.rerun()
+    if c4.button("长期定投", use_container_width=True):
+        st.session_state.wealth_game_state = advance_wealth_game(st.session_state.wealth_game_state, "invest")
+        st.rerun()
+    if c5.button("还债", use_container_width=True):
+        st.session_state.wealth_game_state = advance_wealth_game(st.session_state.wealth_game_state, "debt")
+        st.rerun()
+    if c6.button("重置", use_container_width=True):
+        st.session_state.wealth_game_state = create_wealth_game("white_collar")
+        st.rerun()
+
+    game = st.session_state.wealth_game_state
+    metrics = calculate_wealth_metrics(game, game.get("last_event", {}))
+
+    m1, m2, m3, m4, m5, m6 = st.columns(6)
+    cards = [
+        ("年龄 / 阶段", f"{game['age']} 岁 / {game['family_stage']}", "#FFFFFF"),
+        ("年度现金流", f"¥{metrics['annual_cashflow']:,.0f}", "#10B981" if metrics["annual_cashflow"] >= 0 else "#EF4444"),
+        ("被动现金流", f"¥{metrics['passive_income']:,.0f}", "#3B82F6"),
+        ("必要支出", f"¥{metrics['essential_expense']:,.0f}", "#F59E0B"),
+        ("应急金月数", f"{metrics['emergency_months']:.1f}", "#10B981" if metrics["emergency_months"] >= 6 else "#EF4444"),
+        ("净资产 / 负债率", f"¥{metrics['net_worth']:,.0f} / {metrics['debt_ratio']*100:.1f}%", "#FFFFFF")
+    ]
+    for col, (label, value, color) in zip([m1, m2, m3, m4, m5, m6], cards):
+        col.markdown(f"<div class='card'><div class='metric-label'>{label}</div><div class='metric-value' style='color:{color};'>{value}</div></div>", unsafe_allow_html=True)
+
+    st.markdown(f"### 事件卡：{game['last_event']['name']}")
+    st.write(game["last_event"]["text"])
+    st.warning(f"教学建议：{wealth_advice(game, metrics)}  家庭压力指数：{metrics['stress_score']}/100；胜利进度：{game['freedom_streak']}/3 年；退休节点：{game.get('retirement_age', WEALTH_GAME_RETIREMENT_AGE)} 岁。")
+
+    left, right = st.columns(2)
+    with left:
+        st.markdown("### 资产负债表")
+        balance_rows = [
+            ("现金", game["assets"]["cash"], "用于应急和年度周转"),
+            ("货币基金", game["assets"]["money_market"], "流动性备用金"),
+            ("债券/理财", game["assets"]["bond"], "票息型资产"),
+            ("A股宽基", game["assets"]["stock"], "成长资产，浮盈不算现金流"),
+            ("红利资产", game["assets"]["dividend"], "分红计入被动现金流"),
+            ("海外科技", game["assets"]["overseas_tech"], "高波动成长资产"),
+            ("黄金", game["assets"]["gold"], "对冲资产"),
+            ("房产/REITs/副业", game["assets"]["house"] + game["assets"]["reit"] + game["assets"]["side_business"], "租金或经营净流入计入被动现金流"),
+            ("总负债", -metrics["total_debts"], "房贷/消费贷/信用卡/经营贷")
+        ]
+        st.dataframe(pd.DataFrame(balance_rows, columns=["项目", "金额", "说明"]), use_container_width=True, hide_index=True)
+    with right:
+        st.markdown("### 现金流表")
+        cashflow_rows = [
+            ("主动收入", metrics["active_income"], "工资/经营收入，扣除简化税费"),
+            ("被动现金流", metrics["passive_income"], "仅分红、票息、租金、利息、副业净流入"),
+            ("必要支出", -metrics["essential_expense"], "生活、住房、教育、赡养、保险"),
+            ("债务支出", -metrics["debt_payment"], "房贷、消费贷、信用卡、经营贷"),
+            ("年度现金流", metrics["annual_cashflow"], "全年入账后影响现金余额")
+        ]
+        st.dataframe(pd.DataFrame(cashflow_rows, columns=["项目", "年度金额", "口径"]), use_container_width=True, hide_index=True)
+
+    hist = pd.DataFrame(game["history"])
+    if not hist.empty:
+        fig_game = go.Figure()
+        fig_game.add_trace(go.Scatter(x=hist["age"], y=hist["net_worth"], mode="lines+markers", name="净资产", line=dict(color="#10B981", width=2)))
+        fig_game.add_trace(go.Scatter(x=hist["age"], y=hist["cashflow"], mode="lines+markers", name="年度现金流", line=dict(color="#3B82F6", width=2), yaxis="y2"))
+        fig_game.add_trace(go.Scatter(x=hist["age"], y=hist["emergency_months"], mode="lines", name="应急金月数", line=dict(color="#F59E0B", width=2), yaxis="y3"))
+        fig_game.update_layout(
+            title="财富路径趋势",
+            xaxis_title="年龄",
+            yaxis=dict(title="净资产", gridcolor="rgba(255,255,255,0.05)"),
+            yaxis2=dict(title="现金流", overlaying="y", side="right"),
+            yaxis3=dict(visible=False, overlaying="y"),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            font_color="#E2E8F0",
+            hovermode="x unified",
+            height=360
+        )
+        st.plotly_chart(fig_game, use_container_width=True)

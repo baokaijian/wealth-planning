@@ -644,6 +644,7 @@
             <button class="nav-btn" id="btn-tab3" onclick="switchTab('tab3')">4. 估值温度计与测算工具</button>
             <button class="nav-btn" id="btn-tab4" onclick="switchTab('tab4')">5. 年度资产再平衡测算</button>
             <button class="nav-btn" id="btn-tab5" onclick="switchTab('tab5')">6. 风险压力测试</button>
+            <button class="nav-btn" id="btn-tab6" onclick="switchTab('tab6')">7. 人生财富游戏</button>
         </nav>
 
         <div class="sidebar-config">
@@ -1527,6 +1528,111 @@
                 <div id="t5-plotly-stress" style="height: 320px; width: 100%;"></div>
             </div>
         </div>
+
+        <!-- ==========================================
+           TAB 6: LIFE WEALTH GAME
+           ========================================== -->
+        <div id="tab6-view" class="tab-content">
+            <div class="alert-banner alert-info" style="margin-bottom: 20px;">
+                <strong>人生财富游戏</strong><br>
+                本模块是中国家庭财富教育模拟，不复制任何现有桌游规则。每回合代表 1 年，覆盖 22 岁大学毕业到 60 岁退休的过程。成长资产浮盈不会计入稳定现金流，只有分红、票息、租金、利息计入被动现金流。
+            </div>
+
+            <div class="grid-cards">
+                <div class="metric-card">
+                    <span class="metric-label">年龄 / 阶段</span>
+                    <span class="metric-val-num" id="wg-age-stage">22 岁</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">年度现金流</span>
+                    <span class="metric-val-num" id="wg-monthly-cashflow">¥0</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">被动现金流</span>
+                    <span class="metric-val-num" id="wg-passive-income">¥0</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">必要支出</span>
+                    <span class="metric-val-num" id="wg-essential-expense">¥0</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">应急金月数</span>
+                    <span class="metric-val-num" id="wg-emergency-months">0.0</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">净资产 / 负债率</span>
+                    <span class="metric-val-num" id="wg-networth-debt">¥0 / 0%</span>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom: 20px; display:flex; gap: 12px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <select id="wg-career-select" style="padding:8px 12px; background:var(--bg-primary); color:#fff; border:1px solid var(--card-border); border-radius:6px;">
+                        <option value="white_collar">普通白领 / 新一线</option>
+                        <option value="public_sector">体制内 / 二线</option>
+                        <option value="internet">互联网 / 一线</option>
+                        <option value="freelancer">自由职业 / 新一线</option>
+                        <option value="small_business">小微经营者 / 三线</option>
+                    </select>
+                    <button onclick="startWealthGame()" style="background:var(--accent-emerald); color:#04111A; border:none; padding:9px 14px; border-radius:6px; font-weight:700; cursor:pointer;">新开局</button>
+                    <button onclick="advanceWealthGame('balanced')" style="background:var(--accent-blue); color:white; border:none; padding:9px 14px; border-radius:6px; font-weight:700; cursor:pointer;">下一年：均衡决策</button>
+                    <button onclick="resetWealthGame()" style="background:rgba(239,68,68,0.15); color:var(--accent-red); border:1px solid rgba(239,68,68,0.35); padding:9px 14px; border-radius:6px; font-weight:700; cursor:pointer;">重置</button>
+                </div>
+                <div id="wg-status-chip" style="font-size:0.85rem; color:var(--text-secondary);">本地存档未载入</div>
+            </div>
+
+            <div class="flex-row-layouts">
+                <div class="flex-col-left">
+                    <div class="card" style="margin-bottom:20px;">
+                        <div class="card-title-text" style="margin-bottom:15px;">资产负债表</div>
+                        <div style="overflow-x:auto;">
+                            <table style="font-size:0.86rem;">
+                                <thead>
+                                    <tr><th>项目</th><th>金额</th><th>说明</th></tr>
+                                </thead>
+                                <tbody id="wg-balance-table"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title-text" style="margin-bottom:15px;">现金流表</div>
+                        <div style="overflow-x:auto;">
+                            <table style="font-size:0.86rem;">
+                                <thead>
+                                    <tr><th>项目</th><th>年度金额</th><th>口径</th></tr>
+                                </thead>
+                                <tbody id="wg-cashflow-table"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex-col-right">
+                    <div class="card" style="margin-bottom:20px;">
+                        <div class="card-title-text" style="margin-bottom:15px;">本月决策</div>
+                        <div style="display:grid; gap:10px;">
+                            <button onclick="advanceWealthGame('save')" style="padding:10px;border-radius:6px;border:1px solid rgba(16,185,129,0.35);background:rgba(16,185,129,0.08);color:var(--accent-emerald);font-weight:700;cursor:pointer;">增加储蓄 / 建应急金</button>
+                            <button onclick="advanceWealthGame('invest')" style="padding:10px;border-radius:6px;border:1px solid rgba(59,130,246,0.35);background:rgba(59,130,246,0.08);color:var(--accent-blue);font-weight:700;cursor:pointer;">长期定投 / 增加资产</button>
+                            <button onclick="advanceWealthGame('debt')" style="padding:10px;border-radius:6px;border:1px solid rgba(245,158,11,0.35);background:rgba(245,158,11,0.08);color:var(--accent-orange);font-weight:700;cursor:pointer;">提前还债 / 降低杠杆</button>
+                            <button onclick="advanceWealthGame('skill')" style="padding:10px;border-radius:6px;border:1px solid rgba(167,139,250,0.35);background:rgba(167,139,250,0.08);color:#A78BFA;font-weight:700;cursor:pointer;">提升技能 / 副业尝试</button>
+                            <button onclick="advanceWealthGame('insurance')" style="padding:10px;border-radius:6px;border:1px solid rgba(148,163,184,0.35);background:rgba(148,163,184,0.08);color:var(--text-primary);font-weight:700;cursor:pointer;">补足保险 / 风险防线</button>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-bottom:20px;">
+                        <div class="card-title-text" style="margin-bottom:15px;">事件卡</div>
+                        <div id="wg-event-card" style="line-height:1.5; color:var(--text-primary);">点击“新开局”开始。</div>
+                    </div>
+
+                    <div id="wg-advice" class="alert-banner" style="font-size:0.9rem;"></div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top:20px;">
+                <div class="card-title-text" style="margin-bottom:15px;">财富路径趋势</div>
+                <div id="wg-plotly-trends" style="height:360px;width:100%;"></div>
+            </div>
+        </div>
     </main>
 
     <!-- ==========================================
@@ -1601,6 +1707,7 @@
 
             // 同步一次策略控制台输入数据至其余部分
             updateCoreState();
+            initWealthGame();
 
             // 启动定时刷新回路
             // 1. 每 60 秒自动拉取最新实时行情缓存
@@ -2519,7 +2626,8 @@
                 'tab2': ["现金缓冲池平滑模拟器", "大多数分红在 5-8 月密集派发。本模拟器展示分红如何平滑平铺到 36 个月中。"],
                 'tab3': ["估值温度计与测算工具", "监控红利指数历史估值分位与当前股息率，生成定投额度测算。"],
                 'tab4': ["年度资产再平衡测算", "输入各资产当前实际市值，一键测算偏离度，提供再平衡提示。"],
-                'tab5': ["风险压力测试", "模拟极端市场环境下的分红下降与净值回撤，评估现金流安全性。"]
+                'tab5': ["风险压力测试", "模拟极端市场环境下的分红下降与净值回撤，评估现金流安全性。"],
+                'tab6': ["人生财富游戏", "从 22 岁大学毕业到 60 岁退休，按年度模拟收入、支出、负债、资产配置与人生事件。"]
             };
 
             document.getElementById('main-header-title').innerText = headerTitles[tabId][0];
@@ -2544,6 +2652,8 @@
                 renderTab3HistoryChart();
             } else if (state.currentTab === 'tab5') {
                 renderTab5StressChart();
+            } else if (state.currentTab === 'tab6') {
+                renderWealthGame();
             }
         }
 
@@ -3462,8 +3572,339 @@ ${avoidList}
             });
         }
 
+        const WEALTH_GAME_STORAGE_KEY = 'wealthGameState';
+        const WEALTH_GAME_START_AGE = 22;
+        const WEALTH_GAME_RETIREMENT_AGE = 60;
+        const WEALTH_GAME_CAREERS = {
+            white_collar: { label: '普通白领', city: '新一线', salary: 12000, expense: 6200, taxRate: 0.17, housing: 2500, cash: 30000, stage: '单身' },
+            public_sector: { label: '体制内', city: '二线', salary: 9500, expense: 5200, taxRate: 0.14, housing: 1800, cash: 40000, stage: '单身' },
+            internet: { label: '互联网从业者', city: '一线', salary: 22000, expense: 10500, taxRate: 0.24, housing: 5200, cash: 50000, stage: '单身' },
+            freelancer: { label: '自由职业者', city: '新一线', salary: 15000, expense: 7000, taxRate: 0.12, housing: 2600, cash: 35000, stage: '单身' },
+            small_business: { label: '小微经营者', city: '三线', salary: 18000, expense: 8200, taxRate: 0.10, housing: 1800, cash: 60000, stage: '已婚' }
+        };
+
+        const WEALTH_GAME_EVENTS = [
+            { name: '行业奖金到账', type: 'life', cash: 20000, text: '全年项目奖金到账，现金增加。', weight: 8 },
+            { name: '家电维修', type: 'life', cash: -8000, text: '家庭大件维修，必要支出上升。', weight: 8 },
+            { name: '父母体检与药费', type: 'life', cash: -12000, text: '赡养老人支出出现，现金流韧性被检验。', weight: 7 },
+            { name: '技能证书通过', type: 'life', salaryBoost: 0.02, text: '技能提升带来工资小幅增长。', weight: 6 },
+            { name: '裁员风险', type: 'life', incomeShock: -0.18, cash: -8000, text: '行业波动导致全年收入下降。', weight: 5 },
+            { name: 'A股回撤', type: 'market', assetShock: { stock: -0.08, dividend: -0.04, overseasTech: -0.06 }, text: '权益市场回撤，浮动市值下降，但不计入稳定现金流。', weight: 7 },
+            { name: '红利分红季', type: 'market', bonusPassive: 6000, text: '红利资产年度分红到账，计入被动现金流。', weight: 6 },
+            { name: '黄金上涨', type: 'market', assetShock: { gold: 0.05 }, text: '避险资产上涨，对冲组合波动。', weight: 4 },
+            { name: '创业试错', type: 'life', businessShock: 0.04, cash: -20000, text: '副业/小生意年度投入带来未来现金流可能性，也消耗现金。', weight: 4 },
+            { name: '平稳年份', type: 'life', text: '没有重大事件，纪律比运气更重要。', weight: 16 }
+        ];
+
+        const wealthGameEngine = {
+            createGame(profileKey = 'white_collar') {
+                const profile = WEALTH_GAME_CAREERS[profileKey] || WEALTH_GAME_CAREERS.white_collar;
+                const stateGame = {
+                    profileKey,
+                    career: profile.label,
+                    city: profile.city,
+                    age: WEALTH_GAME_START_AGE,
+                    year: 1,
+                    retirementAge: WEALTH_GAME_RETIREMENT_AGE,
+                    familyStage: profile.stage,
+                    salary: profile.salary,
+                    taxRate: profile.taxRate,
+                    essentialExpense: profile.expense + profile.housing,
+                    insurancePremium: 300,
+                    educationExpense: 0,
+                    elderExpense: 0,
+                    negativeCashflowStreak: 0,
+                    freedomStreak: 0,
+                    status: '进行中',
+                    lastEvent: { name: '开局', text: '从第一份稳定现金流开始，先活下来，再谈增长。' },
+                    assets: {
+                        cash: profile.cash,
+                        moneyMarket: 0,
+                        bond: 0,
+                        stock: 0,
+                        dividend: 0,
+                        overseasTech: 0,
+                        gold: 0,
+                        house: 0,
+                        reit: 0,
+                        sideBusiness: 0
+                    },
+                    debts: {
+                        mortgage: 0,
+                        consumerLoan: 0,
+                        creditCard: 0,
+                        businessLoan: 0
+                    },
+                    history: []
+                };
+                this.recordYear(stateGame, this.calculateMetrics(stateGame, { passiveBonus: 0, incomeShock: 0 }));
+                return stateGame;
+            },
+            chooseEvent() {
+                const pool = [];
+                WEALTH_GAME_EVENTS.forEach(event => {
+                    for (let i = 0; i < event.weight; i++) pool.push(event);
+                });
+                return { ...pool[Math.floor(Math.random() * pool.length)] };
+            },
+            applyDecision(gameState, action) {
+                const a = gameState.assets;
+                const d = gameState.debts;
+                if (action === 'save') {
+                    const move = Math.min(a.cash, 36000);
+                    a.cash -= move;
+                    a.moneyMarket += move;
+                } else if (action === 'invest') {
+                    const invest = Math.min(a.cash, 48000);
+                    a.cash -= invest;
+                    a.stock += invest * 0.35;
+                    a.dividend += invest * 0.35;
+                    a.bond += invest * 0.15;
+                    a.gold += invest * 0.15;
+                } else if (action === 'debt') {
+                    const totalDebt = d.consumerLoan + d.creditCard + d.businessLoan;
+                    const repay = Math.min(a.cash, totalDebt, 60000);
+                    a.cash -= repay;
+                    if (d.creditCard > 0) {
+                        const r = Math.min(d.creditCard, repay);
+                        d.creditCard -= r;
+                    } else if (d.consumerLoan > 0) {
+                        const r = Math.min(d.consumerLoan, repay);
+                        d.consumerLoan -= r;
+                    } else {
+                        d.businessLoan = Math.max(0, d.businessLoan - repay);
+                    }
+                } else if (action === 'skill') {
+                    a.cash -= 12000;
+                    gameState.salary *= 1.03;
+                    a.sideBusiness += 6000;
+                } else if (action === 'insurance') {
+                    gameState.insurancePremium += 120;
+                    a.cash -= 2000;
+                } else {
+                    const reserve = Math.min(a.cash, 18000);
+                    a.cash -= reserve;
+                    a.moneyMarket += reserve;
+                }
+            },
+            applyEvent(gameState, event) {
+                if (event.cash) gameState.assets.cash += event.cash;
+                if (event.salaryBoost) gameState.salary *= (1 + event.salaryBoost);
+                if (event.businessShock) gameState.assets.sideBusiness *= (1 + event.businessShock);
+                if (event.assetShock) {
+                    Object.keys(event.assetShock).forEach(key => {
+                        gameState.assets[key] = Math.max(0, (gameState.assets[key] || 0) * (1 + event.assetShock[key]));
+                    });
+                }
+            },
+            nextYear(gameState, action = 'balanced') {
+                if (!gameState || gameState.status !== '进行中') return gameState;
+                this.applyDecision(gameState, action);
+                const event = this.chooseEvent();
+                this.applyEvent(gameState, event);
+                const metrics = this.calculateMetrics(gameState, event);
+                gameState.assets.cash += metrics.annualCashflow;
+                gameState.negativeCashflowStreak = metrics.annualCashflow < 0 && gameState.assets.cash <= 0 ? gameState.negativeCashflowStreak + 1 : 0;
+                gameState.freedomStreak = metrics.passiveIncome >= metrics.essentialExpense && metrics.emergencyMonths >= 12 ? gameState.freedomStreak + 1 : 0;
+                gameState.lastEvent = event;
+                gameState.year += 1;
+                gameState.age += 1;
+                if (gameState.freedomStreak >= 3) gameState.status = '财务韧性胜利';
+                if (gameState.negativeCashflowStreak >= 2 || metrics.debtRatio > 0.9) gameState.status = '现金流破产';
+                if (gameState.status === '进行中' && gameState.age >= (gameState.retirementAge || WEALTH_GAME_RETIREMENT_AGE)) gameState.status = '退休未达成';
+                this.recordYear(gameState, metrics);
+                return gameState;
+            },
+            nextMonth(gameState, action = 'balanced') {
+                return this.nextYear(gameState, action);
+            },
+            calculateMetrics(gameState, event = {}) {
+                const a = gameState.assets;
+                const d = gameState.debts;
+                const activeIncome = Math.max(0, gameState.salary * 12 * (1 - gameState.taxRate) * (1 + (event.incomeShock || 0)));
+                const passiveIncome =
+                    a.moneyMarket * 0.018 +
+                    a.bond * 0.026 +
+                    a.dividend * 0.036 +
+                    a.reit * 0.042 +
+                    a.house * 0.022 +
+                    a.sideBusiness * 0.12 +
+                    (event.bonusPassive || 0);
+                const debtPayment = d.mortgage * 0.048 + d.consumerLoan * 0.30 + d.creditCard * 0.60 + d.businessLoan * 0.216;
+                const monthlyEssentialExpense = gameState.essentialExpense + gameState.insurancePremium + gameState.educationExpense + gameState.elderExpense;
+                const essentialExpense = monthlyEssentialExpense * 12;
+                const annualCashflow = activeIncome + passiveIncome - essentialExpense - debtPayment;
+                const totalAssets = Object.values(a).reduce((sum, v) => sum + v, 0);
+                const totalDebts = Object.values(d).reduce((sum, v) => sum + v, 0);
+                const netWorth = totalAssets - totalDebts;
+                const debtRatio = totalAssets > 0 ? totalDebts / totalAssets : 0;
+                const emergencyMonths = monthlyEssentialExpense > 0 ? Math.max(0, (a.cash + a.moneyMarket) / monthlyEssentialExpense) : 0;
+                const stressScore = Math.min(100, Math.round(debtRatio * 55 + Math.max(0, 12 - emergencyMonths) * 3 + (annualCashflow < 0 ? 20 : 0)));
+                return { activeIncome, passiveIncome, debtPayment, essentialExpense, annualCashflow, monthlyCashflow: annualCashflow, totalAssets, totalDebts, netWorth, debtRatio, emergencyMonths, stressScore };
+            },
+            recordYear(gameState, metrics) {
+                gameState.history.push({
+                    year: gameState.year,
+                    age: gameState.age,
+                    cashflow: metrics.annualCashflow,
+                    passiveIncome: metrics.passiveIncome,
+                    emergencyMonths: metrics.emergencyMonths,
+                    netWorth: metrics.netWorth,
+                    debtRatio: metrics.debtRatio,
+                    stressScore: metrics.stressScore
+                });
+                if (gameState.history.length > 40) gameState.history = gameState.history.slice(-40);
+            },
+            recordMonth(gameState, metrics) {
+                this.recordYear(gameState, metrics);
+            },
+            getAdvice(gameState, metrics) {
+                if (gameState.status === '财务韧性胜利') return '你已经连续 3 年做到被动现金流覆盖年度必要支出，并保有 12 个月以上应急金。下一步是控制杠杆和分散风险。';
+                if (gameState.status === '现金流破产') return '现金流已经断裂。复盘重点不是追逐高收益，而是降低固定支出、处理高息债务、重建应急金。';
+                if (gameState.status === '退休未达成') return '已经到 60 岁退休节点但尚未达成被动现金流覆盖必要支出的状态。复盘重点是更早控制支出、降低杠杆并增加稳定现金流资产。';
+                if (metrics.emergencyMonths < 6) return '应急金不足 6 个月，优先储蓄和货币基金，不急于加大高波动资产。';
+                if (metrics.debtRatio > 0.6) return '负债率偏高，优先处理信用卡、消费贷和经营贷，避免被利息吞噬现金流。';
+                if (metrics.passiveIncome < metrics.essentialExpense * 0.3) return '被动现金流还弱，红利、票息、租金和副业现金流需要逐步积累。';
+                return '现金流结构相对稳健。保持预算纪律，分散资产，别把成长资产浮盈当作稳定收入。';
+            }
+        };
+
+        function getWealthGameState() {
+            if (!state.wealthGame) {
+                const stored = localStorage.getItem(WEALTH_GAME_STORAGE_KEY);
+                state.wealthGame = stored ? JSON.parse(stored) : wealthGameEngine.createGame('white_collar');
+                if (!state.wealthGame.year || !state.wealthGame.retirementAge) {
+                    state.wealthGame = wealthGameEngine.createGame(state.wealthGame.profileKey || 'white_collar');
+                    saveWealthGameState();
+                }
+            }
+            return state.wealthGame;
+        }
+
+        function saveWealthGameState() {
+            localStorage.setItem(WEALTH_GAME_STORAGE_KEY, JSON.stringify(state.wealthGame));
+        }
+
+        function initWealthGame() {
+            try {
+                getWealthGameState();
+            } catch (e) {
+                console.error('财富游戏存档损坏，已重置', e);
+                state.wealthGame = wealthGameEngine.createGame('white_collar');
+                saveWealthGameState();
+            }
+            renderWealthGame();
+        }
+
+        function startWealthGame() {
+            const profileKey = document.getElementById('wg-career-select')?.value || 'white_collar';
+            state.wealthGame = wealthGameEngine.createGame(profileKey);
+            saveWealthGameState();
+            renderWealthGame();
+        }
+
+        function resetWealthGame() {
+            localStorage.removeItem(WEALTH_GAME_STORAGE_KEY);
+            state.wealthGame = wealthGameEngine.createGame('white_collar');
+            saveWealthGameState();
+            renderWealthGame();
+        }
+
+        function advanceWealthGame(action) {
+            const game = getWealthGameState();
+            wealthGameEngine.nextYear(game, action);
+            saveWealthGameState();
+            renderWealthGame();
+        }
+
+        function formatCny(value) {
+            const sign = value < 0 ? '-' : '';
+            return `${sign}¥${Math.round(Math.abs(value)).toLocaleString()}`;
+        }
+
+        function renderWealthGame() {
+            if (!document.getElementById('tab6-view')) return;
+            const game = getWealthGameState();
+            const metrics = wealthGameEngine.calculateMetrics(game, game.lastEvent || {});
+            document.getElementById('wg-age-stage').innerText = `${game.age} 岁 / ${game.familyStage}`;
+            document.getElementById('wg-monthly-cashflow').innerText = formatCny(metrics.annualCashflow);
+            document.getElementById('wg-monthly-cashflow').style.color = metrics.annualCashflow >= 0 ? 'var(--accent-emerald)' : 'var(--accent-red)';
+            document.getElementById('wg-passive-income').innerText = formatCny(metrics.passiveIncome);
+            document.getElementById('wg-essential-expense').innerText = formatCny(metrics.essentialExpense);
+            document.getElementById('wg-emergency-months').innerText = `${metrics.emergencyMonths.toFixed(1)} 个月`;
+            document.getElementById('wg-networth-debt').innerText = `${formatCny(metrics.netWorth)} / ${(metrics.debtRatio * 100).toFixed(1)}%`;
+            document.getElementById('wg-status-chip').innerText = `${game.career} | ${game.city} | ${game.age} 岁 / 第 ${game.year} 年 | ${game.status}`;
+            document.getElementById('wg-event-card').innerHTML = `<strong>${game.lastEvent?.name || '开局'}</strong><br><span style="color:var(--text-secondary);">${game.lastEvent?.text || ''}</span>`;
+
+            const assetRows = [
+                ['现金', game.assets.cash, '用于应急和年度周转'],
+                ['货币基金', game.assets.moneyMarket, '流动性备用金'],
+                ['债券/理财', game.assets.bond, '票息型资产'],
+                ['A股宽基', game.assets.stock, '成长资产，浮盈不算现金流'],
+                ['红利资产', game.assets.dividend, '分红计入被动现金流'],
+                ['海外科技', game.assets.overseasTech, '高波动成长资产'],
+                ['黄金', game.assets.gold, '对冲资产'],
+                ['房产/REITs/副业', game.assets.house + game.assets.reit + game.assets.sideBusiness, '租金或经营净流入计入被动现金流'],
+                ['总负债', -metrics.totalDebts, '房贷/消费贷/信用卡/经营贷']
+            ];
+            document.getElementById('wg-balance-table').innerHTML = assetRows.map(row => `
+                <tr>
+                    <td>${row[0]}</td>
+                    <td style="font-weight:600;color:${row[1] >= 0 ? 'var(--text-primary)' : 'var(--accent-red)'}">${formatCny(row[1])}</td>
+                    <td style="color:var(--text-secondary);font-size:0.78rem;">${row[2]}</td>
+                </tr>
+            `).join('');
+
+            const cashflowRows = [
+                ['主动收入', metrics.activeIncome, '工资/经营收入，扣除简化税费'],
+                ['被动现金流', metrics.passiveIncome, '仅分红、票息、租金、利息、副业净流入'],
+                ['必要支出', -metrics.essentialExpense, '生活、住房、教育、赡养、保险'],
+                ['债务支出', -metrics.debtPayment, '房贷、消费贷、信用卡、经营贷'],
+                ['年度现金流', metrics.annualCashflow, '全年入账后影响现金余额']
+            ];
+            document.getElementById('wg-cashflow-table').innerHTML = cashflowRows.map(row => `
+                <tr>
+                    <td>${row[0]}</td>
+                    <td style="font-weight:600;color:${row[1] >= 0 ? 'var(--accent-emerald)' : 'var(--accent-red)'}">${formatCny(row[1])}</td>
+                    <td style="color:var(--text-secondary);font-size:0.78rem;">${row[2]}</td>
+                </tr>
+            `).join('');
+
+            const advice = wealthGameEngine.getAdvice(game, metrics);
+            const adviceEl = document.getElementById('wg-advice');
+            adviceEl.className = `alert-banner ${game.status === '现金流破产' || metrics.annualCashflow < 0 ? 'alert-warning' : 'alert-success'}`;
+            adviceEl.innerHTML = `<strong>教学建议：</strong>${advice}<br><span style="display:block;margin-top:6px;">家庭压力指数：${metrics.stressScore}/100；胜利进度：${game.freedomStreak}/3 年；退休节点：${game.retirementAge || WEALTH_GAME_RETIREMENT_AGE} 岁。</span>`;
+            renderWealthGameChart();
+        }
+
+        function renderWealthGameChart() {
+            const game = getWealthGameState();
+            const div = document.getElementById('wg-plotly-trends');
+            if (!div || !game.history || game.history.length === 0) return;
+            const x = game.history.map(item => `${item.age}岁`);
+            const data = [
+                { x, y: game.history.map(item => item.netWorth), type: 'scatter', mode: 'lines+markers', name: '净资产', line: { color: '#10B981', width: 2 } },
+                { x, y: game.history.map(item => item.cashflow), type: 'scatter', mode: 'lines+markers', name: '年度现金流', line: { color: '#3B82F6', width: 2 }, yaxis: 'y2' },
+                { x, y: game.history.map(item => item.emergencyMonths), type: 'scatter', mode: 'lines', name: '应急金月数', line: { color: '#F59E0B', width: 2 }, yaxis: 'y3' }
+            ];
+            const layout = {
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: '#E2E8F0' },
+                margin: { t: 25, b: 45, l: 60, r: 60 },
+                legend: { orientation: 'h', y: 1.12, font: { color: '#E2E8F0' } },
+                xaxis: { gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#94A3B8' } },
+                yaxis: { title: '净资产', gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#94A3B8' } },
+                yaxis2: { title: '现金流', overlaying: 'y', side: 'right', tickfont: { color: '#94A3B8' } },
+                yaxis3: { visible: false, overlaying: 'y' },
+                hovermode: 'x unified'
+            };
+            Plotly.newPlot(div, data, layout, { responsive: true, displayModeBar: false });
+        }
+
         Object.assign(window, {
             applyStrategyPreset,
+            advanceWealthGame,
             calculateDcaAdjust,
             calculateFamilyProfile,
             changeTemperatureIndex,
@@ -3471,8 +3912,10 @@ ${avoidList}
             copyFamilyMarkdown,
             exportFamilyJSON,
             fetchLiveMarketData,
+            resetWealthGame,
             runStressTest,
             saveFamilyToLocal,
+            startWealthGame,
             switchTab,
             updateCoreState,
             updateStressTestLabels,
