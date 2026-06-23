@@ -2649,9 +2649,11 @@
         function updateContextPanels(tabId) {
             const strategyPanel = document.getElementById('strategy-console-panel');
             const instructionPanel = document.getElementById('calculation-instruction-panel');
+            const liveDataBadge = document.getElementById('live-data-badge');
             const strategyTabs = ['tab1', 'tab2', 'tab3', 'tab4', 'tab5'];
             if (strategyPanel) strategyPanel.style.display = strategyTabs.includes(tabId) ? 'block' : 'none';
             if (instructionPanel) instructionPanel.style.display = tabId === 'tab1' ? 'block' : 'none';
+            if (liveDataBadge) liveDataBadge.style.display = strategyTabs.includes(tabId) ? '' : 'none';
         }
 
         // ==========================================
