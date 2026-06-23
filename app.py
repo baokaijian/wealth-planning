@@ -184,7 +184,7 @@ else:
 # ==========================================
 # 侧边栏：核心交互设置
 # ==========================================
-st.sidebar.markdown("<h2 style='color:#10B981;text-align:center;margin-bottom:20px;'>💰 策略控制台</h2>", unsafe_allow_html=True)
+st.sidebar.markdown("<h2 style='color:#10B981;text-align:center;margin-bottom:20px;'>💰 功能模块导航</h2>", unsafe_allow_html=True)
 
 menu = st.sidebar.radio(
     "功能模块导航",
@@ -200,9 +200,6 @@ menu = st.sidebar.radio(
     index=0
 )
 
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 🔑 基本配置参数")
-
 # 在 session_state 中初始化基本参数以保证全局一致性
 if 'principal' not in st.session_state:
     st.session_state.principal = 400.0
@@ -213,17 +210,35 @@ if 'buffer_seed' not in st.session_state:
 if 'money_market_rate' not in st.session_state:
     st.session_state.money_market_rate = 2.0
 
-principal = st.sidebar.number_input("您的可用总本金 (万元)", min_value=10.0, max_value=5000.0, value=st.session_state.principal, step=10.0)
-st.session_state.principal = principal
+strategy_console_pages = [
+    "2. 资产配置与股息测算看板",
+    "3. 现金缓冲池平滑模拟器",
+    "4. 估值温度计与测算工具",
+    "5. 年度资产再平衡测算",
+    "6. 风险压力测试"
+]
 
-target_monthly = st.sidebar.number_input("期望月现金流 (万元)", min_value=0.1, max_value=50.0, value=st.session_state.target_monthly, step=0.5)
-st.session_state.target_monthly = target_monthly
+if menu in strategy_console_pages:
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 🔑 策略控制台")
+    st.sidebar.markdown("### 基本配置参数")
 
-buffer_seed = st.sidebar.number_input("现金缓冲池初始资金 (万元)", min_value=0.0, max_value=100.0, value=st.session_state.buffer_seed, step=1.0)
-st.session_state.buffer_seed = buffer_seed
+    principal = st.sidebar.number_input("您的可用总本金 (万元)", min_value=10.0, max_value=5000.0, value=st.session_state.principal, step=10.0)
+    st.session_state.principal = principal
 
-money_market_rate = st.sidebar.slider("缓冲池闲置资金年化收益 (%)", min_value=0.5, max_value=5.0, value=st.session_state.money_market_rate, step=0.1)
-st.session_state.money_market_rate = money_market_rate
+    target_monthly = st.sidebar.number_input("期望月现金流 (万元)", min_value=0.1, max_value=50.0, value=st.session_state.target_monthly, step=0.5)
+    st.session_state.target_monthly = target_monthly
+
+    buffer_seed = st.sidebar.number_input("现金缓冲池初始资金 (万元)", min_value=0.0, max_value=100.0, value=st.session_state.buffer_seed, step=1.0)
+    st.session_state.buffer_seed = buffer_seed
+
+    money_market_rate = st.sidebar.slider("缓冲池闲置资金年化收益 (%)", min_value=0.5, max_value=5.0, value=st.session_state.money_market_rate, step=0.1)
+    st.session_state.money_market_rate = money_market_rate
+else:
+    principal = st.session_state.principal
+    target_monthly = st.session_state.target_monthly
+    buffer_seed = st.session_state.buffer_seed
+    money_market_rate = st.session_state.money_market_rate
 
 invest_principal = max(principal - buffer_seed, 0.0)
 
@@ -340,20 +355,25 @@ for code, info in ASSETS_CONFIG.items():
     if w_key not in st.session_state:
         st.session_state[w_key] = info['weight']
 
-# 策略预设选择器
-preset_option = st.sidebar.selectbox(
-    "配置策略预设",
-    ["✍️ 自定义权重配置", "🛡️ 保守型现金流策略", "⚖️ 均衡型增长配置", "🚀 积极型成长突破"],
-    key="strategy_preset_option"
-)
+if menu in strategy_console_pages:
+    # 策略预设选择器
+    preset_option = st.sidebar.selectbox(
+        "配置策略预设",
+        ["✍️ 自定义权重配置", "🛡️ 保守型现金流策略", "⚖️ 均衡型增长配置", "🚀 积极型成长突破"],
+        key="strategy_preset_option"
+    )
+else:
+    preset_option = st.session_state.strategy_preset_option
 
 # 积极型策略阻断警告
 if preset_option == "🚀 积极型成长突破" and st.session_state.is_prohibit_aggressive:
-    st.sidebar.error("⚠️ 评估警示：当前家庭财务体检结果显示您的财务状况较为脆弱（低备用金、低结余或高负债），系统已阻断积极型成长策略的选择。请先优化家庭财务结构！自动返回均衡配置。")
+    if menu in strategy_console_pages:
+        st.sidebar.error("⚠️ 评估警示：当前家庭财务体检结果显示您的财务状况较为脆弱（低备用金、低结余或高负债），系统已阻断积极型成长策略的选择。请先优化家庭财务结构！自动返回均衡配置。")
     st.session_state.strategy_preset_option = "⚖️ 均衡型增长配置"
     preset_option = "⚖️ 均衡型增长配置"
 elif preset_option == "🚀 积极型成长突破" and st.session_state.family_aggressiveness < 30:
-    st.sidebar.error("⚠️ 风险优先提醒：风险进攻评分低于 30 分，不同时高配科创50和纳指100；已自动返回均衡配置。")
+    if menu in strategy_console_pages:
+        st.sidebar.error("⚠️ 风险优先提醒：风险进攻评分低于 30 分，不同时高配科创50和纳指100；已自动返回均衡配置。")
     st.session_state.strategy_preset_option = "⚖️ 均衡型增长配置"
     preset_option = "⚖️ 均衡型增长配置"
 

@@ -647,7 +647,7 @@
             <button class="nav-btn" id="btn-tab6" onclick="switchTab('tab6')">7. 人生财富游戏</button>
         </nav>
 
-        <div class="sidebar-config">
+        <div class="sidebar-config" id="strategy-console-panel" style="display:none;">
             <h3>🔑 策略控制台</h3>
 
             <div class="input-group">
@@ -698,7 +698,7 @@
         <!-- ==========================================
            测算页面使用说明 (全页面通用折叠)
            ========================================== -->
-        <details class="instruction-box" open>
+        <details class="instruction-box" id="calculation-instruction-panel" open style="display:none;">
             <summary>📖 测算页面使用说明 (点击展开/折叠)</summary>
             <div class="instruction-content">
                 <p>欢迎使用红利低波现金流配置系统，本工具基于<strong>腾讯财经提供的真实实时市场价格</strong>进行高频更新，为您进行多维度测算，帮助您搭建长期可执行的月均 <span id="instruction-target-monthly">2.0</span> 万元现金流闭环。以下是系统的使用步骤：</p>
@@ -1713,6 +1713,7 @@
             // 同步一次策略控制台输入数据至其余部分
             updateCoreState();
             initWealthGame();
+            updateContextPanels(state.currentTab);
 
             // 启动定时刷新回路
             // 1. 每 60 秒自动拉取最新实时行情缓存
@@ -2638,9 +2639,19 @@
             document.getElementById('main-header-title').innerText = headerTitles[tabId][0];
             document.getElementById('main-header-desc').innerText = headerTitles[tabId][1];
 
+            updateContextPanels(tabId);
+
             setTimeout(() => {
                 renderAllCharts();
             }, 50);
+        }
+
+        function updateContextPanels(tabId) {
+            const strategyPanel = document.getElementById('strategy-console-panel');
+            const instructionPanel = document.getElementById('calculation-instruction-panel');
+            const strategyTabs = ['tab1', 'tab2', 'tab3', 'tab4', 'tab5'];
+            if (strategyPanel) strategyPanel.style.display = strategyTabs.includes(tabId) ? 'block' : 'none';
+            if (instructionPanel) instructionPanel.style.display = tabId === 'tab1' ? 'block' : 'none';
         }
 
         // ==========================================
