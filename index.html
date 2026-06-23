@@ -1629,6 +1629,7 @@
                     </div>
 
                     <div id="wg-advice" class="alert-banner" style="font-size:0.9rem;"></div>
+                    <div id="wg-retirement-report" class="alert-banner alert-info" style="font-size:0.9rem; display:none; margin-top:20px;"></div>
                 </div>
             </div>
 
@@ -3721,7 +3722,7 @@ ${avoidList}
                     },
                     history: []
                 };
-                this.recordYear(stateGame, this.calculateMetrics(stateGame, { passiveBonus: 0, incomeShock: 0 }));
+                this.recordYear(stateGame, this.calculateMetrics(stateGame, { passiveBonus: 0, incomeShock: 0 }), stateGame.lastEvent, stateGame.lastDecision);
                 return stateGame;
             },
             chooseEvent() {
@@ -3904,7 +3905,7 @@ ${avoidList}
                 }
             },
             nextYear(gameState, action = 'balanced') {
-                if (!gameState || gameState.status !== '进行中') return gameState;
+                if (!gameState || gameState.status === '现金流破产' || gameState.status === '退休未达成' || gameState.status === '稳健退休') return gameState;
                 this.applyDecision(gameState, action);
                 const event = this.chooseEvent();
                 this.applyEvent(gameState, event);
@@ -3923,10 +3924,13 @@ ${avoidList}
                 gameState.lastEvent = event;
                 gameState.year += 1;
                 gameState.age += 1;
+                if (gameState.freedomStreak >= 3 && !gameState.freedomAchievedAge) gameState.freedomAchievedAge = gameState.age;
                 if (gameState.freedomStreak >= 3) gameState.status = '财务韧性胜利';
                 if (gameState.negativeCashflowStreak >= 2 || finalMetrics.debtRatio > 0.9) gameState.status = '现金流破产';
-                if (gameState.status === '进行中' && gameState.age >= (gameState.retirementAge || WEALTH_GAME_RETIREMENT_AGE)) gameState.status = '退休未达成';
-                this.recordYear(gameState, { ...finalMetrics, annualCashflow: metrics.annualCashflow, monthlyCashflow: metrics.annualCashflow });
+                if (gameState.status !== '现金流破产' && gameState.age >= (gameState.retirementAge || WEALTH_GAME_RETIREMENT_AGE)) {
+                    gameState.status = gameState.freedomStreak >= 3 ? '稳健退休' : '退休未达成';
+                }
+                this.recordYear(gameState, { ...finalMetrics, annualCashflow: metrics.annualCashflow, monthlyCashflow: metrics.annualCashflow }, event, gameState.lastDecision);
                 return gameState;
             },
             nextMonth(gameState, action = 'balanced') {
@@ -3959,13 +3963,19 @@ ${avoidList}
                 const stressScore = Math.min(100, Math.round(debtRatio * 55 + Math.max(0, 12 - emergencyMonths) * 3 + (annualCashflow < 0 ? 20 : 0)));
                 return { activeIncome, passiveIncome, debtPayment, essentialExpense, annualCashflow, monthlyCashflow: annualCashflow, totalAssets, totalDebts, netWorth, debtRatio, emergencyMonths, stressScore };
             },
-            recordYear(gameState, metrics) {
+            recordYear(gameState, metrics, event = {}, decision = {}) {
                 gameState.history.push({
                     year: gameState.year,
                     age: gameState.age,
+                    status: gameState.status,
+                    eventName: event?.name || '开局',
+                    decisionName: decision?.name || '开局',
                     cashflow: metrics.annualCashflow,
                     passiveIncome: metrics.passiveIncome,
+                    essentialExpense: metrics.essentialExpense,
                     emergencyMonths: metrics.emergencyMonths,
+                    totalAssets: metrics.totalAssets,
+                    totalDebts: metrics.totalDebts,
                     netWorth: metrics.netWorth,
                     debtRatio: metrics.debtRatio,
                     stressScore: metrics.stressScore
@@ -3977,6 +3987,7 @@ ${avoidList}
             },
             getAdvice(gameState, metrics) {
                 if (gameState.status === '财务韧性胜利') return '你已经连续 3 年做到被动现金流覆盖年度必要支出，并保有 12 个月以上应急金。下一步是控制杠杆和分散风险。';
+                if (gameState.status === '稳健退休') return '你已到达 60 岁退休节点，并保持被动现金流覆盖必要支出的能力。请查看下方人生财富分析报告。';
                 if (gameState.status === '现金流破产') return '现金流已经断裂。复盘重点不是追逐高收益，而是降低固定支出、处理高息债务、重建应急金。';
                 if (gameState.status === '退休未达成') return '已经到 60 岁退休节点但尚未达成被动现金流覆盖必要支出的状态。复盘重点是更早控制支出、降低杠杆并增加稳定现金流资产。';
                 if (metrics.emergencyMonths < 6) return '应急金不足 6 个月，优先储蓄和货币基金，不急于加大高波动资产。';
@@ -4043,6 +4054,54 @@ ${avoidList}
             return `${sign}¥${Math.round(Math.abs(value)).toLocaleString()}`;
         }
 
+        function generateWealthRetirementReport(game, metrics) {
+            const history = game.history || [];
+            if (game.age < (game.retirementAge || WEALTH_GAME_RETIREMENT_AGE) || history.length === 0) return '';
+            const minEmergency = Math.min(...history.map(item => item.emergencyMonths ?? 0));
+            const maxDebtRatio = Math.max(...history.map(item => item.debtRatio ?? 0));
+            const negativeYears = history.filter(item => (item.cashflow || 0) < 0).length;
+            const highStressYears = history.filter(item => (item.stressScore || 0) >= 60).length;
+            const passiveCoverage = metrics.essentialExpense > 0 ? metrics.passiveIncome / metrics.essentialExpense : 0;
+            const eventCounts = history.reduce((acc, item) => {
+                const name = item.eventName || '未知事件';
+                acc[name] = (acc[name] || 0) + 1;
+                return acc;
+            }, {});
+            const notableEvents = Object.entries(eventCounts)
+                .filter(([name]) => name !== '开局' && name !== '平稳年份')
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 4)
+                .map(([name, count]) => `${name}×${count}`)
+                .join('、') || '重大事件较少';
+            const debtText = [
+                ['房贷', game.debts.mortgage || 0],
+                ['车贷', game.debts.carLoan || 0],
+                ['消费贷', game.debts.consumerLoan || 0],
+                ['信用卡/短债', game.debts.creditCard || 0],
+                ['经营贷', game.debts.businessLoan || 0]
+            ].filter(([, value]) => value > 0).map(([name, value]) => `${name}${formatCny(value)}`).join('、') || '无明显债务';
+
+            const conclusion = passiveCoverage >= 1 && metrics.emergencyMonths >= 12 && metrics.debtRatio < 0.4
+                ? '退休现金流相对稳健，被动现金流和应急金能够覆盖大部分生活压力。'
+                : '退休准备仍有短板，需要优先处理支取、债务和稳定现金流来源。';
+            const riskTips = [];
+            if (minEmergency < 6) riskTips.push('游戏过程中应急金曾低于 6 个月，真实家庭应先补足安全垫。');
+            if (maxDebtRatio > 0.6) riskTips.push('负债率曾处于偏高区间，买房、买车和消费贷会放大现金流脆弱性。');
+            if (negativeYears > 0) riskTips.push(`共有 ${negativeYears} 年年度现金流为负，说明支出或债务还款压力需要更早干预。`);
+            if (passiveCoverage < 1) riskTips.push('退休时被动现金流尚未覆盖必要支出，不宜把成长资产浮盈当作稳定收入。');
+            if (highStressYears > 0) riskTips.push(`家庭压力指数有 ${highStressYears} 年处于高位，应关注疾病、家庭意外和职业收入波动。`);
+            if (riskTips.length === 0) riskTips.push('整体路径较稳健，后续重点是维持低杠杆、分散资产和医疗保障。');
+
+            return `
+                <strong>60 岁人生财富分析报告</strong><br>
+                <span style="display:block;margin-top:6px;">结论：${conclusion}</span>
+                <span style="display:block;margin-top:6px;">最终净资产：${formatCny(metrics.netWorth)}；负债率：${(metrics.debtRatio * 100).toFixed(1)}%；应急金：${metrics.emergencyMonths.toFixed(1)} 个月；被动现金流覆盖率：${(passiveCoverage * 100).toFixed(1)}%。</span>
+                <span style="display:block;margin-top:6px;">过程回顾：最低应急金 ${minEmergency.toFixed(1)} 个月；最高负债率 ${(maxDebtRatio * 100).toFixed(1)}%；负现金流年份 ${negativeYears} 年；主要事件：${notableEvents}。</span>
+                <span style="display:block;margin-top:6px;">退休债务结构：${debtText}。</span>
+                <span style="display:block;margin-top:8px;"><strong>风险点评：</strong>${riskTips.map(tip => ` ${tip}`).join('')}</span>
+            `;
+        }
+
         function renderWealthGame() {
             if (!document.getElementById('tab6-view')) return;
             const game = getWealthGameState();
@@ -4096,6 +4155,12 @@ ${avoidList}
             const adviceEl = document.getElementById('wg-advice');
             adviceEl.className = `alert-banner ${game.status === '现金流破产' || metrics.annualCashflow < 0 ? 'alert-warning' : 'alert-success'}`;
             adviceEl.innerHTML = `<strong>教学建议：</strong>${advice}<br><span style="display:block;margin-top:6px;">家庭压力指数：${metrics.stressScore}/100；胜利进度：${game.freedomStreak}/3 年；退休节点：${game.retirementAge || WEALTH_GAME_RETIREMENT_AGE} 岁。</span>`;
+            const reportEl = document.getElementById('wg-retirement-report');
+            const report = generateWealthRetirementReport(game, metrics);
+            if (reportEl) {
+                reportEl.style.display = report ? 'block' : 'none';
+                reportEl.innerHTML = report;
+            }
             renderWealthGameComparison();
             renderWealthGameChart();
         }

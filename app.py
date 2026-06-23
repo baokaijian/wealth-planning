@@ -1452,7 +1452,7 @@ elif menu == "7. 人生财富游戏":
             "debts": {"mortgage": 0, "car_loan": 0, "consumer_loan": 0, "credit_card": 0, "business_loan": 0},
             "history": []
         }
-        record_wealth_year(game, calculate_wealth_metrics(game, {}))
+        record_wealth_year(game, calculate_wealth_metrics(game, {}), game["last_event"], game["last_decision"])
         return game
 
     def choose_wealth_event():
@@ -1502,13 +1502,21 @@ elif menu == "7. 人生财富游戏":
             "stress_score": stress_score
         }
 
-    def record_wealth_year(game, metrics):
+    def record_wealth_year(game, metrics, event=None, decision=None):
+        event = event or {}
+        decision = decision or {}
         game["history"].append({
             "year": game["year"],
             "age": game["age"],
+            "status": game["status"],
+            "event_name": event.get("name", "开局"),
+            "decision_name": decision.get("name", "开局"),
             "cashflow": metrics["annual_cashflow"],
             "passive_income": metrics["passive_income"],
+            "essential_expense": metrics["essential_expense"],
             "emergency_months": metrics["emergency_months"],
+            "total_assets": metrics["total_assets"],
+            "total_debts": metrics["total_debts"],
             "net_worth": metrics["net_worth"],
             "debt_ratio": metrics["debt_ratio"],
             "stress_score": metrics["stress_score"]
@@ -1675,7 +1683,7 @@ elif menu == "7. 人生财富游戏":
             game["last_decision"] = {"name": "均衡决策", "text": f"默认将 ¥{move:,.0f} 转入货币基金，先提高安全垫。"}
 
     def advance_wealth_game(game, action):
-        if game["status"] != "进行中":
+        if game["status"] in ["现金流破产", "退休未达成", "稳健退休"]:
             return game
         apply_wealth_decision(game, action)
         event = choose_wealth_event()
@@ -1715,19 +1723,22 @@ elif menu == "7. 人生财富游戏":
         game["year"] += 1
         game["age"] += 1
         if game["freedom_streak"] >= 3:
+            game.setdefault("freedom_achieved_age", game["age"])
             game["status"] = "财务韧性胜利"
         if game["negative_cashflow_streak"] >= 2 or final_metrics["debt_ratio"] > 0.9:
             game["status"] = "现金流破产"
-        if game["status"] == "进行中" and game["age"] >= game.get("retirement_age", WEALTH_GAME_RETIREMENT_AGE):
-            game["status"] = "退休未达成"
+        if game["status"] != "现金流破产" and game["age"] >= game.get("retirement_age", WEALTH_GAME_RETIREMENT_AGE):
+            game["status"] = "稳健退休" if game["freedom_streak"] >= 3 else "退休未达成"
         final_metrics["annual_cashflow"] = metrics["annual_cashflow"]
         final_metrics["monthly_cashflow"] = metrics["annual_cashflow"]
-        record_wealth_year(game, final_metrics)
+        record_wealth_year(game, final_metrics, event, game.get("last_decision", {}))
         return game
 
     def wealth_advice(game, metrics):
         if game["status"] == "财务韧性胜利":
             return "你已连续 3 年做到被动现金流覆盖年度必要支出，并保有 12 个月以上应急金。下一步是控制杠杆和分散风险。"
+        if game["status"] == "稳健退休":
+            return "你已到达 60 岁退休节点，并保持被动现金流覆盖必要支出的能力。请查看下方人生财富分析报告。"
         if game["status"] == "现金流破产":
             return "现金流已经断裂。复盘重点不是追逐高收益，而是降低固定支出、处理高息债务、重建应急金。"
         if game["status"] == "退休未达成":
@@ -1739,6 +1750,58 @@ elif menu == "7. 人生财富游戏":
         if metrics["passive_income"] < metrics["essential_expense"] * 0.3:
             return "被动现金流还弱，红利、票息、租金和副业现金流需要逐步积累。"
         return "现金流结构相对稳健。保持预算纪律，分散资产，别把成长资产浮盈当作稳定收入。"
+
+    def generate_retirement_report(game, metrics):
+        history = game.get("history", [])
+        if game["age"] < game.get("retirement_age", WEALTH_GAME_RETIREMENT_AGE) or not history:
+            return None
+        min_emergency = min(item.get("emergency_months", 0) for item in history)
+        max_debt_ratio = max(item.get("debt_ratio", 0) for item in history)
+        negative_years = sum(1 for item in history if item.get("cashflow", 0) < 0)
+        high_stress_years = sum(1 for item in history if item.get("stress_score", 0) >= 60)
+        passive_coverage = metrics["passive_income"] / metrics["essential_expense"] if metrics["essential_expense"] > 0 else 0
+        event_counts = {}
+        for item in history:
+            event_name = item.get("event_name", "未知事件")
+            event_counts[event_name] = event_counts.get(event_name, 0) + 1
+        notable_events = [
+            f"{name}×{count}"
+            for name, count in sorted(event_counts.items(), key=lambda kv: kv[1], reverse=True)
+            if name not in ["开局", "平稳年份"]
+        ][:4]
+        debt_items = [
+            ("房贷", game["debts"].get("mortgage", 0)),
+            ("车贷", game["debts"].get("car_loan", 0)),
+            ("消费贷", game["debts"].get("consumer_loan", 0)),
+            ("信用卡/短债", game["debts"].get("credit_card", 0)),
+            ("经营贷", game["debts"].get("business_loan", 0)),
+        ]
+        debt_text = "、".join([f"{name} ¥{value:,.0f}" for name, value in debt_items if value > 0]) or "无明显债务"
+        conclusion = "退休现金流相对稳健，被动现金流和应急金能够覆盖大部分生活压力。" if passive_coverage >= 1 and metrics["emergency_months"] >= 12 and metrics["debt_ratio"] < 0.4 else "退休准备仍有短板，需要优先处理支取、债务和稳定现金流来源。"
+        tips = []
+        if min_emergency < 6:
+            tips.append("游戏过程中应急金曾低于 6 个月，真实家庭应先补足安全垫。")
+        if max_debt_ratio > 0.6:
+            tips.append("负债率曾处于偏高区间，买房、买车和消费贷会放大现金流脆弱性。")
+        if negative_years > 0:
+            tips.append(f"共有 {negative_years} 年年度现金流为负，说明支出或债务还款压力需要更早干预。")
+        if passive_coverage < 1:
+            tips.append("退休时被动现金流尚未覆盖必要支出，不宜把成长资产浮盈当作稳定收入。")
+        if high_stress_years > 0:
+            tips.append(f"家庭压力指数有 {high_stress_years} 年处于高位，应关注疾病、家庭意外和职业收入波动。")
+        if not tips:
+            tips.append("整体路径较稳健，后续重点是维持低杠杆、分散资产和医疗保障。")
+        return {
+            "conclusion": conclusion,
+            "min_emergency": min_emergency,
+            "max_debt_ratio": max_debt_ratio,
+            "negative_years": negative_years,
+            "high_stress_years": high_stress_years,
+            "passive_coverage": passive_coverage,
+            "notable_events": "、".join(notable_events) if notable_events else "重大事件较少",
+            "debt_text": debt_text,
+            "tips": tips
+        }
 
     if "wealth_game_state" not in st.session_state:
         st.session_state.wealth_game_state = create_random_wealth_game()
@@ -1818,6 +1881,19 @@ elif menu == "7. 人生财富游戏":
     st.markdown(f"### 事件卡：{game['last_event']['name']}")
     st.write(game["last_event"]["text"])
     st.warning(f"教学建议：{wealth_advice(game, metrics)}  家庭压力指数：{metrics['stress_score']}/100；胜利进度：{game['freedom_streak']}/3 年；退休节点：{game.get('retirement_age', WEALTH_GAME_RETIREMENT_AGE)} 岁。")
+
+    retirement_report = generate_retirement_report(game, metrics)
+    if retirement_report:
+        st.info(
+            f"### 60 岁人生财富分析报告\n\n"
+            f"**结论：**{retirement_report['conclusion']}\n\n"
+            f"**最终指标：**净资产 ¥{metrics['net_worth']:,.0f}；负债率 {metrics['debt_ratio']*100:.1f}%；"
+            f"应急金 {metrics['emergency_months']:.1f} 个月；被动现金流覆盖率 {retirement_report['passive_coverage']*100:.1f}%。\n\n"
+            f"**过程回顾：**最低应急金 {retirement_report['min_emergency']:.1f} 个月；最高负债率 {retirement_report['max_debt_ratio']*100:.1f}%；"
+            f"负现金流年份 {retirement_report['negative_years']} 年；主要事件：{retirement_report['notable_events']}。\n\n"
+            f"**退休债务结构：**{retirement_report['debt_text']}。\n\n"
+            f"**风险点评：**{' '.join(retirement_report['tips'])}"
+        )
 
     left, right = st.columns(2)
     with left:
