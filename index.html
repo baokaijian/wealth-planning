@@ -1568,7 +1568,7 @@
             <div class="card" style="margin-bottom: 20px; display:flex; gap: 12px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
                 <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                     <button onclick="startWealthGame()" style="background:var(--accent-emerald); color:#04111A; border:none; padding:9px 14px; border-radius:6px; font-weight:700; cursor:pointer;">随机新开局</button>
-                    <button onclick="advanceWealthGame('balanced')" style="background:var(--accent-blue); color:white; border:none; padding:9px 14px; border-radius:6px; font-weight:700; cursor:pointer;">下一年：均衡决策</button>
+                    <button onclick="advanceWealthGame()" style="background:var(--accent-blue); color:white; border:none; padding:9px 14px; border-radius:6px; font-weight:700; cursor:pointer;">下一年：结算年度</button>
                     <button onclick="resetWealthGame()" style="background:rgba(239,68,68,0.15); color:var(--accent-red); border:1px solid rgba(239,68,68,0.35); padding:9px 14px; border-radius:6px; font-weight:700; cursor:pointer;">重置</button>
                 </div>
                 <div id="wg-status-chip" style="font-size:0.85rem; color:var(--text-secondary);">本地存档未载入</div>
@@ -1615,11 +1615,11 @@
                     <div class="card" style="margin-bottom:20px;">
                         <div class="card-title-text" style="margin-bottom:15px;">年度决策</div>
                         <div style="display:grid; gap:10px;">
-                            <button onclick="advanceWealthGame('save')" style="padding:10px;border-radius:6px;border:1px solid rgba(16,185,129,0.35);background:rgba(16,185,129,0.08);color:var(--accent-emerald);font-weight:700;cursor:pointer;">增加储蓄 / 建应急金</button>
-                            <button onclick="advanceWealthGame('invest')" style="padding:10px;border-radius:6px;border:1px solid rgba(59,130,246,0.35);background:rgba(59,130,246,0.08);color:var(--accent-blue);font-weight:700;cursor:pointer;">长期定投 / 增加资产</button>
-                            <button onclick="advanceWealthGame('debt')" style="padding:10px;border-radius:6px;border:1px solid rgba(245,158,11,0.35);background:rgba(245,158,11,0.08);color:var(--accent-orange);font-weight:700;cursor:pointer;">提前还债 / 降低杠杆</button>
-                            <button onclick="advanceWealthGame('skill')" style="padding:10px;border-radius:6px;border:1px solid rgba(167,139,250,0.35);background:rgba(167,139,250,0.08);color:#A78BFA;font-weight:700;cursor:pointer;">提升技能 / 副业尝试</button>
-                            <button onclick="advanceWealthGame('insurance')" style="padding:10px;border-radius:6px;border:1px solid rgba(148,163,184,0.35);background:rgba(148,163,184,0.08);color:var(--text-primary);font-weight:700;cursor:pointer;">补足保险 / 风险防线</button>
+                            <button id="wg-action-save" onclick="applyWealthGameDecision('save')" style="padding:10px;border-radius:6px;border:1px solid rgba(16,185,129,0.35);background:rgba(16,185,129,0.08);color:var(--accent-emerald);font-weight:700;cursor:pointer;">增加储蓄 / 建应急金</button>
+                            <button id="wg-action-invest" onclick="applyWealthGameDecision('invest')" style="padding:10px;border-radius:6px;border:1px solid rgba(59,130,246,0.35);background:rgba(59,130,246,0.08);color:var(--accent-blue);font-weight:700;cursor:pointer;">长期定投 / 增加资产</button>
+                            <button id="wg-action-debt" onclick="applyWealthGameDecision('debt')" style="padding:10px;border-radius:6px;border:1px solid rgba(245,158,11,0.35);background:rgba(245,158,11,0.08);color:var(--accent-orange);font-weight:700;cursor:pointer;">提前还债 / 降低杠杆</button>
+                            <button id="wg-action-skill" onclick="applyWealthGameDecision('skill')" style="padding:10px;border-radius:6px;border:1px solid rgba(167,139,250,0.35);background:rgba(167,139,250,0.08);color:#A78BFA;font-weight:700;cursor:pointer;">提升技能 / 副业尝试</button>
+                            <button id="wg-action-insurance" onclick="applyWealthGameDecision('insurance')" style="padding:10px;border-radius:6px;border:1px solid rgba(148,163,184,0.35);background:rgba(148,163,184,0.08);color:var(--text-primary);font-weight:700;cursor:pointer;">补足保险 / 风险防线</button>
                         </div>
                     </div>
 
@@ -3697,6 +3697,8 @@ ${avoidList}
                     elderExpense: 0,
                     negativeCashflowStreak: 0,
                     freedomStreak: 0,
+                    currentYearActions: [],
+                    yearDecisionLog: [],
                     status: '进行中',
                     lastEvent: { name: '开局', text: '从第一份稳定现金流开始，先活下来，再谈增长。' },
                     lastDecision: { name: '开局', text: '尚未做出年度决策。' },
@@ -3811,6 +3813,14 @@ ${avoidList}
                 return '';
             },
             applyDecision(gameState, action) {
+                if (!gameState || gameState.status === '现金流破产' || gameState.status === '退休未达成' || gameState.status === '稳健退休') return false;
+                gameState.currentYearActions = gameState.currentYearActions || [];
+                gameState.yearDecisionLog = gameState.yearDecisionLog || [];
+                const actionNames = { save: '建应急金', invest: '长期定投', debt: '提前还债', skill: '提升技能', insurance: '补足保险' };
+                if (gameState.currentYearActions.includes(action)) {
+                    gameState.lastDecision = { name: '本年已执行', text: `${actionNames[action] || '该决策'} 本年度已经做过一次，需点击“下一年”后才能再次选择。` };
+                    return false;
+                }
                 const a = gameState.assets;
                 const d = gameState.debts;
                 if (action === 'save') {
@@ -3885,6 +3895,9 @@ ${avoidList}
                     a.moneyMarket += reserve;
                     gameState.lastDecision = { name: '均衡决策', text: `默认将 ${formatCny(reserve)} 转入货币基金，先提高安全垫。` };
                 }
+                gameState.currentYearActions.push(action);
+                gameState.yearDecisionLog.push({ ...gameState.lastDecision });
+                return true;
             },
             applyEvent(gameState, event) {
                 if (event.cash > 0) gameState.assets.cash += event.cash;
@@ -3904,9 +3917,17 @@ ${avoidList}
                     });
                 }
             },
-            nextYear(gameState, action = 'balanced') {
+            summarizeYearDecisions(gameState) {
+                const logs = gameState.yearDecisionLog || [];
+                if (logs.length === 0) return { name: '未做主动决策', text: '本年度未执行主动财务决策，直接进入年度事件与现金流结算。' };
+                return {
+                    name: `本年已执行 ${logs.length} 项决策`,
+                    text: logs.map(item => `${item.name}：${item.text}`).join('<br>')
+                };
+            },
+            nextYear(gameState) {
                 if (!gameState || gameState.status === '现金流破产' || gameState.status === '退休未达成' || gameState.status === '稳健退休') return gameState;
-                this.applyDecision(gameState, action);
+                const decisionSummary = this.summarizeYearDecisions(gameState);
                 const event = this.chooseEvent();
                 this.applyEvent(gameState, event);
                 const metrics = this.calculateMetrics(gameState, event);
@@ -3930,7 +3951,10 @@ ${avoidList}
                 if (gameState.status !== '现金流破产' && gameState.age >= (gameState.retirementAge || WEALTH_GAME_RETIREMENT_AGE)) {
                     gameState.status = gameState.freedomStreak >= 3 ? '稳健退休' : '退休未达成';
                 }
-                this.recordYear(gameState, { ...finalMetrics, annualCashflow: metrics.annualCashflow, monthlyCashflow: metrics.annualCashflow }, event, gameState.lastDecision);
+                this.recordYear(gameState, { ...finalMetrics, annualCashflow: metrics.annualCashflow, monthlyCashflow: metrics.annualCashflow }, event, decisionSummary);
+                gameState.currentYearActions = [];
+                gameState.yearDecisionLog = [];
+                gameState.lastDecision = { name: '本年待决策', text: '新的一年已开启，五个年度决策可各执行一次。' };
                 return gameState;
             },
             nextMonth(gameState, action = 'balanced') {
@@ -4010,6 +4034,8 @@ ${avoidList}
                     state.wealthGame = createRandomWealthGame();
                     saveWealthGameState();
                 }
+                state.wealthGame.currentYearActions = state.wealthGame.currentYearActions || [];
+                state.wealthGame.yearDecisionLog = state.wealthGame.yearDecisionLog || [];
             }
             return state.wealthGame;
         }
@@ -4042,9 +4068,16 @@ ${avoidList}
             renderWealthGame();
         }
 
-        function advanceWealthGame(action) {
+        function applyWealthGameDecision(action) {
             const game = getWealthGameState();
-            wealthGameEngine.nextYear(game, action);
+            wealthGameEngine.applyDecision(game, action);
+            saveWealthGameState();
+            renderWealthGame();
+        }
+
+        function advanceWealthGame() {
+            const game = getWealthGameState();
+            wealthGameEngine.nextYear(game);
             saveWealthGameState();
             renderWealthGame();
         }
@@ -4106,6 +4139,14 @@ ${avoidList}
             if (!document.getElementById('tab6-view')) return;
             const game = getWealthGameState();
             const metrics = wealthGameEngine.calculateMetrics(game, game.lastEvent || {});
+            ['save', 'invest', 'debt', 'skill', 'insurance'].forEach(action => {
+                const btn = document.getElementById(`wg-action-${action}`);
+                if (!btn) return;
+                const disabled = (game.currentYearActions || []).includes(action) || ['现金流破产', '退休未达成', '稳健退休'].includes(game.status);
+                btn.disabled = disabled;
+                btn.style.opacity = disabled ? '0.45' : '1';
+                btn.style.cursor = disabled ? 'not-allowed' : 'pointer';
+            });
             document.getElementById('wg-age-stage').innerText = `${game.age} 岁 / ${game.familyStage}`;
             document.getElementById('wg-monthly-cashflow').innerText = formatCny(metrics.annualCashflow);
             document.getElementById('wg-monthly-cashflow').style.color = metrics.annualCashflow >= 0 ? 'var(--accent-emerald)' : 'var(--accent-red)';
@@ -4114,7 +4155,10 @@ ${avoidList}
             document.getElementById('wg-emergency-months').innerText = `${metrics.emergencyMonths.toFixed(1)} 个月`;
             document.getElementById('wg-networth-debt').innerText = `${formatCny(metrics.netWorth)} / ${(metrics.debtRatio * 100).toFixed(1)}%`;
             document.getElementById('wg-status-chip').innerText = `${game.career} | ${game.city} | ${game.age} 岁 / 第 ${game.year} 年 | ${game.status}`;
-            document.getElementById('wg-event-card').innerHTML = `<strong>年度决策：${game.lastDecision?.name || '开局'}</strong><br><span style="color:var(--text-secondary);">${game.lastDecision?.text || ''}</span><br><br><strong>事件卡：${game.lastEvent?.name || '开局'}</strong><br><span style="color:var(--text-secondary);">${game.lastEvent?.text || ''}</span>`;
+            const decisionLog = game.yearDecisionLog || [];
+            const decisionTitle = decisionLog.length > 0 ? `本年已执行 ${decisionLog.length}/5 项决策` : (game.lastDecision?.name || '开局');
+            const decisionText = decisionLog.length > 0 ? decisionLog.map(item => `${item.name}：${item.text}`).join('<br>') : (game.lastDecision?.text || '');
+            document.getElementById('wg-event-card').innerHTML = `<strong>年度决策：${decisionTitle}</strong><br><span style="color:var(--text-secondary);">${decisionText}</span><br><br><strong>事件卡：${game.lastEvent?.name || '开局'}</strong><br><span style="color:var(--text-secondary);">${game.lastEvent?.text || ''}</span>`;
 
             const assetRows = [
                 ['现金', game.assets.cash, '用于应急和年度周转'],
@@ -4213,6 +4257,7 @@ ${avoidList}
 
         Object.assign(window, {
             applyStrategyPreset,
+            applyWealthGameDecision,
             advanceWealthGame,
             calculateDcaAdjust,
             calculateFamilyProfile,

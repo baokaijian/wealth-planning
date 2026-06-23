@@ -1445,6 +1445,8 @@ elif menu == "7. 人生财富游戏":
             "elder_expense": 0,
             "negative_cashflow_streak": 0,
             "freedom_streak": 0,
+            "current_year_actions": [],
+            "year_decision_log": [],
             "status": "进行中",
             "last_event": {"name": "开局", "text": "从第一份稳定现金流开始，先活下来，再谈增长。"},
             "last_decision": {"name": "开局", "text": "尚未做出年度决策。"},
@@ -1605,6 +1607,14 @@ elif menu == "7. 人生财富游戏":
         return ""
 
     def apply_wealth_decision(game, action):
+        if game["status"] in ["现金流破产", "退休未达成", "稳健退休"]:
+            return False
+        game["current_year_actions"] = game.get("current_year_actions", [])
+        game["year_decision_log"] = game.get("year_decision_log", [])
+        action_names = {"save": "建应急金", "invest": "长期定投", "debt": "提前还债", "skill": "提升技能", "insurance": "补足保险"}
+        if action in game["current_year_actions"]:
+            game["last_decision"] = {"name": "本年已执行", "text": f"{action_names.get(action, '该决策')} 本年度已经做过一次，需点击“下一年”后才能再次选择。"}
+            return False
         assets = game["assets"]
         debts = game["debts"]
         if action == "save":
@@ -1681,11 +1691,23 @@ elif menu == "7. 人生财富游戏":
             assets["cash"] -= move
             assets["money_market"] += move
             game["last_decision"] = {"name": "均衡决策", "text": f"默认将 ¥{move:,.0f} 转入货币基金，先提高安全垫。"}
+        game["current_year_actions"].append(action)
+        game["year_decision_log"].append(dict(game["last_decision"]))
+        return True
 
-    def advance_wealth_game(game, action):
+    def summarize_year_decisions(game):
+        logs = game.get("year_decision_log", [])
+        if not logs:
+            return {"name": "未做主动决策", "text": "本年度未执行主动财务决策，直接进入年度事件与现金流结算。"}
+        return {
+            "name": f"本年已执行 {len(logs)} 项决策",
+            "text": "；".join([f"{item.get('name', '')}：{item.get('text', '')}" for item in logs])
+        }
+
+    def advance_wealth_game(game):
         if game["status"] in ["现金流破产", "退休未达成", "稳健退休"]:
             return game
-        apply_wealth_decision(game, action)
+        decision_summary = summarize_year_decisions(game)
         event = choose_wealth_event()
         assets = game["assets"]
         if event.get("cash", 0) > 0:
@@ -1731,7 +1753,10 @@ elif menu == "7. 人生财富游戏":
             game["status"] = "稳健退休" if game["freedom_streak"] >= 3 else "退休未达成"
         final_metrics["annual_cashflow"] = metrics["annual_cashflow"]
         final_metrics["monthly_cashflow"] = metrics["annual_cashflow"]
-        record_wealth_year(game, final_metrics, event, game.get("last_decision", {}))
+        record_wealth_year(game, final_metrics, event, decision_summary)
+        game["current_year_actions"] = []
+        game["year_decision_log"] = []
+        game["last_decision"] = {"name": "本年待决策", "text": "新的一年已开启，五个年度决策可各执行一次。"}
         return game
 
     def wealth_advice(game, metrics):
@@ -1814,6 +1839,8 @@ elif menu == "7. 人生财富游戏":
         )
     if not is_profile_option(st.session_state.wealth_game_state):
         st.session_state.wealth_game_state = create_random_wealth_game()
+    st.session_state.wealth_game_state["current_year_actions"] = st.session_state.wealth_game_state.get("current_year_actions", [])
+    st.session_state.wealth_game_state["year_decision_log"] = st.session_state.wealth_game_state.get("year_decision_log", [])
 
     current_game = st.session_state.wealth_game_state
     st.markdown("### 代表性身份 × 城市组合表")
@@ -1834,28 +1861,30 @@ elif menu == "7. 人生财富游戏":
     st.caption("随机开局只会从下列代表性画像中抽取；当前开局组合会标注为“当前”。")
     st.dataframe(pd.DataFrame(profile_rows, columns=["身份", "城市", "月收入", "基础消费", "住房", "必要支出", "初始现金", "画像特征"]), use_container_width=True, hide_index=True)
 
+    used_actions = st.session_state.wealth_game_state.get("current_year_actions", [])
+    terminal_game = st.session_state.wealth_game_state.get("status") in ["现金流破产", "退休未达成", "稳健退休"]
     c1, c2, c3, c4, c5 = st.columns(5)
     if c1.button("随机新开局", use_container_width=True):
         st.session_state.wealth_game_state = create_random_wealth_game()
         st.rerun()
-    if c2.button("下一年：均衡", use_container_width=True):
-        st.session_state.wealth_game_state = advance_wealth_game(st.session_state.wealth_game_state, "balanced")
+    if c2.button("下一年：结算", use_container_width=True):
+        st.session_state.wealth_game_state = advance_wealth_game(st.session_state.wealth_game_state)
         st.rerun()
-    if c3.button("建应急金", use_container_width=True):
-        st.session_state.wealth_game_state = advance_wealth_game(st.session_state.wealth_game_state, "save")
+    if c3.button("建应急金", use_container_width=True, disabled=terminal_game or "save" in used_actions):
+        apply_wealth_decision(st.session_state.wealth_game_state, "save")
         st.rerun()
-    if c4.button("长期定投", use_container_width=True):
-        st.session_state.wealth_game_state = advance_wealth_game(st.session_state.wealth_game_state, "invest")
+    if c4.button("长期定投", use_container_width=True, disabled=terminal_game or "invest" in used_actions):
+        apply_wealth_decision(st.session_state.wealth_game_state, "invest")
         st.rerun()
-    if c5.button("还债", use_container_width=True):
-        st.session_state.wealth_game_state = advance_wealth_game(st.session_state.wealth_game_state, "debt")
+    if c5.button("还债", use_container_width=True, disabled=terminal_game or "debt" in used_actions):
+        apply_wealth_decision(st.session_state.wealth_game_state, "debt")
         st.rerun()
     d1, d2, d3 = st.columns(3)
-    if d1.button("提升技能", use_container_width=True):
-        st.session_state.wealth_game_state = advance_wealth_game(st.session_state.wealth_game_state, "skill")
+    if d1.button("提升技能", use_container_width=True, disabled=terminal_game or "skill" in used_actions):
+        apply_wealth_decision(st.session_state.wealth_game_state, "skill")
         st.rerun()
-    if d2.button("补保险", use_container_width=True):
-        st.session_state.wealth_game_state = advance_wealth_game(st.session_state.wealth_game_state, "insurance")
+    if d2.button("补保险", use_container_width=True, disabled=terminal_game or "insurance" in used_actions):
+        apply_wealth_decision(st.session_state.wealth_game_state, "insurance")
         st.rerun()
     if d3.button("重置", use_container_width=True):
         st.session_state.wealth_game_state = create_random_wealth_game()
@@ -1876,8 +1905,14 @@ elif menu == "7. 人生财富游戏":
     for col, (label, value, color) in zip([m1, m2, m3, m4, m5, m6], cards):
         col.markdown(f"<div class='card'><div class='metric-label'>{label}</div><div class='metric-value' style='color:{color};'>{value}</div></div>", unsafe_allow_html=True)
 
-    st.markdown(f"### 年度决策：{game.get('last_decision', {}).get('name', '开局')}")
-    st.write(game.get("last_decision", {}).get("text", ""))
+    decision_logs = game.get("year_decision_log", [])
+    if decision_logs:
+        st.markdown(f"### 年度决策：本年已执行 {len(decision_logs)}/5 项决策")
+        for item in decision_logs:
+            st.write(f"{item.get('name', '')}：{item.get('text', '')}")
+    else:
+        st.markdown(f"### 年度决策：{game.get('last_decision', {}).get('name', '开局')}")
+        st.write(game.get("last_decision", {}).get("text", ""))
     st.markdown(f"### 事件卡：{game['last_event']['name']}")
     st.write(game["last_event"]["text"])
     st.warning(f"教学建议：{wealth_advice(game, metrics)}  家庭压力指数：{metrics['stress_score']}/100；胜利进度：{game['freedom_streak']}/3 年；退休节点：{game.get('retirement_age', WEALTH_GAME_RETIREMENT_AGE)} 岁。")
