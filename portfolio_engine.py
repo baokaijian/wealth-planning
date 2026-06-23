@@ -41,6 +41,8 @@ def calculate_portfolio(weights, assets, principal, buffer_seed, money_market_ra
             'price': current_price,
             'yield': current_yield,
             'estimated_return': est_return,
+            'target_index_code': asset.get('target_index_code'),
+            'rebalance_band': asset.get('rebalance_band', 3),
             'allocatedAmt': allocated_amt,
             'expectedAnnualDiv': expected_annual_div,
             'strategy_note': asset.get('strategy_note', ''),
@@ -71,7 +73,17 @@ def calculate_portfolio(weights, assets, principal, buffer_seed, money_market_ra
     }
 
 
-def simulate_cashflow(months_range, monthly_withdraw, buffer_seed, invest_principal, weights, assets, money_market_rate, rebalance_harvest):
+def _get_harvest_return(asset, harvest_scenario):
+    if harvest_scenario == 'conservative':
+        return -10.0
+    if harvest_scenario == 'neutral':
+        return 3.0
+    if harvest_scenario == 'optimistic':
+        return float(asset.get('estimated_return') or 0.0)
+    return 0.0
+
+
+def simulate_cashflow(months_range, monthly_withdraw, buffer_seed, invest_principal, weights, assets, money_market_rate, rebalance_harvest=False, harvest_scenario='neutral'):
     """
     2. 36个月缓冲池流转模拟
     """
@@ -102,15 +114,17 @@ def simulate_cashflow(months_range, monthly_withdraw, buffer_seed, invest_princi
                     asset_value = invest_principal * (weight / 100.0) * 10000.0  # 元
                     month_dividend += asset_value * (current_yield / 100.0) * month_dist_ratio
 
-        # 2) 年度再平衡超额成长变现 (Harvest) 机制
+        # 2) 乐观/情景假设下卖出成长资产补充现金流。默认关闭，安全结论不依赖该项。
         month_harvest = 0.0
         if rebalance_harvest and (t % 12 == 0):
             for code, asset in assets_dict.items():
                 weight = float(weights.get(code, 0.0))
                 if asset.get('income_type') == 'capital_growth':
-                    est_return = asset.get('estimated_return') or 8.0
+                    scenario_return = _get_harvest_return(asset, harvest_scenario)
+                    if scenario_return <= 0:
+                        continue
                     asset_value = invest_principal * (weight / 100.0) * 10000.0  # 元
-                    month_harvest += asset_value * (est_return / 100.0)
+                    month_harvest += asset_value * (scenario_return / 100.0)
 
         # 3) 缓冲池利息 (月度利息)
         current_interest = buffer_balance[-1] * (money_market_rate / 12.0)
@@ -126,7 +140,7 @@ def simulate_cashflow(months_range, monthly_withdraw, buffer_seed, invest_princi
         if next_balance < 0 and breached_at_month is None:
             breached_at_month = t
 
-    buffer_history = buffer_balance[:-1]  # Remove last element to match months_range slice
+    buffer_history = buffer_balance[1:]
 
     return {
         'bufferHistory': buffer_history,
@@ -135,6 +149,83 @@ def simulate_cashflow(months_range, monthly_withdraw, buffer_seed, invest_princi
         'harvestHistory': harvest_history,
         'breachedAtMonth': breached_at_month,
         'minBuffer': min(buffer_history) if buffer_history else 0.0
+    }
+
+
+def calculate_cashflow_feasibility(months_range, target_monthly_withdraw, buffer_seed, principal, weights, assets, money_market_rate):
+    """
+    现金流可行性反推。所有结论只基于分红/票息/现金利息，不纳入卖出成长资产。
+    principal/buffer_seed 单位为万元；withdraw 单位为元。
+    """
+    def survives(test_monthly, test_principal, test_buffer_seed):
+        invest_principal = max(test_principal - test_buffer_seed, 0.0)
+        sim = simulate_cashflow(
+            months_range,
+            test_monthly,
+            test_buffer_seed,
+            invest_principal,
+            weights,
+            assets,
+            money_market_rate,
+            False,
+            'neutral'
+        )
+        return sim['minBuffer'] > 0
+
+    low, high = 0.0, max(target_monthly_withdraw * 3.0, 1.0)
+    for _ in range(40):
+        mid = (low + high) / 2.0
+        if survives(mid, principal, buffer_seed):
+            low = mid
+        else:
+            high = mid
+    safe_monthly = low
+
+    min_principal = principal
+    if target_monthly_withdraw > 0 and not survives(target_monthly_withdraw, principal, buffer_seed):
+        low_p = max(buffer_seed, 0.0)
+        high_p = max(principal, buffer_seed + 1.0)
+        while not survives(target_monthly_withdraw, high_p, buffer_seed) and high_p < 100000.0:
+            high_p *= 1.5
+            if high_p <= buffer_seed:
+                high_p = buffer_seed + 1.0
+        if high_p < 100000.0:
+            for _ in range(40):
+                mid = (low_p + high_p) / 2.0
+                if survives(target_monthly_withdraw, mid, buffer_seed):
+                    high_p = mid
+                else:
+                    low_p = mid
+            min_principal = high_p
+        else:
+            min_principal = None
+
+    min_buffer_months = 0.0
+    if target_monthly_withdraw > 0:
+        high_m = 60.0
+        if survives(target_monthly_withdraw, principal, 0.0):
+            min_buffer_months = 0.0
+        elif survives(target_monthly_withdraw, principal, high_m * target_monthly_withdraw / 10000.0):
+            low_m = 0.0
+            for _ in range(40):
+                mid_m = (low_m + high_m) / 2.0
+                test_buffer = mid_m * target_monthly_withdraw / 10000.0
+                if survives(target_monthly_withdraw, principal, test_buffer):
+                    high_m = mid_m
+                else:
+                    low_m = mid_m
+            min_buffer_months = high_m
+        else:
+            min_buffer_months = None
+
+    return {
+        'safeMonthlyWithdraw': safe_monthly,
+        'safeMonthlyWithdrawWan': safe_monthly / 10000.0,
+        'recommendedMonthlyExpense': safe_monthly * 0.95,
+        'recommendedMonthlyExpenseWan': safe_monthly * 0.95 / 10000.0,
+        'minPrincipalWan': min_principal,
+        'minBufferMonths': min_buffer_months,
+        'isTargetFeasibleWithoutHarvest': survives(target_monthly_withdraw, principal, buffer_seed) if target_monthly_withdraw > 0 else True
     }
 
 
@@ -213,13 +304,14 @@ def get_dca_adjustment(history_data, index_code, role):
 
     elif role == 'domestic_beta':
         if pe_list:
-            count = sum(1 for p in pe_list if p < current_pe)
-            percentile = round((count / len(pe_list)) * 100, 1)
+            pe_pct = round((sum(1 for p in pe_list if p < current_pe) / len(pe_list)) * 100, 1)
+            pb_pct = round((sum(1 for p in pb_list if p < current_pb) / len(pb_list)) * 100, 1) if pb_list else pe_pct
+            percentile = max(pe_pct, pb_pct)
         
         if percentile <= 30.0:
             valuation_zone = "极具性价比 (国内宽基低估)"
             factor = 1.2
-            tips = "提示：沪深300指数估值处于历史低估分位，长期配置性价比凸显，定投系数上调至 1.2x。"
+            tips = "提示：国内宽基 PE/PB 估值处于历史低位，长期配置性价比凸显，定投系数上调至 1.2x。"
         elif percentile <= 70.0:
             valuation_zone = "合理估值区间 (估值中性)"
             factor = 1.0
@@ -227,7 +319,7 @@ def get_dca_adjustment(history_data, index_code, role):
         else:
             valuation_zone = "估值偏贵区间 (宽基估值高企)"
             factor = 0.6
-            tips = "提示：沪深300估值已进入历史高估区域，适当下调定投金额，系数 0.6x。"
+            tips = "提示：国内宽基 PE/PB 已进入历史高估区域，适当下调定投金额，系数 0.6x。"
 
     elif role == 'tech_growth':
         if pe_list:
@@ -236,34 +328,53 @@ def get_dca_adjustment(history_data, index_code, role):
 
         if percentile <= 25.0:
             valuation_zone = "超跌低估区间 (科技成长蓄势)"
-            factor = 1.3
-            tips = "提示：科技类资产估值进入历史极低分水位，具备极强向上增长弹性，定投系数调高至 1.3x。"
+            factor = 1.1
+            tips = "提示：科技类资产估值进入历史低位，但波动较高，定投系数仅小幅调高至 1.1x。"
         elif percentile <= 75.0:
             valuation_zone = "合理估值区间 (估值中性)"
-            factor = 1.0
-            tips = "提示：科技指数估值温和，建议保持常规的小额定投频率，定投系数 1.0x。"
+            factor = 0.8
+            tips = "提示：科技指数估值温和，但仍属于高波动资产，建议保持克制的小额定投，系数 0.8x。"
         else:
             valuation_zone = "情绪过热区间 (科技估值透支)"
-            factor = 0.4
-            tips = "提示：科技成长股情绪过热，估值高位溢价，为防范高位被套，定投系数下调至 0.4x。"
+            factor = 0.3
+            tips = "提示：科技成长股情绪过热，估值高位溢价，为防范高位被套，定投系数严格下调至 0.3x。"
 
-    elif role == 'overseas_beta':
-        if pe_list:
+    elif role in ['overseas_broad', 'overseas_tech', 'overseas_beta']:
+        if not pe_list:
+            valuation_zone = "海外估值数据不足"
+            factor = 1.0
+            tips = "提示：当前缺少该海外资产的本地估值历史，保持 1.0x 基础计划。纳指100属于海外科技，并不等同于海外宽基。"
+        elif role == 'overseas_tech':
             count = sum(1 for p in pe_list if p < current_pe)
             percentile = round((count / len(pe_list)) * 100, 1)
 
-        if percentile <= 30.0:
-            valuation_zone = "低估配置区域 (海外宽基低估)"
-            factor = 1.1
-            tips = "提示：海外指数估值偏低，定投系数微调至 1.1x。注意换汇点位，人民币过弱时溢价风险增加。"
-        elif percentile <= 70.0:
-            valuation_zone = "合理估值区间 (估值中性)"
-            factor = 1.0
-            tips = "提示：海外宽基估值合理，定投系数 1.0x。建议分批换汇以平滑汇率波动。"
+            if percentile <= 25.0:
+                valuation_zone = "海外科技估值低位"
+                factor = 1.0
+                tips = "提示：海外科技低估时仍需控制集中度，定投系数不超过 1.0x。"
+            elif percentile <= 75.0:
+                valuation_zone = "海外科技估值中性"
+                factor = 0.8
+                tips = "提示：纳指100偏科技成长属性，估值中性时保持克制定投，系数 0.8x。"
+            else:
+                valuation_zone = "海外科技估值偏贵"
+                factor = 0.3
+                tips = "提示：海外科技高估时严格降温，系数 0.3x，并注意汇率与溢价风险。"
         else:
-            valuation_zone = "高估警戒区域 (海外宽基高估)"
-            factor = 0.5
-            tips = "提示：海外指数市盈率偏高，定投系数降低至 0.5x。防止高位接盘和人民币贬值被套双重风险。"
+            count = sum(1 for p in pe_list if p < current_pe)
+            percentile = round((count / len(pe_list)) * 100, 1)
+            if percentile <= 30.0:
+                valuation_zone = "低估配置区域 (海外宽基低估)"
+                factor = 1.0
+                tips = "提示：海外宽基估值偏低，但因汇率和数据覆盖限制，最高保持 1.0x。"
+            elif percentile <= 70.0:
+                valuation_zone = "合理估值区间 (估值中性)"
+                factor = 1.0
+                tips = "提示：海外宽基估值合理，定投系数 1.0x。建议分批换汇以平滑汇率波动。"
+            else:
+                valuation_zone = "高估警戒区域 (海外宽基高估)"
+                factor = 0.5
+                tips = "提示：海外指数市盈率偏高，定投系数降低至 0.5x。防止高位接盘和汇率波动双重风险。"
 
     return {
         'hasHistory': True,
@@ -339,7 +450,7 @@ def run_stress_test(weights, assets, invest_principal, monthly_withdraw, buffer_
         if next_balance < 0 and breached_at_month is None:
             breached_at_month = t
 
-    stressed_buffer_history = stress_buffer_balance[:-1]
+    stressed_buffer_history = stress_buffer_balance[1:]
 
     return {
         'stressedBufferHistory': stressed_buffer_history,

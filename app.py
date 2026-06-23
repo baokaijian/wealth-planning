@@ -130,9 +130,11 @@ if assets_list:
             'name': item['name'],
             'type': item['type'],
             'role': item['role'],
+            'target_index_code': item.get('target_index_code'),
             'market': item['market'],
             'volatility_level': item['volatility_level'],
             'income_type': item['income_type'],
+            'rebalance_band': item.get('rebalance_band', 3),
             'weight': item['weight'],
             'yield': dy,
             'price': price,
@@ -152,7 +154,7 @@ else:
         {"code": "513530", "name": "恒生红利低波 ETF", "type": "ETF", "role": "dividend_income", "market": "HK", "volatility_level": "high", "income_type": "dividend", "weight": 10.0, "estimated_yield": 4.8, "estimated_return": 7.5, "distribution_months": {"7":0.5, "12":0.5}, "strategy_note": "获取港股低估值红利，离岸派息配置", "risk_note": "港股通红利税（20%）扣减及汇率波动风险"},
         {"code": "510300", "name": "华泰柏瑞沪深300 ETF", "type": "ETF", "role": "domestic_beta", "market": "CN", "volatility_level": "medium", "income_type": "capital_growth", "weight": 15.0, "estimated_yield": 1.5, "estimated_return": 8.0, "distribution_months": {"10":1.0}, "strategy_note": "获取中国经济长期核心Beta增值", "risk_note": "国内宏观经济系统性下行风险"},
         {"code": "588000", "name": "华夏科创50 ETF", "type": "ETF", "role": "tech_growth", "market": "CN", "volatility_level": "high", "income_type": "capital_growth", "weight": 10.0, "estimated_yield": 0.2, "estimated_return": 10.0, "distribution_months": {"12":1.0}, "strategy_note": "聚焦国内硬科技成长标的，获取弹性成长溢价", "risk_note": "科技股高估值回撤及高波动风险"},
-        {"code": "513100", "name": "易方达纳斯达克100 ETF", "type": "ETF", "role": "overseas_beta", "market": "US", "volatility_level": "high", "income_type": "capital_growth", "weight": 10.0, "estimated_yield": 0.5, "estimated_return": 9.5, "distribution_months": {"12":1.0}, "strategy_note": "跨币种全球化科技宽基，对冲地缘风险", "risk_note": "海外估值高位回撤及汇率波动风险"},
+        {"code": "513100", "name": "易方达纳斯达克100 ETF", "type": "ETF", "role": "overseas_tech", "target_index_code": "NDX", "market": "US", "volatility_level": "high", "income_type": "capital_growth", "rebalance_band": 5, "weight": 10.0, "estimated_yield": 0.5, "estimated_return": 9.5, "distribution_months": {"12":1.0}, "strategy_note": "海外科技成长资产，不等同海外宽基", "risk_note": "海外估值高位回撤及汇率波动风险"},
         {"code": "518880", "name": "华安黄金 ETF", "type": "ETF", "role": "hedge", "market": "Global", "volatility_level": "medium", "income_type": "hedge", "weight": 5.0, "estimated_yield": 0.0, "estimated_return": 4.5, "distribution_months": {}, "strategy_note": "避险商品，对抗通胀及地缘极端危机", "risk_note": "黄金无利息且金价高位价格波动风险"},
         {"code": "511360", "name": "中债信用债 ETF", "type": "ETF", "role": "hedge", "market": "CN", "volatility_level": "low", "income_type": "cash_interest", "weight": 5.0, "estimated_yield": 2.5, "estimated_return": 3.5, "distribution_months": {"6":0.5, "12":0.5}, "strategy_note": "低波动债基，提供平稳票息收入和防御防线", "risk_note": "信用利差走阔及市场降息波动风险"}
     ]
@@ -163,9 +165,11 @@ else:
             'name': item['name'],
             'type': item['type'],
             'role': item['role'],
+            'target_index_code': item.get('target_index_code'),
             'market': item['market'],
             'volatility_level': item['volatility_level'],
             'income_type': item['income_type'],
+            'rebalance_band': item.get('rebalance_band', 3),
             'weight': item['weight'],
             'yield': item['estimated_yield'],
             'price': 0.0,
@@ -321,6 +325,8 @@ if 'strategy_preset_option' not in st.session_state:
 
 if 'is_prohibit_aggressive' not in st.session_state:
     st.session_state.is_prohibit_aggressive = False
+if 'family_aggressiveness' not in st.session_state:
+    st.session_state.family_aggressiveness = 0
 
 # 修改权重时的回调
 def on_weight_changed():
@@ -342,6 +348,10 @@ preset_option = st.sidebar.selectbox(
 # 积极型策略阻断警告
 if preset_option == "🚀 积极型成长突破" and st.session_state.is_prohibit_aggressive:
     st.sidebar.error("⚠️ 评估警示：当前家庭财务体检结果显示您的财务状况较为脆弱（低备用金、低结余或高负债），系统已阻断积极型成长策略的选择。请先优化家庭财务结构！自动返回均衡配置。")
+    st.session_state.strategy_preset_option = "⚖️ 均衡型增长配置"
+    preset_option = "⚖️ 均衡型增长配置"
+elif preset_option == "🚀 积极型成长突破" and st.session_state.family_aggressiveness < 30:
+    st.sidebar.error("⚠️ 风险优先提醒：风险进攻评分低于 30 分，不同时高配科创50和纳指100；已自动返回均衡配置。")
     st.session_state.strategy_preset_option = "⚖️ 均衡型增长配置"
     preset_option = "⚖️ 均衡型增长配置"
 
@@ -517,6 +527,7 @@ if menu == "1. 家庭资产体检与配置建议":
 
         # 同步阻断状态
         st.session_state.is_prohibit_aggressive = res['isProhibitAggressive']
+        st.session_state.family_aggressiveness = aggressiveness
 
         # UI呈现
         color_hex = "#EF4444" if "🚨" in res['profileTitle'] or "⚠️" in res['profileTitle'] else ("#10B981" if "💎" in res['profileTitle'] else "#3B82F6")
@@ -665,7 +676,7 @@ elif menu == "2. 资产配置与股息测算看板":
     with m_col2:
         st.markdown(f"""
         <div class='card'>
-            <div class='metric-label'>增长预期预期收益率</div>
+            <div class='metric-label'>增长预期收益率</div>
             <div class='metric-value' style='color:#A78BFA;'>{res['blendedGrowthReturn']:.2f}%</div>
         </div>
         """, unsafe_allow_html=True)
@@ -733,11 +744,29 @@ elif menu == "2. 资产配置与股息测算看板":
 # ==========================================
 elif menu == "3. 现金缓冲池平滑模拟器":
     st.markdown("<h1 style='color:#FFFFFF; margin-bottom:10px;'>⏱️ 现金缓冲池平滑模拟器</h1>", unsafe_allow_html=True)
-    st.write("大多数红利资产的分红在 5-8 月密集派发。缓冲池能有效将分红抹平为每月的稳定流出。")
+    st.write("大多数红利资产的分红在少数月份集中派发。默认安全结论只基于分红、票息、现金利息和缓冲池，不把成长资产上涨当成稳定现金流。")
 
-    rebalance_harvest = st.checkbox("开启年度再平衡成长大类变现（Harvest）", value=False, help="若勾选，每年底会将资本增长资产当年假定录得的预期超额年化收益，变现补充至缓冲池")
+    rebalance_harvest = st.checkbox("乐观情景：卖出成长资产补充现金流", value=False, help="仅作为附加情景，不计入默认现金流安全结论")
+    harvest_scenario = st.selectbox(
+        "卖出成长资产补流情景",
+        ["conservative", "neutral", "optimistic"],
+        index=1,
+        format_func=lambda x: {"conservative": "保守：-20% 至 0%", "neutral": "中性：0% 至 5%", "optimistic": "乐观：按预期收益率"}[x],
+        disabled=not rebalance_harvest
+    )
 
-    # 执行模拟流转
+    # 默认安全结论不纳入卖出成长资产
+    base_sim = portfolio_engine.simulate_cashflow(
+        36,
+        target_monthly * 10000.0,
+        buffer_seed,
+        invest_principal,
+        weights,
+        ASSETS_CONFIG,
+        money_market_rate / 100.0,
+        False,
+        'neutral'
+    )
     sim = portfolio_engine.simulate_cashflow(
         36,
         target_monthly * 10000.0,
@@ -746,16 +775,26 @@ elif menu == "3. 现金缓冲池平滑模拟器":
         weights,
         ASSETS_CONFIG,
         money_market_rate / 100.0,
-        rebalance_harvest
+        rebalance_harvest,
+        harvest_scenario
+    ) if rebalance_harvest else base_sim
+    feasibility = portfolio_engine.calculate_cashflow_feasibility(
+        36,
+        target_monthly * 10000.0,
+        buffer_seed,
+        principal,
+        weights,
+        ASSETS_CONFIG,
+        money_market_rate / 100.0
     )
 
     # 关键指标体检
-    min_buffer = sim['minBuffer']
-    tot_div_sum = sum(sim['dividendsHistory'])
+    min_buffer = base_sim['minBuffer']
+    tot_div_sum = sum(base_sim['dividendsHistory'])
     tot_harvest_sum = sum(sim['harvestHistory'])
 
     st.markdown("### 🔍 缓冲池安全性体检")
-    b_col1, b_col2, b_col3, b_col4 = st.columns(4)
+    b_col1, b_col2, b_col3, b_col4, b_col5, b_col6 = st.columns(6)
     with b_col1:
         st.markdown(f"""
         <div class='card'>
@@ -781,15 +820,37 @@ elif menu == "3. 现金缓冲池平滑模拟器":
     with b_col4:
         st.markdown(f"""
         <div class='card'>
-            <div class='metric-label'>3年累计再平衡变现(Harvest)</div>
-            <div class='metric-value'>¥{tot_harvest_sum:,.0f}</div>
+            <div class='metric-label'>建议每月支出不超过</div>
+            <div class='metric-value'>{feasibility['recommendedMonthlyExpenseWan']:.2f} 万</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with b_col5:
+        st.markdown(f"""
+        <div class='card'>
+            <div class='metric-label'>理论安全月支取上限</div>
+            <div class='metric-value'>{feasibility['safeMonthlyWithdrawWan']:.2f} 万</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with b_col6:
+        buffer_months_text = "仅加缓冲不足" if feasibility['minBufferMonths'] is None else f"{feasibility['minBufferMonths']:.1f}个月"
+        st.markdown(f"""
+        <div class='card'>
+            <div class='metric-label'>目标所需缓冲月数</div>
+            <div class='metric-value'>{buffer_months_text}</div>
         </div>
         """, unsafe_allow_html=True)
 
     if min_buffer <= 0:
-        st.error(f"⚠️ **缓冲池期中击穿警报**：模拟显示缓冲池资金在部分月份会出现亏空（余额为负数）！请提高本金、降低支取、或增加初始现金缓冲，不要机械调高高波动成长类资产的权重，避免在熊市被迫割肉。")
+        min_principal = feasibility['minPrincipalWan']
+        min_principal_text = "超过测算上限" if min_principal is None else f"{min_principal:.1f} 万元"
+        msg = f"⚠️ **缓冲池期中击穿警报**：不计卖出成长资产时，缓冲池最低水位为 ¥{min_buffer:,.0f}。建议每月支出不超过 **{feasibility['recommendedMonthlyExpenseWan']:.2f} 万元**（理论临界上限约 {feasibility['safeMonthlyWithdrawWan']:.2f} 万元，已预留 5% 安全余量）。若默认 400 万本金、12 万缓冲池、月取 2 万无法通过，原因是稳定分红/票息/现金利息不足以覆盖持续支取；解决路径是降低支取、增加本金（测算最低约 {min_principal_text}）或增加缓冲，而不是提高科技仓位。"
+        if rebalance_harvest and sim['minBuffer'] > 0:
+            msg += " 当前附加情景依赖卖出成长资产才能维持现金流。"
+        st.error(msg)
     else:
-        st.success("✅ **缓冲池平滑成功**：在 36 个月的模拟周期内，缓冲池余额始终大于 0。您的日常生活现金流抗震良好！")
+        st.success(f"✅ **缓冲池平滑成功**：不计卖出成长资产时，36 个月内缓冲池余额始终大于 0。建议每月支出不超过 **{feasibility['recommendedMonthlyExpenseWan']:.2f} 万元**，理论临界上限约 {feasibility['safeMonthlyWithdrawWan']:.2f} 万元。")
+    if rebalance_harvest:
+        st.info(f"附加情景：3年卖出成长资产补流合计 ¥{tot_harvest_sum:,.0f}。该项仅表示依赖变现资产补充现金流，不视为稳定现金流。")
 
     # 可视化折线/柱状混合图表
     timeline_months = [f"第 {t} 个月 (阴历 {((t-1)%12)+1}月)" for t in range(1, 37)]
@@ -835,13 +896,13 @@ elif menu == "3. 现金缓冲池平滑模拟器":
             '模拟月份': timeline_months,
             '当月收到分红/票息 (元)': sim['dividendsHistory'],
             '当月利息收益 (元)': sim['interestEarnedHistory'],
-            '再平衡增长提取 (元)': sim['harvestHistory'],
+            '情景卖出资产补流 (元)': sim['harvestHistory'],
             '期末缓冲池余额 (元)': sim['bufferHistory']
         })
         st.dataframe(timeline_df.style.format({
             '当月收到分红/票息 (元)': '¥{:,.0f}',
             '当月利息收益 (元)': '¥{:,.2f}',
-            '再平衡增长提取 (元)': '¥{:,.0f}',
+            '情景卖出资产补流 (元)': '¥{:,.0f}',
             '期末缓冲池余额 (元)': '¥{:,.0f}'
         }))
 
@@ -930,18 +991,40 @@ elif menu == "4. 估值温度计与测算工具":
     base_dca = st.number_input("请输入您计划的基础定投总额 (万元)", min_value=1.0, max_value=200.0, value=32.3, step=1.0)
     adjusted_dca = base_dca * res['factor']
     
-    st.markdown(f"基于估值百分位温度仪，本月定投系数为 **{res['factor']:.1f}x**，经调节后定投申购额度为: **{adjusted_dca:.2f} 万元**。")
+    st.markdown(f"上方指数仅用于查看温度计。下方组合定投按每个资产自己的 `target_index_code` 和 `role` 分别计算，不再用单一指数因子套全组合。")
 
     # 配置细表
+    def default_target_index(role):
+        return {
+            'dividend_income': 'H30269',
+            'domestic_beta': '000300',
+            'tech_growth': '588000',
+            'overseas_tech': 'NDX'
+        }.get(role)
+
     rec_data = []
+    total_adjusted_dca = 0.0
     for code, info in ASSETS_CONFIG.items():
-        rec_amt = adjusted_dca * (weights[code] / 100.0)
+        target_index = info.get('target_index_code') if info.get('target_index_code') is not None else default_target_index(info.get('role'))
+        if target_index:
+            asset_res = portfolio_engine.get_dca_adjustment(history_data, target_index, info.get('role'))
+        else:
+            asset_res = {
+                'factor': 1.0,
+                'valuationZone': '现金/对冲资产不做估值择时'
+            }
+        rec_amt = base_dca * (weights[code] / 100.0) * asset_res['factor']
+        total_adjusted_dca += rec_amt
         rec_data.append({
             '基金代码': code,
             '基金名称': info['name'],
             '配置占比': f"{weights[code]:.1f}%",
+            '目标指数': target_index or '--',
+            '估值状态': asset_res['valuationZone'],
+            'Factor': f"{asset_res['factor']:.1f}x",
             '本期定投应申购买入额度 (元)': f"¥{rec_amt * 10000:,.0f}"
         })
+    st.markdown(f"基于逐资产估值因子，本月组合测算实缴总额为：**{total_adjusted_dca:.2f} 万元**。")
     st.table(pd.DataFrame(rec_data))
 
     # 绘制估值线图
@@ -1021,18 +1104,48 @@ elif menu == "5. 年度资产再平衡测算":
     else:
         st.markdown(f"### 📊 年度再平衡提示方案")
         st.write(f"当前投资组合总市值为 **{total_hold_val:.2f}** 万元 (不含外部缓冲池)。")
+        incremental_mode = st.checkbox("增量资金再平衡优先", value=True)
+        new_cash = st.number_input("本期可用于再平衡的新增资金 (万元)", min_value=0.0, max_value=1000.0, value=10.0, step=1.0, disabled=not incremental_mode)
 
-        rebalance_rows = []
+        plan_rows = []
         for code, info in ASSETS_CONFIG.items():
             target_pct = weights[code]
             actual_pct = (user_holdings[code] / total_hold_val) * 100.0
             diff_pct = actual_pct - target_pct
+            band = float(info.get('rebalance_band', 3))
 
             ideal_value = total_hold_val * (target_pct / 100.0)
             adjust_value = ideal_value - user_holdings[code] # positive: buy, negative: sell
+            plan_rows.append({
+                'code': code,
+                'info': info,
+                'target_pct': target_pct,
+                'actual_pct': actual_pct,
+                'diff_pct': diff_pct,
+                'band': band,
+                'ideal_value': ideal_value,
+                'adjust_value': adjust_value,
+                'is_over_band': abs(diff_pct) > band,
+                'incremental_buy': 0.0
+            })
 
-            # 操作标识
-            if adjust_value > 0.5:
+        if incremental_mode:
+            remaining_cash = new_cash
+            for row in sorted([r for r in plan_rows if r['adjust_value'] > 0.5 and r['is_over_band']], key=lambda r: r['adjust_value'], reverse=True):
+                row['incremental_buy'] = min(row['adjust_value'], remaining_cash)
+                remaining_cash -= row['incremental_buy']
+
+        rebalance_rows = []
+        for row in plan_rows:
+            adjust_value = row['adjust_value']
+            if not row['is_over_band']:
+                action = "阈值内观察"
+            elif row['incremental_buy'] > 0:
+                residual = adjust_value - row['incremental_buy']
+                action = f"🟢 新增资金买入 {row['incremental_buy']:.2f} 万元"
+                if residual > 0.5:
+                    action += f"；仍低配 {residual:.2f} 万元，后续增量继续补足"
+            elif adjust_value > 0.5:
                 action = f"🟢 建议买入/入金补足 {adjust_value:.2f} 万元"
             elif adjust_value < -0.5:
                 action = f"🔴 建议卖出变现 {-adjust_value:.2f} 万元"
@@ -1040,12 +1153,13 @@ elif menu == "5. 年度资产再平衡测算":
                 action = "无需变动 (配比平衡)"
 
             rebalance_rows.append({
-                '标的代码': code,
-                '标的名称': info['name'],
-                '目标设定比例': f"{target_pct:.1f}%",
-                '当期实际比例': f"{actual_pct:.1f}%",
-                '比重偏离度': f"{diff_pct:+.1f}%",
-                '理想健康持仓': f"{ideal_value:.2f} 万元",
+                '标的代码': row['code'],
+                '标的名称': row['info']['name'],
+                '目标设定比例': f"{row['target_pct']:.1f}%",
+                '当期实际比例': f"{row['actual_pct']:.1f}%",
+                '比重偏离度': f"{row['diff_pct']:+.1f}%",
+                '资产阈值': f"±{row['band']:.1f}%",
+                '理想健康持仓': f"{row['ideal_value']:.2f} 万元",
                 '年度再平衡动作': action
             })
 
@@ -1069,10 +1183,20 @@ elif menu == "6. 风险压力测试":
     
     with col2:
         stress_drawdown_tech = st.slider("科技成长类极端回撤 (%)", min_value=0, max_value=80, value=50)
-        stress_drawdown_overseas = st.slider("海外权益类回撤折算 (%)", min_value=0, max_value=70, value=40)
+        stress_drawdown_overseas = st.slider("海外权益/科技类回撤折算 (%)", min_value=0, max_value=70, value=40)
         stress_drawdown_hedge = st.slider("对冲资产(黄金/中债)回撤 (%)", min_value=0, max_value=40, value=15)
 
     stress_div_drop = st.slider("企业降息与派息率被动折损 (%)", min_value=0, max_value=100, value=25)
+    default_stress_months = int(round(buffer_seed / target_monthly)) if target_monthly > 0 else 0
+    stress_buffer_months = st.slider(
+        "压力测试缓冲池覆盖月数（月）",
+        min_value=0,
+        max_value=60,
+        value=max(0, min(default_stress_months, 60)),
+        step=1,
+        help=f"当前缓冲池金额为 {buffer_seed:.1f} 万元；按目标月支取 {target_monthly:.1f} 万元折算约 {default_stress_months} 个月。"
+    )
+    st.caption(f"缓冲池金额：{buffer_seed:.1f} 万元；压力测试使用覆盖月数：{stress_buffer_months} 个月。")
 
     # 整合参数包
     stress_params = {
@@ -1082,6 +1206,8 @@ elif menu == "6. 风险压力测试":
             'domestic_beta': stress_drawdown_domestic,
             'tech_growth': stress_drawdown_tech,
             'overseas_beta': stress_drawdown_overseas,
+            'overseas_broad': stress_drawdown_overseas,
+            'overseas_tech': stress_drawdown_overseas,
             'hedge': stress_drawdown_hedge
         },
         'dividendDrop': {
@@ -1090,6 +1216,8 @@ elif menu == "6. 风险压力测试":
             'domestic_beta': 0.0,
             'tech_growth': 0.0,
             'overseas_beta': 0.0,
+            'overseas_broad': 0.0,
+            'overseas_tech': 0.0,
             'hedge': 0.0
         }
     }
@@ -1100,7 +1228,7 @@ elif menu == "6. 风险压力测试":
         ASSETS_CONFIG,
         invest_principal,
         target_monthly * 10000.0,
-        buffer_seed,  # 缓冲池预存总本金折算期数
+        stress_buffer_months,
         money_market_rate / 100.0,
         stress_params
     )

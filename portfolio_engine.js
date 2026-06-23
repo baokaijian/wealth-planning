@@ -40,6 +40,8 @@ const portfolioEngine = {
                 price: currentPrice,
                 yield: currentYield,
                 estimated_return: estReturn,
+                target_index_code: asset.target_index_code,
+                rebalance_band: asset.rebalance_band || 3,
                 allocatedAmt: allocatedAmt,
                 expectedAnnualDiv: expectedAnnualDiv,
                 strategy_note: asset.strategy_note,
@@ -74,8 +76,15 @@ const portfolioEngine = {
         };
     },
 
+    getHarvestReturn(asset, harvestScenario) {
+        if (harvestScenario === 'conservative') return -10.0;
+        if (harvestScenario === 'neutral') return 3.0;
+        if (harvestScenario === 'optimistic') return parseFloat(asset.estimated_return) || 0.0;
+        return 0.0;
+    },
+
     // 2. 36个月缓冲池流转模拟
-    simulateCashflow(monthsRange, monthlyWithdraw, bufferSeed, investPrincipal, weights, assets, moneyMarketRate, rebalanceHarvest) {
+    simulateCashflow(monthsRange, monthlyWithdraw, bufferSeed, investPrincipal, weights, assets, moneyMarketRate, rebalanceHarvest = false, harvestScenario = 'neutral') {
         const bufferBalance = [bufferSeed * 10000.0]; // 元
         const dividendsHistory = [];
         const interestEarnedHistory = [];
@@ -102,18 +111,17 @@ const portfolioEngine = {
                 }
             });
 
-            // 2) 年度再平衡超额成长变现 (Harvest) 机制
+            // 2) 情景假设下卖出成长资产补充现金流。默认关闭，安全结论不依赖该项。
             let monthHarvest = 0.0;
             if (rebalanceHarvest && t % 12 === 0) {
-                // 每满12个月，把所有 capital_growth 资产当年产生的增值部分变现
                 Object.keys(assets).forEach(code => {
                     const asset = assets[code];
                     const weight = parseFloat(weights[code]) || 0.0;
                     if (asset.income_type === 'capital_growth') {
-                        const estReturn = asset.estimated_return || 8.0;
+                        const scenarioReturn = this.getHarvestReturn(asset, harvestScenario);
+                        if (scenarioReturn <= 0) return;
                         const assetValue = investPrincipal * (weight / 100.0) * 10000.0; // 元
-                        // 假设实现其设定的预期成长年收益
-                        monthHarvest += assetValue * (estReturn / 100.0);
+                        monthHarvest += assetValue * (scenarioReturn / 100.0);
                     }
                 });
             }
@@ -134,8 +142,7 @@ const portfolioEngine = {
             }
         }
 
-        // 去除多余的最后一个期末余额
-        const bufferHistory = bufferBalance.slice(0, monthsRange);
+        const bufferHistory = bufferBalance.slice(1);
 
         return {
             bufferHistory,
@@ -144,6 +151,81 @@ const portfolioEngine = {
             harvestHistory,
             breachedAtMonth,
             minBuffer: Math.min(...bufferHistory)
+        };
+    },
+
+    calculateCashflowFeasibility(monthsRange, targetMonthlyWithdraw, bufferSeed, principal, weights, assets, moneyMarketRate) {
+        const survives = (testMonthly, testPrincipal, testBufferSeed) => {
+            const investPrincipal = Math.max(testPrincipal - testBufferSeed, 0.0);
+            const sim = this.simulateCashflow(
+                monthsRange,
+                testMonthly,
+                testBufferSeed,
+                investPrincipal,
+                weights,
+                assets,
+                moneyMarketRate,
+                false,
+                'neutral'
+            );
+            return sim.minBuffer > 0;
+        };
+
+        let low = 0.0;
+        let high = Math.max(targetMonthlyWithdraw * 3.0, 1.0);
+        for (let i = 0; i < 40; i++) {
+            const mid = (low + high) / 2.0;
+            if (survives(mid, principal, bufferSeed)) low = mid;
+            else high = mid;
+        }
+
+        let minPrincipal = principal;
+        if (targetMonthlyWithdraw > 0 && !survives(targetMonthlyWithdraw, principal, bufferSeed)) {
+            let lowP = Math.max(bufferSeed, 0.0);
+            let highP = Math.max(principal, bufferSeed + 1.0);
+            while (!survives(targetMonthlyWithdraw, highP, bufferSeed) && highP < 100000.0) {
+                highP *= 1.5;
+                if (highP <= bufferSeed) highP = bufferSeed + 1.0;
+            }
+            if (highP < 100000.0) {
+                for (let i = 0; i < 40; i++) {
+                    const mid = (lowP + highP) / 2.0;
+                    if (survives(targetMonthlyWithdraw, mid, bufferSeed)) highP = mid;
+                    else lowP = mid;
+                }
+                minPrincipal = highP;
+            } else {
+                minPrincipal = null;
+            }
+        }
+
+        let minBufferMonths = 0.0;
+        if (targetMonthlyWithdraw > 0) {
+            if (survives(targetMonthlyWithdraw, principal, 0.0)) {
+                minBufferMonths = 0.0;
+            } else if (survives(targetMonthlyWithdraw, principal, 60.0 * targetMonthlyWithdraw / 10000.0)) {
+                let lowM = 0.0;
+                let highM = 60.0;
+                for (let i = 0; i < 40; i++) {
+                    const midM = (lowM + highM) / 2.0;
+                    const testBuffer = midM * targetMonthlyWithdraw / 10000.0;
+                    if (survives(targetMonthlyWithdraw, principal, testBuffer)) highM = midM;
+                    else lowM = midM;
+                }
+                minBufferMonths = highM;
+            } else {
+                minBufferMonths = null;
+            }
+        }
+
+        return {
+            safeMonthlyWithdraw: low,
+            safeMonthlyWithdrawWan: low / 10000.0,
+            recommendedMonthlyExpense: low * 0.95,
+            recommendedMonthlyExpenseWan: low * 0.95 / 10000.0,
+            minPrincipalWan: minPrincipal,
+            minBufferMonths,
+            isTargetFeasibleWithoutHarvest: targetMonthlyWithdraw > 0 ? survives(targetMonthlyWithdraw, principal, bufferSeed) : true
         };
     },
 
@@ -214,13 +296,14 @@ const portfolioEngine = {
             }
         } else if (role === 'domestic_beta') {
             // 宽基看 PE/PB 估值百分位（PE 越低代表越低估，低估时定投调高）
-            const count = peList.filter(p => p < currentPE).length;
-            percentile = parseFloat(((count / peList.length) * 100).toFixed(1));
+            const pePct = parseFloat(((peList.filter(p => p < currentPE).length / peList.length) * 100).toFixed(1));
+            const pbPct = pbList.length > 0 ? parseFloat(((pbList.filter(p => p < currentPB).length / pbList.length) * 100).toFixed(1)) : pePct;
+            percentile = Math.max(pePct, pbPct);
 
             if (percentile <= 30.0) {
                 valuationZone = "极具性价比 (国内宽基低估)";
                 factor = 1.2;
-                tips = "提示：沪深300指数估值处于历史低估分位，长期配置性价比凸显，定投系数上调至 1.2x。";
+                tips = "提示：国内宽基 PE/PB 估值处于历史低位，长期配置性价比凸显，定投系数上调至 1.2x。";
             } else if (percentile <= 70.0) {
                 valuationZone = "合理估值区间 (估值中性)";
                 factor = 1.0;
@@ -228,7 +311,7 @@ const portfolioEngine = {
             } else {
                 valuationZone = "估值偏贵区间 (宽基估值高企)";
                 factor = 0.6;
-                tips = "提示：沪深300估值已进入历史高估区域，适当下调定投金额，系数 0.6x。";
+                tips = "提示：国内宽基 PE/PB 已进入历史高估区域，适当下调定投金额，系数 0.6x。";
             }
         } else if (role === 'tech_growth') {
             // 科技成长看估值和波动回撤区间
@@ -237,34 +320,56 @@ const portfolioEngine = {
 
             if (percentile <= 25.0) {
                 valuationZone = "超跌低估区间 (科技成长蓄势)";
-                factor = 1.3;
-                tips = "提示：科技类资产估值进入历史极低分水位，具备极强向上增长弹性，定投系数调高至 1.3x。";
+                factor = 1.1;
+                tips = "提示：科技类资产估值进入历史低位，但波动较高，定投系数仅小幅调高至 1.1x。";
             } else if (percentile <= 75.0) {
                 valuationZone = "合理估值区间 (估值中性)";
-                factor = 1.0;
-                tips = "提示：科技指数估值温和，建议保持常规的小额定投频率，定投系数 1.0x。";
+                factor = 0.8;
+                tips = "提示：科技指数估值温和，但仍属于高波动资产，建议保持克制的小额定投，系数 0.8x。";
             } else {
                 valuationZone = "情绪过热区间 (科技估值透支)";
-                factor = 0.4;
-                tips = "提示：科技成长股情绪过热，估值高位溢价，为防范高位被套，定投系数下调至 0.4x。";
+                factor = 0.3;
+                tips = "提示：科技成长股情绪过热，估值高位溢价，为防范高位被套，定投系数严格下调至 0.3x。";
             }
-        } else if (role === 'overseas_beta') {
-            // 海外宽基看估值和汇率风险
-            const count = peList.filter(p => p < currentPE).length;
-            percentile = parseFloat(((count / peList.length) * 100).toFixed(1));
-
-            if (percentile <= 30.0) {
-                valuationZone = "低估配置区域 (海外宽基低估)";
-                factor = 1.1;
-                tips = "提示：海外指数估值偏低，定投系数微调至 1.1x。注意换汇点位，人民币过弱时溢价风险增加。";
-            } else if (percentile <= 70.0) {
-                valuationZone = "合理估值区间 (估值中性)";
+        } else if (role === 'overseas_broad' || role === 'overseas_tech' || role === 'overseas_beta') {
+            if (peList.length === 0) {
+                valuationZone = "海外估值数据不足";
                 factor = 1.0;
-                tips = "提示：海外宽基估值合理，定投系数 1.0x。建议分批换汇以平滑汇率波动。";
+                tips = "提示：当前缺少该海外资产的本地估值历史，保持 1.0x 基础计划。纳指100属于海外科技，并不等同于海外宽基。";
+            } else if (role === 'overseas_tech') {
+                const count = peList.filter(p => p < currentPE).length;
+                percentile = parseFloat(((count / peList.length) * 100).toFixed(1));
+
+                if (percentile <= 25.0) {
+                    valuationZone = "海外科技估值低位";
+                    factor = 1.0;
+                    tips = "提示：海外科技低估时仍需控制集中度，定投系数不超过 1.0x。";
+                } else if (percentile <= 75.0) {
+                    valuationZone = "海外科技估值中性";
+                    factor = 0.8;
+                    tips = "提示：纳指100偏科技成长属性，估值中性时保持克制定投，系数 0.8x。";
+                } else {
+                    valuationZone = "海外科技估值偏贵";
+                    factor = 0.3;
+                    tips = "提示：海外科技高估时严格降温，系数 0.3x，并注意汇率与溢价风险。";
+                }
             } else {
-                valuationZone = "高估警戒区域 (海外宽基高估)";
-                factor = 0.5;
-                tips = "提示：海外指数市盈率偏高，定投系数降低至 0.5x。防止高位接盘和人民币贬值被套双重风险。";
+                const count = peList.filter(p => p < currentPE).length;
+                percentile = parseFloat(((count / peList.length) * 100).toFixed(1));
+
+                if (percentile <= 30.0) {
+                    valuationZone = "低估配置区域 (海外宽基低估)";
+                    factor = 1.0;
+                    tips = "提示：海外宽基估值偏低，但因汇率和数据覆盖限制，最高保持 1.0x。";
+                } else if (percentile <= 70.0) {
+                    valuationZone = "合理估值区间 (估值中性)";
+                    factor = 1.0;
+                    tips = "提示：海外宽基估值合理，定投系数 1.0x。建议分批换汇以平滑汇率波动。";
+                } else {
+                    valuationZone = "高估警戒区域 (海外宽基高估)";
+                    factor = 0.5;
+                    tips = "提示：海外指数市盈率偏高，定投系数降低至 0.5x。防止高位接盘和汇率波动双重风险。";
+                }
             }
         }
 
@@ -353,7 +458,7 @@ const portfolioEngine = {
             }
         }
 
-        const stressedBufferHistory = stressBufferBalance.slice(0, monthsRange);
+        const stressedBufferHistory = stressBufferBalance.slice(1);
 
         return {
             stressedBufferHistory,

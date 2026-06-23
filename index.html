@@ -334,6 +334,8 @@
         .badge-domestic_beta { background: rgba(245, 158, 11, 0.1); color: var(--accent-yellow); border: 1px solid rgba(245, 158, 11, 0.2); }
         .badge-tech_growth { background: rgba(139, 92, 246, 0.1); color: #A78BFA; border: 1px solid rgba(139, 92, 246, 0.2); }
         .badge-overseas_beta { background: rgba(236, 72, 153, 0.1); color: #F472B6; border: 1px solid rgba(236, 72, 153, 0.2); }
+        .badge-overseas_broad { background: rgba(20, 184, 166, 0.1); color: #5EEAD4; border: 1px solid rgba(20, 184, 166, 0.2); }
+        .badge-overseas_tech { background: rgba(236, 72, 153, 0.1); color: #F472B6; border: 1px solid rgba(236, 72, 153, 0.2); }
         .badge-hedge { background: rgba(107, 114, 128, 0.1); color: var(--text-secondary); border: 1px solid rgba(107, 114, 128, 0.2); }
 
         /* 告警条样式 */
@@ -1207,6 +1209,22 @@
                     <span class="metric-label">3年累计预计分红流入</span>
                     <span class="metric-val-num" id="t2-accum-div-val">¥0</span>
                 </div>
+                <div class="metric-card">
+                    <span class="metric-label">建议每月支出不超过</span>
+                    <span class="metric-val-num" id="t2-recommended-spend-val">0.00 万</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">理论安全月支取上限</span>
+                    <span class="metric-val-num" id="t2-safe-withdraw-val">0.00 万</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">目标支取所需最低本金</span>
+                    <span class="metric-val-num" id="t2-min-principal-val">--</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">目标支取所需缓冲月数</span>
+                    <span class="metric-val-num" id="t2-min-buffer-months-val">--</span>
+                </div>
             </div>
 
             <!-- 动态安全性状态警告框 -->
@@ -1217,11 +1235,16 @@
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <label class="checkbox-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
                         <input type="checkbox" id="t2-harvest-checkbox" onchange="userInputsChanged()" style="width: 18px; height: 18px; cursor: pointer;">
-                        <span style="font-size: 0.9rem; font-weight: 500; color: #FFFFFF;">开启年度再平衡成长大类变现（Harvest）</span>
+                        <span style="font-size: 0.9rem; font-weight: 500; color: #FFFFFF;">乐观情景：卖出成长资产补充现金流</span>
                     </label>
+                    <select id="t2-harvest-scenario" onchange="userInputsChanged()" style="padding: 7px 10px; background: var(--bg-primary); border: 1px solid var(--card-border); border-radius: 6px; color: #FFFFFF; font-size: 0.82rem;">
+                        <option value="conservative">保守：-20% 至 0%</option>
+                        <option value="neutral" selected>中性：0% 至 5%</option>
+                        <option value="optimistic">乐观：按预期收益率</option>
+                    </select>
                 </div>
                 <div style="font-size: 0.8rem; color: var(--text-secondary); max-width: 500px; line-height: 1.4;">
-                    💡 <strong>变现说明：</strong> 开启后，每年底将自动卖出增长型资产（国内宽基、科技成长、海外宽基）因实现年化预期回报（约 8%~10%）而产生的多余市值，提取至缓冲池中以维持现金流充裕度。
+                    💡 <strong>口径说明：</strong> 现金流安全结论默认只基于分红、票息和现金利息；开启后仅作为“依赖卖出资产才能维持现金流”的附加情景，不计入默认安全结论。
                 </div>
             </div>
 
@@ -1241,7 +1264,7 @@
                                 <th>历法月份</th>
                                 <th>期初余额</th>
                                 <th>当期分红流入</th>
-                                <th>成长大类变现</th>
+                                <th>情景卖出资产补流</th>
                                 <th>缓冲池利息</th>
                                 <th>生活费支取</th>
                                 <th>期末水位余额</th>
@@ -1319,6 +1342,9 @@
                         <thead>
                             <tr>
                                 <th>标的名称</th>
+                                <th>目标指数</th>
+                                <th>估值状态</th>
+                                <th>Factor</th>
                                 <th>本月测算买入金额</th>
                             </tr>
                         </thead>
@@ -1350,7 +1376,7 @@
                                 <th>目标权重</th>
                                 <th>实际占比</th>
                                 <th>偏离值</th>
-                                <th>偏离阈值 (±3%)</th>
+                                <th>偏离阈值</th>
                             </tr>
                         </thead>
                         <tbody id="t4-ledger-body">
@@ -1363,6 +1389,14 @@
                     <div class="card-title-text" style="margin-bottom: 20px;">再平衡提示说明</div>
                     <div style="font-size: 0.95rem; margin-bottom: 15px;">
                         当前总仓位市值：<span id="t4-total-ledger-val" style="font-weight: 700; color: #FFFFFF;">0 万元</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom: 15px;">
+                        <label class="checkbox-container" style="display:flex; align-items:center; gap:8px;">
+                            <input type="checkbox" id="t4-incremental-mode" checked onchange="userInputsChanged()" style="width:18px;height:18px;">
+                            <span style="font-size:0.86rem;">增量资金再平衡优先</span>
+                        </label>
+                        <input type="number" id="t4-new-cash-input" value="10" min="0" step="1" oninput="userInputsChanged()" style="width:110px;" title="新增资金，单位万元">
+                        <span style="font-size:0.8rem; color:var(--text-secondary);">万元新增资金</span>
                     </div>
                     <table style="font-size: 0.88rem;">
                         <thead>
@@ -1414,7 +1448,7 @@
                             <input type="range" id="stress-drawdown-tech" min="0" max="80" value="50" step="5" oninput="updateStressTestLabels(); runStressTest();" style="width: 100%; accent-color: var(--accent-red);">
                         </div>
                         <div class="input-group">
-                            <label for="stress-drawdown-overseas">海外宽基 (%): <span id="stress-lbl-drawdown-overseas" style="font-weight:600; color:var(--accent-red);">40%</span></label>
+                            <label for="stress-drawdown-overseas">海外权益/科技 (%): <span id="stress-lbl-drawdown-overseas" style="font-weight:600; color:var(--accent-red);">40%</span></label>
                             <input type="range" id="stress-drawdown-overseas" min="0" max="70" value="40" step="5" oninput="updateStressTestLabels(); runStressTest();" style="width: 100%; accent-color: var(--accent-red);">
                         </div>
                         <div class="input-group">
@@ -1441,8 +1475,9 @@
 
                     <h4 style="color: #FFFFFF; font-size: 0.9rem; margin-bottom: 12px; border-bottom: 1px solid var(--card-border); padding-bottom: 6px;">🛡️ 备用现金流平滑参数</h4>
                     <div class="input-group" style="margin-bottom: 10px;">
-                        <label for="stress-buffer-months">现金缓冲池注入月数: <span id="stress-buffer-months-lbl" style="font-weight: 600; color: var(--accent-blue);">12 个月</span></label>
-                        <input type="range" id="stress-buffer-months" min="0" max="36" value="12" step="3" oninput="updateStressTestLabels(); runStressTest();" style="width: 100%; accent-color: var(--accent-blue);">
+                        <label for="stress-buffer-months">压力测试缓冲池覆盖月数: <span id="stress-buffer-months-lbl" style="font-weight: 600; color: var(--accent-blue);">6 个月</span></label>
+                        <input type="range" id="stress-buffer-months" min="0" max="36" value="6" step="3" oninput="updateStressTestLabels(); runStressTest();" style="width: 100%; accent-color: var(--accent-blue);">
+                        <div style="font-size:0.78rem;color:var(--text-secondary);margin-top:4px;">覆盖月数 = 缓冲池金额 / 目标月支取；默认 12 万元 / 2 万元 = 6 个月。</div>
                     </div>
                 </div>
 
@@ -1540,7 +1575,7 @@
             { code: "513530", name: "恒生红利低波 ETF", type: "ETF", role: "dividend_income", market: "HK", volatility_level: "high", income_type: "dividend", weight: 10.0, estimated_yield: 4.8, estimated_return: 7.5, distribution_months: {"7":0.5,"12":0.5}, strategy_note: "配置港股优质低估红利资产，实现跨币种离岸现金流流入", risk_note: "港股通20%红利税折损风险，汇率波动及港股高波动特征" },
             { code: "510300", name: "华泰柏瑞沪深300 ETF", type: "ETF", role: "domestic_beta", market: "CN", volatility_level: "medium", income_type: "capital_growth", weight: 15.0, estimated_yield: 1.5, estimated_return: 8.0, distribution_months: {"10":1.0}, strategy_note: "代表国内核心宽基资产，获取国内宏观经济长期平稳增长Beta", risk_note: "国内宏观经济增速放缓及A股系统性震荡下行风险" },
             { code: "588000", name: "华夏科创50 ETF", type: "ETF", role: "tech_growth", market: "CN", volatility_level: "high", income_type: "capital_growth", weight: 10.0, estimated_yield: 0.2, estimated_return: 10.0, distribution_months: {"12":1.0}, strategy_note: "聚焦战略性新兴产业与硬科技核心资产，博取高成长增值弹性", risk_note: "高估值下回撤大，高波动，行业集中及科技迭代不确定性" },
-            { code: "513100", name: "易方达纳斯达克100 ETF", type: "ETF", role: "overseas_beta", market: "US", volatility_level: "high", income_type: "capital_growth", weight: 10.0, estimated_yield: 0.5, estimated_return: 9.5, distribution_months: {"12":1.0}, strategy_note: "挂钩美股核心科技成长大盘，全球化配置分散单一市场风险", risk_note: "美股估值高位回撤风险，汇率波动对实际本位币资产的影响" },
+            { code: "513100", name: "易方达纳斯达克100 ETF", type: "ETF", role: "overseas_tech", target_index_code: "NDX", market: "US", volatility_level: "high", income_type: "capital_growth", weight: 10.0, estimated_yield: 0.5, estimated_return: 9.5, distribution_months: {"12":1.0}, strategy_note: "挂钩美股核心科技成长大盘；属于海外科技，不等同于海外宽基", risk_note: "美股估值高位回撤风险，汇率波动对实际本位币资产的影响" },
             { code: "518880", name: "华安黄金 ETF", type: "ETF", role: "hedge", market: "Global", volatility_level: "medium", income_type: "hedge", weight: 5.0, estimated_yield: 0.0, estimated_return: 4.5, distribution_months: {}, strategy_note: "实物黄金挂钩，对冲极端通胀及系统性地缘冲突风险", risk_note: "黄金资产无股息票息产出，主要面临黄金价格短期波动风险" },
             { code: "511360", name: "中债信用债 ETF", type: "ETF", role: "hedge", market: "CN", volatility_level: "low", income_type: "cash_interest", weight: 5.0, estimated_yield: 2.5, estimated_return: 3.5, distribution_months: {"6":0.5,"12":0.5}, strategy_note: "配置高评级信用债，获取稳定票息，组合波动的重要安全气垫", risk_note: "信用债利率波动风险及市场流动性紧缩带来的估值调整风险" }
         ];
@@ -1594,6 +1629,7 @@
 
             list.forEach(item => {
                 const code = item.code;
+                const role = item.role || 'dividend_income';
                 state.assets[code] = {
                     name: item.name,
                     type: item.type,
@@ -1602,9 +1638,11 @@
                     price: 0.0,
                     estimated_yield: item.estimated_yield,
                     estimated_return: item.estimated_return !== undefined ? item.estimated_return : item.estimated_yield,
+                    target_index_code: item.target_index_code !== undefined ? item.target_index_code : getDefaultTargetIndexCode(role),
+                    rebalance_band: item.rebalance_band !== undefined ? item.rebalance_band : getDefaultRebalanceBand(role),
                     months: item.distribution_months || {},
                     distribution_months: item.distribution_months || {},
-                    role: item.role || 'dividend_income',
+                    role: role,
                     market: item.market || 'CN',
                     volatility_level: item.volatility_level || 'medium',
                     income_type: item.income_type || 'dividend',
@@ -1614,6 +1652,21 @@
                 // 默认持仓根据本金400万和目标权重计算一个偏离了的模拟市值 (例如 80%)
                 state.holdings[code] = parseFloat((state.principal * (item.weight / 100.0) * 0.8).toFixed(1));
             });
+        }
+
+        function getDefaultTargetIndexCode(role) {
+            if (role === 'dividend_income') return 'H30269';
+            if (role === 'domestic_beta') return '000300';
+            if (role === 'tech_growth') return '588000';
+            if (role === 'overseas_tech') return 'NDX';
+            return null;
+        }
+
+        function getDefaultRebalanceBand(role) {
+            if (role === 'cash') return 1;
+            if (role === 'hedge') return 2;
+            if (role === 'tech_growth' || role === 'overseas_tech' || role === 'overseas_broad') return 5;
+            return 3;
         }
 
         // 定时更新时钟与数据监控指示
@@ -1822,7 +1875,9 @@
                 'dividend_income': '📈 红利现金流',
                 'domestic_beta': '🇨🇳 国内宽基',
                 'tech_growth': '💻 科技成长',
-                'overseas_beta': '🌐 海外宽基',
+                'overseas_broad': '🌐 海外宽基',
+                'overseas_tech': '🌐 海外科技',
+                'overseas_beta': '🌐 海外权益',
                 'hedge': '🛡️ 黄金/债券'
             };
             return mapping[role] || role;
@@ -1865,7 +1920,7 @@
             } else if (indexCode === '588000') {
                 role = 'tech_growth';
             } else if (indexCode === '513100') {
-                role = 'overseas_beta';
+                role = 'overseas_tech';
             }
 
             const res = portfolioEngine.getDcaAdjustment(rawValuationHistoryList, indexCode, role);
@@ -2046,6 +2101,13 @@
                 applyStrategyPreset();
                 return;
             }
+            const familyAggressiveness = globalFamilyMetrics && Number.isFinite(globalFamilyMetrics.aggressiveness) ? globalFamilyMetrics.aggressiveness : 0;
+            if (selected === 'aggressive' && familyAggressiveness < 30) {
+                alert("⚠️ 风险优先提醒：您的家庭风险进攻评分低于 30 分，系统不会同时高配科创50和纳指100。已切换为均衡增长配置。");
+                presetSelect.value = 'balanced';
+                applyStrategyPreset();
+                return;
+            }
 
             // 预设比例
             const presets = {
@@ -2214,6 +2276,7 @@
 
             const monthlyWithdraw = state.targetMonthly * 10000;
             const rebalanceHarvest = document.getElementById('t2-harvest-checkbox') ? document.getElementById('t2-harvest-checkbox').checked : false;
+            const harvestScenario = document.getElementById('t2-harvest-scenario') ? document.getElementById('t2-harvest-scenario').value : 'neutral';
 
             // Get weights
             const weights = {};
@@ -2221,8 +2284,8 @@
                 weights[code] = state.assets[code].weight;
             });
 
-            // Call calculation engine
-            const res = portfolioEngine.simulateCashflow(
+            // 默认安全结论只基于分红/票息/现金利息
+            const baseRes = portfolioEngine.simulateCashflow(
                 36, 
                 monthlyWithdraw, 
                 state.bufferSeed, 
@@ -2230,7 +2293,28 @@
                 weights, 
                 state.assets, 
                 state.moneyMarketRate / 100.0, 
-                rebalanceHarvest
+                false,
+                'neutral'
+            );
+            const displayRes = rebalanceHarvest ? portfolioEngine.simulateCashflow(
+                36,
+                monthlyWithdraw,
+                state.bufferSeed,
+                investPrincipal,
+                weights,
+                state.assets,
+                state.moneyMarketRate / 100.0,
+                true,
+                harvestScenario
+            ) : baseRes;
+            const feasibility = portfolioEngine.calculateCashflowFeasibility(
+                36,
+                monthlyWithdraw,
+                state.bufferSeed,
+                state.principal,
+                weights,
+                state.assets,
+                state.moneyMarketRate / 100.0
             );
 
             let accumDiv = 0.0;
@@ -2239,11 +2323,11 @@
 
             for (let t = 1; t <= 36; t++) {
                 const c_month = ((t - 1) % 12) + 1;
-                const startBalance = t === 1 ? (state.bufferSeed * 10000) : res.bufferHistory[t - 2];
-                const endBalance = res.bufferHistory[t - 1];
-                const dividend = res.dividendsHistory[t - 1];
-                const harvest = res.harvestHistory[t - 1];
-                const interest = res.interestEarnedHistory[t - 1];
+                const startBalance = t === 1 ? (state.bufferSeed * 10000) : displayRes.bufferHistory[t - 2];
+                const endBalance = displayRes.bufferHistory[t - 1];
+                const dividend = displayRes.dividendsHistory[t - 1];
+                const harvest = displayRes.harvestHistory[t - 1];
+                const interest = displayRes.interestEarnedHistory[t - 1];
 
                 accumDiv += dividend;
                 accumHarvest += harvest;
@@ -2274,26 +2358,33 @@
 
             // 更新顶部指标卡片
             document.getElementById('t2-seed-val').innerText = `¥${(state.bufferSeed * 10000).toLocaleString()}`;
-            document.getElementById('t2-min-buffer-val').innerText = `¥${Math.round(res.minBuffer).toLocaleString()}`;
-            // If harvest is enabled, let's include harvest in total inflows or show them clearly
-            document.getElementById('t2-accum-div-val').innerText = `¥${Math.round(accumDiv + accumHarvest).toLocaleString()}`;
+            document.getElementById('t2-min-buffer-val').innerText = `¥${Math.round(baseRes.minBuffer).toLocaleString()}`;
+            document.getElementById('t2-accum-div-val').innerText = `¥${Math.round(baseRes.dividendsHistory.reduce((sum, v) => sum + v, 0)).toLocaleString()}`;
+            document.getElementById('t2-recommended-spend-val').innerText = `${feasibility.recommendedMonthlyExpenseWan.toFixed(2)} 万`;
+            document.getElementById('t2-safe-withdraw-val').innerText = `${feasibility.safeMonthlyWithdrawWan.toFixed(2)} 万`;
+            document.getElementById('t2-min-principal-val').innerText = feasibility.minPrincipalWan === null ? '超过测算上限' : `${feasibility.minPrincipalWan.toFixed(1)} 万`;
+            document.getElementById('t2-min-buffer-months-val').innerText = feasibility.minBufferMonths === null ? '仅加缓冲不足' : `${feasibility.minBufferMonths.toFixed(1)} 个月`;
 
             // 安全预警条
             const alertEl = document.getElementById('t2-status-alert');
-            if (res.minBuffer <= 0) {
+            if (baseRes.minBuffer <= 0) {
                 alertEl.className = 'alert-banner alert-warning';
                 
                 // Show custom gap advise text
                 alertEl.innerHTML = `
                     <strong>⚠️ 缓冲池水位警报：</strong> 
-                    模拟显示缓冲池在部分月份的期末余额会出现 <strong>负水位 (¥${Math.round(res.minBuffer).toLocaleString()})</strong>！这说明您的初始预留资金在淡季无法完全承载支出压力。
+                    不计卖出成长资产时，缓冲池在部分月份会出现 <strong>负水位 (¥${Math.round(baseRes.minBuffer).toLocaleString()})</strong>。默认配置下若 400 万本金、12 万缓冲池、月取 2 万无法通过，原因是稳定分红/票息/现金利息不足以覆盖持续支取。
+                    <br><span style="display:block; margin-top:5px; font-weight:700;">建议每月支出不超过 <strong>${feasibility.recommendedMonthlyExpenseWan.toFixed(2)} 万元</strong>（理论临界上限约 ${feasibility.safeMonthlyWithdrawWan.toFixed(2)} 万元，已预留 5% 安全余量）。</span>
                     <br><span style="display:block; margin-top:5px; font-weight: 500;">💡 调理建议：请提高配置本金、降低月度支取、或增加初始现金缓冲。不要机械调高高波动成长类资产的权重，以避免在熊市被迫割肉变现。</span>
+                    ${rebalanceHarvest && displayRes.minBuffer > 0 ? `<br><span style="display:block; margin-top:5px; color:#A78BFA;">附加情景提示：开启卖出成长资产后可维持正水位，说明该方案属于“依赖卖出资产才能维持现金流”。</span>` : ''}
                 `;
             } else {
                 alertEl.className = 'alert-banner alert-success';
                 alertEl.innerHTML = `
                     <strong>✅ 缓冲池平滑成功：</strong>
-                    在 36 个月的完整周期内，缓冲池最低水位为 <strong>¥${Math.round(res.minBuffer).toLocaleString()}</strong>，水位线始终在 0 以上。该配置方案的现金平滑机制能够完美运行，您的日常生活现金流将完全不被分红不均衡所干扰！
+                    不计卖出成长资产时，36 个月最低水位为 <strong>¥${Math.round(baseRes.minBuffer).toLocaleString()}</strong>，说明该现金流方案主要由分红/票息/现金利息与缓冲池支撑。
+                    <br><span style="display:block; margin-top:5px; font-weight:700;">建议每月支出不超过 <strong>${feasibility.recommendedMonthlyExpenseWan.toFixed(2)} 万元</strong>（理论临界上限约 ${feasibility.safeMonthlyWithdrawWan.toFixed(2)} 万元）。</span>
+                    ${rebalanceHarvest ? `<br><span style="display:block; margin-top:5px; color:#A78BFA;">已额外展示卖出成长资产补流情景，3年情景补流合计 ¥${Math.round(accumHarvest).toLocaleString()}，不纳入默认安全结论。</span>` : ''}
                 `;
             }
 
@@ -2310,17 +2401,29 @@
             const tbody = document.getElementById('t3-dca-list-body');
             if (tbody) {
                 tbody.innerHTML = '';
-                const adjustDca = parseFloat(document.getElementById('t3-adjust-dca-val').innerText) || state.baseDca;
+                const baseDca = parseFloat(document.getElementById('base-dca-input').value) || state.baseDca;
+                let totalAdjustedDca = 0.0;
                 Object.keys(state.assets).forEach(code => {
                     const asset = state.assets[code];
-                    const amt = adjustDca * (asset.weight / 100) * 10000;
+                    const targetIndex = asset.target_index_code || getDefaultTargetIndexCode(asset.role);
+                    const dcaRes = targetIndex ? portfolioEngine.getDcaAdjustment(rawValuationHistoryList, targetIndex, asset.role) : {
+                        factor: 1.0,
+                        valuationZone: "现金/对冲资产不做估值择时",
+                        hasHistory: false
+                    };
+                    const amtWan = baseDca * (asset.weight / 100) * dcaRes.factor;
+                    totalAdjustedDca += amtWan;
                     tbody.innerHTML += `
                         <tr>
                             <td><strong>${asset.name}</strong> (${code})</td>
-                            <td style="color:var(--accent-emerald);font-weight:600">¥${Math.round(amt).toLocaleString()}</td>
+                            <td>${targetIndex || '--'}</td>
+                            <td style="font-size:0.78rem;">${dcaRes.valuationZone}</td>
+                            <td style="font-weight:600;color:${dcaRes.factor > 1 ? 'var(--accent-emerald)' : (dcaRes.factor < 1 ? 'var(--accent-orange)' : 'var(--text-primary)')}">${dcaRes.factor.toFixed(1)}x</td>
+                            <td style="color:var(--accent-emerald);font-weight:600">¥${Math.round(amtWan * 10000).toLocaleString()}</td>
                         </tr>
                     `;
                 });
+                document.getElementById('t3-adjust-dca-val').innerText = totalAdjustedDca.toFixed(2) + " 万元";
             }
         }
 
@@ -2337,6 +2440,9 @@
 
             const actionsTbody = document.getElementById('t4-rebalance-actions-body');
             actionsTbody.innerHTML = '';
+            const incrementalMode = document.getElementById('t4-incremental-mode') ? document.getElementById('t4-incremental-mode').checked : true;
+            let remainingNewCash = document.getElementById('t4-new-cash-input') ? (parseFloat(document.getElementById('t4-new-cash-input').value) || 0.0) : 0.0;
+            const rebalancePlan = [];
 
             Object.keys(state.assets).forEach(code => {
                 const asset = state.assets[code];
@@ -2344,8 +2450,9 @@
                 const actualPct = totalHoldValue > 0 ? (actualVal / totalHoldValue) * 100 : 0.0;
                 const targetPct = asset.weight;
                 const diffPct = actualPct - targetPct;
+                const band = parseFloat(asset.rebalance_band) || getDefaultRebalanceBand(asset.role);
 
-                const isOverThreshold = Math.abs(diffPct) > 3.0;
+                const isOverThreshold = Math.abs(diffPct) > band;
 
                 // 更新表格中的占比文字单元格
                 document.getElementById(`t4_actual_pct_${code}`).innerText = `${actualPct.toFixed(1)}%`;
@@ -2355,16 +2462,34 @@
                 diffCell.style.color = diffPct >= 0 ? 'var(--accent-emerald)' : 'var(--accent-red)';
 
                 const statusCell = document.getElementById(`t4_status_${code}`);
-                statusCell.innerText = isOverThreshold ? '⚠️ 已偏离' : '✅ 正常';
+                statusCell.innerText = isOverThreshold ? `⚠️ 超过 ±${band}%` : `✅ ±${band}% 内`;
                 statusCell.style.color = isOverThreshold ? 'var(--accent-red)' : 'var(--text-secondary)';
                 statusCell.style.fontWeight = isOverThreshold ? '700' : 'normal';
 
                 // 计算再平衡提示说明
                 const targetValue = totalHoldValue * (targetPct / 100);
                 const diffVal = targetValue - actualVal;
+                rebalancePlan.push({ code, asset, diffVal, diffPct, band, isOverThreshold });
+            });
+
+            rebalancePlan
+                .filter(item => item.diffVal > 0.5 && item.isOverThreshold)
+                .sort((a, b) => b.diffVal - a.diffVal)
+                .forEach(item => {
+                    item.incrementalBuy = incrementalMode ? Math.min(item.diffVal, remainingNewCash) : 0.0;
+                    remainingNewCash -= item.incrementalBuy || 0.0;
+                });
+
+            rebalancePlan.forEach(item => {
+                const { asset, diffVal, isOverThreshold } = item;
 
                 let actionText = '<span style="color:var(--text-secondary)">持平</span>';
-                if (diffVal > 0.5) {
+                if (!isOverThreshold) {
+                    actionText = '<span style="color:var(--text-secondary)">阈值内观察</span>';
+                } else if ((item.incrementalBuy || 0) > 0) {
+                    const residual = diffVal - item.incrementalBuy;
+                    actionText = `<span style="color:var(--accent-emerald); font-weight:600">🟢 新增资金买入 ${item.incrementalBuy.toFixed(2)} 万元</span>${residual > 0.5 ? `<br><span style="color:var(--text-secondary);font-size:0.78rem;">仍低配 ${residual.toFixed(2)} 万元，后续增量继续补足</span>` : ''}`;
+                } else if (diffVal > 0.5) {
                     actionText = `<span style="color:var(--accent-emerald); font-weight:600">🟢 测算应买入 ${diffVal.toFixed(2)} 万元</span>`;
                 } else if (diffVal < -0.5) {
                     actionText = `<span style="color:var(--accent-red); font-weight:600">🔴 测算应卖出 ${Math.abs(diffVal).toFixed(2)} 万元</span>`;
@@ -2460,6 +2585,7 @@
             const months = state.simData.map(d => d.monthStr);
             const ends = state.simData.map(d => d.end);
             const divs = state.simData.map(d => d.dividend);
+            const harvests = state.simData.map(d => d.harvest);
 
             const trace1 = {
                 x: months,
@@ -2479,7 +2605,17 @@
                 marker: { color: '#3B82F6', opacity: 0.7 }
             };
 
-            const data = [trace2, trace1];
+            const data = [trace2];
+            if (harvests.some(v => v > 0)) {
+                data.push({
+                    x: months,
+                    y: harvests,
+                    type: 'bar',
+                    name: '情景卖出资产补流 (元)',
+                    marker: { color: '#A78BFA', opacity: 0.65 }
+                });
+            }
+            data.push(trace1);
 
             const layout = {
                 paper_bgcolor: 'rgba(0,0,0,0)',
@@ -2548,6 +2684,8 @@
                     domestic_beta: parseFloat(document.getElementById('stress-drawdown-domestic').value),
                     tech_growth: parseFloat(document.getElementById('stress-drawdown-tech').value),
                     overseas_beta: parseFloat(document.getElementById('stress-drawdown-overseas').value),
+                    overseas_broad: parseFloat(document.getElementById('stress-drawdown-overseas').value),
+                    overseas_tech: parseFloat(document.getElementById('stress-drawdown-overseas').value),
                     hedge: parseFloat(document.getElementById('stress-drawdown-hedge').value)
                 },
                 dividendDrop: {
@@ -2556,7 +2694,9 @@
                     hedge: parseFloat(document.getElementById('stress-divdrop-hedge').value),
                     domestic_beta: 0,
                     tech_growth: 0,
-                    overseas_beta: 0
+                    overseas_beta: 0,
+                    overseas_broad: 0,
+                    overseas_tech: 0
                 }
             };
 
@@ -3064,7 +3204,7 @@
                     todo: [
                         "在市场估值合理或偏贵期间，分批止盈高估值集中度的单一边盘仓位（如非被动的题材基金）。",
                         "将资金回填至现金防御防线，直至现金覆盖月数满足 12 个月的基本安全界限。",
-                        "将权益资产分散到多市场（沪深300/中证A500、恒生红利低波、海外宽基标普500），防范单一市场下行。"
+                        "将权益资产分散到多市场（沪深300/中证A500、恒生红利低波、海外宽基标普500等），并区分海外宽基与纳指科技，防范单一市场和单一风格下行。"
                     ],
                     avoid: [
                         "切忌在全无现金防线的情况下‘假装拥有强大的持股耐受力’，防范市场大跌且突然需要钱时割肉在底部。",
@@ -3286,7 +3426,7 @@
 - **🪣 安全防御桶**：**${document.getElementById('lbl-safety-pct').innerText}**
   *建议流向：现金、短期存款、优质货币基金、极短久期信用债/短融基金*
 - **🪣 长期成长桶**：**${document.getElementById('lbl-longterm-pct').innerText}**
-  *建议流向：A股宽基指数(沪深300/中证A500/中证500)、红利低波指基、海外宽基(标普500/纳斯达克100)、港股低波红利被动基金*
+  *建议流向：A股宽基指数(沪深300/中证A500/中证500)、红利低波指基、海外宽基(如标普500/全球股票宽基)、海外科技(如纳斯达克100，需单独限额)、港股低波红利被动基金*
 - **🪣 综合对冲桶**：**${document.getElementById('lbl-hedge-pct').innerText}**
   *建议流向：黄金 ETF/纸黄金基金、中期国债 ETF、超强稳定性对冲债券*
 
