@@ -469,6 +469,21 @@
             min-width: 400px;
         }
 
+        .tab1-stacked-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .tab1-assets-table-scroll {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .tab1-assets-table-scroll table {
+            min-width: 1180px;
+        }
+
         /* 隐藏元素的类 */
         .hidden {
             display: none;
@@ -1158,36 +1173,38 @@
                 <strong>⚠️ 配置警告：</strong>当前所有资产权重之和为 <span id="t1-weight-sum">0%</span>，配置权重必须正好等于 **100%** 测算数值方才可信。
             </div>
 
-            <div class="flex-row-layouts">
-                <!-- 左侧分配表格列表 -->
-                <div class="flex-col-left card">
+            <div class="tab1-stacked-layout">
+                <!-- 资产配比饼图 -->
+                <div class="card">
+                    <div class="card-title-text" style="margin-bottom: 20px;">资产配比饼图分布</div>
+                    <div id="t1-plotly-pie" style="height: 380px; width: 100%;"></div>
+                </div>
+
+                <!-- 分配表格列表 -->
+                <div class="card">
                     <div class="card-header-bar">
                         <span class="card-title-text">标的权重与税后股息率精细调节</span>
                         <span id="t1-invest-principal-hint" style="font-size: 0.88rem; color: var(--text-secondary);"></span>
                     </div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>基金名称及代码</th>
-                                <th>资产角色</th>
-                                <th>目标市场 / 波动</th>
-                                <th>配置权重 (%)</th>
-                                <th>实际分配金额</th>
-                                <th>当前股息率 / 收益率</th>
-                                <th>预计年分红/利息</th>
-                                <th>策略定位与主要风险</th>
-                            </tr>
-                        </thead>
-                        <tbody id="t1-assets-table-body">
-                            <!-- 结构化渲染 -->
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- 右侧占比饼图 -->
-                <div class="flex-col-right card">
-                    <div class="card-title-text" style="margin-bottom: 20px;">资产配比饼图分布</div>
-                    <div id="t1-plotly-pie" style="height: 380px; width: 100%;"></div>
+                    <div class="tab1-assets-table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>基金名称及代码</th>
+                                    <th>资产角色</th>
+                                    <th>目标市场 / 波动</th>
+                                    <th>配置权重 (%)</th>
+                                    <th>实际分配金额</th>
+                                    <th>当前股息率 / 收益率</th>
+                                    <th>预计年分红/利息</th>
+                                    <th>策略定位与主要风险</th>
+                                </tr>
+                            </thead>
+                            <tbody id="t1-assets-table-body">
+                                <!-- 结构化渲染 -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
