@@ -257,12 +257,16 @@ if 'family_data' not in st.session_state:
         'expense-biz': False,
         'expense-city': False,
         'expense-other': False,
+        'f-planned-spend-12m': 0.0,
+        'f-planned-spend-36m': 0.0,
         'f-monthly-income': 30000.0,
         'f-fixed-expense': 12000.0,
+        'f-essential-expense': 9000.0,
         'f-surplus-income': 18000.0,
         'f-income-sources': 2,
         'f-salary-ratio': 80.0,
         'f-bonus-ratio': 20.0,
+        'protect-coverage': 'basic',
         'f-stability': 'normal',
         'f-recover-months': 6,
         'ast-cash': 50000.0,
@@ -279,6 +283,7 @@ if 'family_data' not in st.session_state:
         'debt-consumption': 10000.0,
         'debt-biz': 0.0,
         'debt-monthly-repay': 8500.0,
+        'debt-high-interest': 0.0,
         'debt-rate': '4.2',
         'debt-pressure': 'no',
         'inv-drawdown': '20',
@@ -422,17 +427,35 @@ if menu == "1. 家庭资产体检与配置建议":
             fd['expense-city'] = e_cols[1].checkbox("更换城市", value=fd.get('expense-city', False))
             fd['expense-other'] = e_cols[2].checkbox("其他大额支出", value=fd.get('expense-other', False))
 
+            spend_col1, spend_col2 = st.columns(2)
+            fd['f-planned-spend-12m'] = spend_col1.number_input("未来 12 个月确定要用的钱 (元)", min_value=0.0, value=float(fd.get('f-planned-spend-12m', 0.0)), step=10000.0)
+            fd['f-planned-spend-36m'] = spend_col2.number_input("未来 1-3 年确定要用的钱 (元)", min_value=0.0, value=float(fd.get('f-planned-spend-36m', 0.0)), step=10000.0)
+
         # 2. 收入与现金流
         with st.expander("💵 2. 收入与月现金流", expanded=True):
             sub_col1, sub_col2 = st.columns(2)
             with sub_col1:
                 fd['f-monthly-income'] = st.number_input("家庭税后月收入 (元)", min_value=0.0, value=float(fd.get('f-monthly-income', 30000.0)), step=1000.0)
-                fd['f-fixed-expense'] = st.number_input("月固定生活支出 (元)", min_value=0.0, value=float(fd.get('f-fixed-expense', 12000.0)), step=1000.0)
+                fd['f-fixed-expense'] = st.number_input("月固定生活支出 (不含贷款)", min_value=0.0, value=float(fd.get('f-fixed-expense', 12000.0)), step=1000.0)
             with sub_col2:
-                fd['f-income-sources'] = st.number_input("家庭收入来源数量 (个)", min_value=1, max_value=10, value=int(fd.get('f-income-sources', 2)))
+                fd['f-essential-expense'] = st.number_input("月必要支出底线 (元)", min_value=0.0, value=float(fd.get('f-essential-expense', 9000.0)), step=1000.0)
                 # 自动算可结余
                 default_surplus = max(fd['f-monthly-income'] - fd['f-fixed-expense'] - fd.get('debt-monthly-repay', 0.0), 0.0)
                 fd['f-surplus-income'] = st.number_input("月可结余 (元)", min_value=0.0, value=float(fd.get('f-surplus-income', default_surplus)), step=1000.0)
+
+            sub_col_sources, sub_col_protect = st.columns(2)
+            fd['f-income-sources'] = sub_col_sources.number_input("家庭收入来源数量 (个)", min_value=1, max_value=10, value=int(fd.get('f-income-sources', 2)))
+            fd['protect-coverage'] = sub_col_protect.selectbox(
+                "家庭保障覆盖程度",
+                ["none", "basic", "adequate", "strong"],
+                format_func=lambda x: {
+                    "none": "几乎没有商业保障",
+                    "basic": "社保 + 少量基础保障",
+                    "adequate": "重疾/医疗/意外基本覆盖",
+                    "strong": "家庭主要风险覆盖充分"
+                }[x],
+                index=["none", "basic", "adequate", "strong"].index(fd.get('protect-coverage', 'basic'))
+            )
 
             sub_col3, sub_col4 = st.columns(2)
             with sub_col3:
@@ -469,6 +492,7 @@ if menu == "1. 家庭资产体检与配置建议":
             fd['debt-rate'] = d_col3.selectbox("贷款综合利率区间", ["3.5", "4.2", "5.5", "7.5"], format_func=lambda x: "低于 3.5% (低息)" if x == "3.5" else ("3.5% - 4.5% (常态)" if x == "4.2" else ("4.5% - 6.0% (偏高)" if x == "5.5" else "大于 6.0% (高息)")), index=["3.5", "4.2", "5.5", "7.5"].index(fd.get('debt-rate', '4.2')))
             
             fd['debt-pressure'] = st.selectbox("短期是否有还款断流压力", ["no", "yes"], format_func=lambda x: "无，资金链安全滚动" if x == "no" else "有周转压力", index=0 if fd.get('debt-pressure') == 'no' else 1)
+            fd['debt-high-interest'] = st.number_input("其中高息债务余额 (元)", min_value=0.0, value=float(fd.get('debt-high-interest', 0.0)), step=5000.0)
 
         # 5. 投资性格与理财目标
         with st.expander("🚦 5. 投资性格与理财目标", expanded=True):
@@ -508,8 +532,9 @@ if menu == "1. 家庭资产体检与配置建议":
         surplus_ratio = fd['f-surplus-income'] / fd['f-monthly-income'] if fd['f-monthly-income'] > 0 else 0.0
         
         liquid_cash = fd['ast-cash'] + fd['ast-mmf']
-        monthly_fixed_ex = fd['f-fixed-expense'] if fd['f-fixed-expense'] > 0 else 1.0
-        cash_coverage_months = liquid_cash / monthly_fixed_ex
+        monthly_essential_ex = max(fd.get('f-essential-expense', 0.0), fd['f-fixed-expense'] * 0.7, 1.0)
+        monthly_required_outflow = monthly_essential_ex + fd.get('debt-monthly-repay', 0.0)
+        cash_coverage_months = liquid_cash / monthly_required_outflow
         
         investable_assets = fd['ast-cash'] + fd['ast-mmf'] + fd['ast-ashare'] + fd['ast-hk'] + fd['ast-overseas'] + fd['ast-gold'] + fd['ast-others']
         equity_assets = fd['ast-ashare'] + fd['ast-hk'] + fd['ast-overseas']
@@ -530,7 +555,10 @@ if menu == "1. 家庭资产体检与配置建议":
         elif fd['f-stability'] == 'normal': vulnerability += 7
         if fd['f-income-sources'] == 1: vulnerability += 15
         if fd['debt-pressure'] == 'yes': vulnerability += 15
-        vulnerability = min(vulnerability, 100)
+        if fd.get('debt-high-interest', 0.0) > 0: vulnerability += 10
+        if fd.get('protect-coverage') == 'none': vulnerability += 10
+        elif fd.get('protect-coverage') in ('adequate', 'strong'): vulnerability -= 5
+        vulnerability = max(0, min(vulnerability, 100))
 
         aggressiveness = 0
         aggressiveness += min(round(equity_invest_ratio * 50), 50)
@@ -657,7 +685,7 @@ if menu == "1. 家庭资产体检与配置建议":
         # 指标诊断值
         st.markdown(f"""
         <div class='card'>
-            <div class='metric-label'>流动资产应急现金覆盖月数</div>
+            <div class='metric-label'>刚性支出现金覆盖月数</div>
             <div class='metric-value'>{cash_coverage_months:.1f} 个月</div>
             <hr style='border:0; border-top:1px solid rgba(255,255,255,0.08); margin:10px 0;'>
             <table style='font-size:0.85rem; width:100%; border-collapse:collapse; color:#94A3B8;'>

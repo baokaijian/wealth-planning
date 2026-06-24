@@ -474,34 +474,42 @@ const portfolioEngine = {
     // 5. 家庭财务画像体检
     calculateFourMoneyAnalysis(fd, totalAssets, netWorth, leverage, repayIncomeRatio, surplusRatio, cashCoverageMonths, riskToleranceCode) {
         const num = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
-        const monthlyExpense = Math.max(num(fd['f-fixed-expense']), 1);
+        const monthlyLivingExpense = Math.max(num(fd['f-fixed-expense']), 1);
+        const monthlyEssentialExpense = Math.max(num(fd['f-essential-expense']), monthlyLivingExpense * 0.7, 1);
+        const monthlyRequiredOutflow = monthlyEssentialExpense + num(fd['debt-monthly-repay']);
         const liquidCash = num(fd['ast-cash']) + num(fd['ast-mmf']);
+        const plannedSpend12m = num(fd['f-planned-spend-12m']);
+        const plannedSpend36m = num(fd['f-planned-spend-36m']);
+        const highInterestDebt = num(fd['debt-high-interest']);
+        const coverageLevel = fd['protect-coverage'] || 'basic';
         const hasLargeExpense = fd['expense-buyhouse'] || fd['expense-edu'] || fd['expense-med'] || fd['expense-biz'] || fd['expense-city'] || fd['expense-other'];
-        const hasFamilyPressure = fd['f-children'] === 'yes' || fd['f-elders'] === 'yes' || fd['f-stability'] === 'volatile' || leverage > 0.45 || repayIncomeRatio > 0.3;
+        const hasFamilyPressure = fd['f-children'] === 'yes' || fd['f-elders'] === 'yes' || fd['f-stability'] === 'volatile' || leverage > 0.45 || repayIncomeRatio > 0.3 || highInterestDebt > 0;
 
-        const spendMinMonths = hasLargeExpense ? 6 : 2;
-        const spendMaxMonths = hasLargeExpense ? 12 : 3;
+        const spendMinMonths = (hasLargeExpense || plannedSpend12m > 0) ? 6 : 2;
+        const spendMaxMonths = (hasLargeExpense || plannedSpend36m > 0) ? 12 : 3;
         const lifeMinMonths = hasFamilyPressure ? 12 : 6;
         const lifeMaxMonths = hasFamilyPressure ? 18 : 12;
 
-        const spendMin = monthlyExpense * spendMinMonths;
-        const spendMax = monthlyExpense * spendMaxMonths;
+        const spendMin = Math.max(monthlyRequiredOutflow * spendMinMonths, plannedSpend12m);
+        const spendMax = Math.max(monthlyRequiredOutflow * spendMaxMonths, plannedSpend12m + plannedSpend36m * 0.5);
         const spendAmount = Math.min(liquidCash, spendMax);
         const liquidAfterSpend = Math.max(0, liquidCash - spendAmount);
 
-        const lifeMin = monthlyExpense * lifeMinMonths;
-        const lifeMax = monthlyExpense * lifeMaxMonths;
+        const coverageCreditMonths = { none: 0, basic: 3, adequate: 6, strong: 9 }[coverageLevel] ?? 3;
+        const protectionCredit = monthlyRequiredOutflow * coverageCreditMonths;
+        const lifeMin = monthlyRequiredOutflow * lifeMinMonths;
+        const lifeMax = monthlyRequiredOutflow * lifeMaxMonths;
         const lifeReserve = Math.min(liquidAfterSpend, lifeMax);
         const stableLiquidRemainder = Math.max(0, liquidAfterSpend - lifeReserve);
 
-        const lifeAmount = lifeReserve + num(fd['ast-insurance']);
+        const lifeAmount = lifeReserve + num(fd['ast-insurance']) + protectionCredit;
         const earnAmount = num(fd['ast-ashare']) + num(fd['ast-hk']) + num(fd['ast-overseas']) + num(fd['ast-others']);
         const preserveAmount = num(fd['ast-house']) + num(fd['ast-gold']) + stableLiquidRemainder;
         const baseAssets = Math.max(num(totalAssets), 1);
 
         let earnMinPct = 25;
         let earnMaxPct = 55;
-        if (cashCoverageMonths < 6 || repayIncomeRatio > 0.35 || surplusRatio < 0.15) {
+        if (cashCoverageMonths < 6 || repayIncomeRatio > 0.35 || surplusRatio < 0.15 || highInterestDebt > 0) {
             earnMinPct = 10;
             earnMaxPct = 30;
         } else if (cashCoverageMonths >= 12 && surplusRatio >= 0.25 && Number(riskToleranceCode) >= 30) {
@@ -528,13 +536,13 @@ const portfolioEngine = {
 
         const spendStatus = classifyAmount(
             spendAmount, spendMin, spendMax,
-            '近期生活费和确定性开销储备不足，先补足独立现金账户。',
+            '近期生活费、月供和确定性开销储备不足，先补足独立现金账户。',
             '近期可花资金过厚，可把超出部分转入应急金或稳健增值资产。',
-            '日常开销资金与未来三年开销预留基本匹配。'
+            '日常开销、月供和未来三年开销预留基本匹配。'
         );
         const lifeStatus = classifyAmount(
-            lifeAmount, lifeMin, lifeMax + num(fd['ast-insurance']),
-            '失业、医疗或家庭意外缓冲不足，优先补齐应急金和基础保障。',
+            lifeAmount, lifeMin, lifeMax + num(fd['ast-insurance']) + protectionCredit,
+            '失业、医疗或家庭意外缓冲不足，优先补齐应急金、基础保障和高息债务处理。',
             '保命资金占用偏多，确认保障充足后可分批转入保值或生钱资产。',
             '风险兜底资金覆盖度较好，家庭抗冲击能力较稳。'
         );
@@ -555,10 +563,10 @@ const portfolioEngine = {
             {
                 key: 'spend',
                 title: '要花的钱',
-                subtitle: '未来 2-12 个月生活费与确定性开销',
+                subtitle: '未来 2-12 个月刚性支出与确定性开销',
                 amount: spendAmount,
                 ratio: spendAmount / baseAssets,
-                targetText: `${spendMinMonths}-${spendMaxMonths} 个月必要支出`,
+                targetText: `${spendMinMonths}-${spendMaxMonths} 个月刚性支出，且覆盖未来12个月确定支出`,
                 components: '活期现金、货币/短债中优先隔离的近期支出',
                 ...spendStatus
             },
@@ -568,8 +576,8 @@ const portfolioEngine = {
                 subtitle: '失业、医疗、家庭意外与保障防线',
                 amount: lifeAmount,
                 ratio: lifeAmount / baseAssets,
-                targetText: `${lifeMinMonths}-${lifeMaxMonths} 个月必要支出 + 基础保障`,
-                components: '应急现金、货币/短债、养老金/保险现金价值',
+                targetText: `${lifeMinMonths}-${lifeMaxMonths} 个月刚性支出 + 基础保障`,
+                components: '应急现金、货币/短债、养老金/保险现金价值、保障覆盖等效额度',
                 ...lifeStatus
             },
             {
@@ -637,7 +645,9 @@ const portfolioEngine = {
 
         // 核心财务健康判定
         const isLowCash = cashCoverageMonths < 6;
-        const isHighDebt = leverage > 0.5 || repayIncomeRatio > 0.35;
+        const highInterestDebt = Number(fd['debt-high-interest']) || 0;
+        const monthlyIncome = Number(fd['f-monthly-income']) || 0;
+        const isHighDebt = leverage > 0.5 || repayIncomeRatio > 0.35 || (monthlyIncome > 0 && highInterestDebt > monthlyIncome);
         const isLowSurplus = surplusRatio < 0.15;
 
         // 积极成长型阻断校验

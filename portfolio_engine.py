@@ -473,32 +473,41 @@ def calculate_four_money_analysis(fd, total_assets, net_worth, leverage, repay_i
         except (TypeError, ValueError):
             return 0.0
 
-    monthly_expense = max(num('f-fixed-expense'), 1.0)
+    monthly_living_expense = max(num('f-fixed-expense'), 1.0)
+    monthly_essential_expense = max(num('f-essential-expense'), monthly_living_expense * 0.7, 1.0)
+    monthly_required_outflow = monthly_essential_expense + num('debt-monthly-repay')
     liquid_cash = num('ast-cash') + num('ast-mmf')
+    planned_spend_12m = num('f-planned-spend-12m')
+    planned_spend_36m = num('f-planned-spend-36m')
+    high_interest_debt = num('debt-high-interest')
+    coverage_level = fd.get('protect-coverage') or 'basic'
     has_large_expense = any(fd.get(key) for key in [
         'expense-buyhouse', 'expense-edu', 'expense-med', 'expense-biz', 'expense-city', 'expense-other'
     ])
     has_family_pressure = (
         fd.get('f-children') == 'yes' or fd.get('f-elders') == 'yes' or
-        fd.get('f-stability') == 'volatile' or leverage > 0.45 or repay_income_ratio > 0.3
+        fd.get('f-stability') == 'volatile' or leverage > 0.45 or repay_income_ratio > 0.3 or
+        high_interest_debt > 0
     )
 
-    spend_min_months = 6 if has_large_expense else 2
-    spend_max_months = 12 if has_large_expense else 3
+    spend_min_months = 6 if (has_large_expense or planned_spend_12m > 0) else 2
+    spend_max_months = 12 if (has_large_expense or planned_spend_36m > 0) else 3
     life_min_months = 12 if has_family_pressure else 6
     life_max_months = 18 if has_family_pressure else 12
 
-    spend_min = monthly_expense * spend_min_months
-    spend_max = monthly_expense * spend_max_months
+    spend_min = max(monthly_required_outflow * spend_min_months, planned_spend_12m)
+    spend_max = max(monthly_required_outflow * spend_max_months, planned_spend_12m + planned_spend_36m * 0.5)
     spend_amount = min(liquid_cash, spend_max)
     liquid_after_spend = max(0.0, liquid_cash - spend_amount)
 
-    life_min = monthly_expense * life_min_months
-    life_max = monthly_expense * life_max_months
+    coverage_credit_months = {'none': 0, 'basic': 3, 'adequate': 6, 'strong': 9}.get(coverage_level, 3)
+    protection_credit = monthly_required_outflow * coverage_credit_months
+    life_min = monthly_required_outflow * life_min_months
+    life_max = monthly_required_outflow * life_max_months
     life_reserve = min(liquid_after_spend, life_max)
     stable_liquid_remainder = max(0.0, liquid_after_spend - life_reserve)
 
-    life_amount = life_reserve + num('ast-insurance')
+    life_amount = life_reserve + num('ast-insurance') + protection_credit
     earn_amount = num('ast-ashare') + num('ast-hk') + num('ast-overseas') + num('ast-others')
     preserve_amount = num('ast-house') + num('ast-gold') + stable_liquid_remainder
     base_assets = max(float(total_assets or 0), 1.0)
@@ -510,7 +519,7 @@ def calculate_four_money_analysis(fd, total_assets, net_worth, leverage, repay_i
     except (TypeError, ValueError):
         tolerance = 0.0
 
-    if cash_coverage_months < 6 or repay_income_ratio > 0.35 or surplus_ratio < 0.15:
+    if cash_coverage_months < 6 or repay_income_ratio > 0.35 or surplus_ratio < 0.15 or high_interest_debt > 0:
         earn_min_pct = 10
         earn_max_pct = 30
     elif cash_coverage_months >= 12 and surplus_ratio >= 0.25 and tolerance >= 30:
@@ -535,13 +544,13 @@ def calculate_four_money_analysis(fd, total_assets, net_worth, leverage, repay_i
 
     spend_status = classify_amount(
         spend_amount, spend_min, spend_max,
-        '近期生活费和确定性开销储备不足，先补足独立现金账户。',
+        '近期生活费、月供和确定性开销储备不足，先补足独立现金账户。',
         '近期可花资金过厚，可把超出部分转入应急金或稳健增值资产。',
-        '日常开销资金与未来三年开销预留基本匹配。'
+        '日常开销、月供和未来三年开销预留基本匹配。'
     )
     life_status = classify_amount(
-        life_amount, life_min, life_max + num('ast-insurance'),
-        '失业、医疗或家庭意外缓冲不足，优先补齐应急金和基础保障。',
+        life_amount, life_min, life_max + num('ast-insurance') + protection_credit,
+        '失业、医疗或家庭意外缓冲不足，优先补齐应急金、基础保障和高息债务处理。',
         '保命资金占用偏多，确认保障充足后可分批转入保值或生钱资产。',
         '风险兜底资金覆盖度较好，家庭抗冲击能力较稳。'
     )
@@ -562,10 +571,10 @@ def calculate_four_money_analysis(fd, total_assets, net_worth, leverage, repay_i
         {
             'key': 'spend',
             'title': '要花的钱',
-            'subtitle': '未来 2-12 个月生活费与确定性开销',
+            'subtitle': '未来 2-12 个月刚性支出与确定性开销',
             'amount': spend_amount,
             'ratio': spend_amount / base_assets,
-            'targetText': f'{spend_min_months}-{spend_max_months} 个月必要支出',
+            'targetText': f'{spend_min_months}-{spend_max_months} 个月刚性支出，且覆盖未来12个月确定支出',
             'components': '活期现金、货币/短债中优先隔离的近期支出',
             **spend_status
         },
@@ -575,8 +584,8 @@ def calculate_four_money_analysis(fd, total_assets, net_worth, leverage, repay_i
             'subtitle': '失业、医疗、家庭意外与保障防线',
             'amount': life_amount,
             'ratio': life_amount / base_assets,
-            'targetText': f'{life_min_months}-{life_max_months} 个月必要支出 + 基础保障',
-            'components': '应急现金、货币/短债、养老金/保险现金价值',
+            'targetText': f'{life_min_months}-{life_max_months} 个月刚性支出 + 基础保障',
+            'components': '应急现金、货币/短债、养老金/保险现金价值、保障覆盖等效额度',
             **life_status
         },
         {
@@ -646,7 +655,9 @@ def evaluate_family_profile(fd, investable_assets, net_worth, total_assets, leve
     )
 
     is_low_cash = cash_coverage_months < 6
-    is_high_debt = leverage > 0.5 or repay_income_ratio > 0.35
+    high_interest_debt = float(fd.get('debt-high-interest', 0) or 0)
+    monthly_income = float(fd.get('f-monthly-income', 0) or 0)
+    is_high_debt = leverage > 0.5 or repay_income_ratio > 0.35 or (monthly_income > 0 and high_interest_debt > monthly_income)
     is_low_surplus = surplus_ratio < 0.15
 
     is_prohibit_aggressive = is_low_cash or is_high_debt or is_low_surplus
