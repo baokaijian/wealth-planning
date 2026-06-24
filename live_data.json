@@ -1,55 +1,55 @@
 {
     "status": "success",
-    "timestamp": "2026-06-23 11:54:37",
+    "timestamp": "2026-06-24 11:40:50",
     "data": {
         "511880": {
             "name": "银华日利ETF",
-            "price": 100.554,
+            "price": 100.544,
             "yield": 1.79
         },
         "512890": {
             "name": "红利低波ETF华泰柏瑞",
-            "price": 1.118,
-            "yield": 4.71
+            "price": 1.099,
+            "yield": 4.79
         },
         "515450": {
             "name": "红利低波50ETF南方",
-            "price": 1.362,
-            "yield": 4.41
+            "price": 1.344,
+            "yield": 4.47
         },
         "510880": {
             "name": "红利ETF华泰柏瑞",
-            "price": 3.104,
-            "yield": 4.12
+            "price": 3.048,
+            "yield": 4.2
         },
         "513530": {
             "name": "港股通红利ETF华泰柏瑞",
-            "price": 1.491,
-            "yield": 5.18
+            "price": 1.487,
+            "yield": 5.2
         },
         "510300": {
             "name": "沪深300ETF华泰柏瑞",
-            "price": 4.942,
+            "price": 4.967,
             "yield": 1.06
         },
         "588000": {
             "name": "科创50ETF华夏",
-            "price": 2.023,
+            "price": 2.096,
             "yield": 0.08
         },
         "513100": {
             "name": "纳指ETF国泰",
-            "price": 2.174,
+            "price": 2.187,
             "yield": 0.3
         },
         "518880": {
             "name": "黄金ETF华安",
-            "price": 8.537,
+            "price": 8.515,
             "yield": 0.0
         },
         "511360": {
             "name": "短融ETF海富通",
-            "price": 113.607,
+            "price": 113.586,
             "yield": 2.38
         }
     }
