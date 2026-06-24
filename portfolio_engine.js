@@ -472,6 +472,153 @@ const portfolioEngine = {
     },
 
     // 5. 家庭财务画像体检
+    calculateFourMoneyAnalysis(fd, totalAssets, netWorth, leverage, repayIncomeRatio, surplusRatio, cashCoverageMonths, riskToleranceCode) {
+        const num = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
+        const monthlyExpense = Math.max(num(fd['f-fixed-expense']), 1);
+        const liquidCash = num(fd['ast-cash']) + num(fd['ast-mmf']);
+        const hasLargeExpense = fd['expense-buyhouse'] || fd['expense-edu'] || fd['expense-med'] || fd['expense-biz'] || fd['expense-city'] || fd['expense-other'];
+        const hasFamilyPressure = fd['f-children'] === 'yes' || fd['f-elders'] === 'yes' || fd['f-stability'] === 'volatile' || leverage > 0.45 || repayIncomeRatio > 0.3;
+
+        const spendMinMonths = hasLargeExpense ? 6 : 2;
+        const spendMaxMonths = hasLargeExpense ? 12 : 3;
+        const lifeMinMonths = hasFamilyPressure ? 12 : 6;
+        const lifeMaxMonths = hasFamilyPressure ? 18 : 12;
+
+        const spendMin = monthlyExpense * spendMinMonths;
+        const spendMax = monthlyExpense * spendMaxMonths;
+        const spendAmount = Math.min(liquidCash, spendMax);
+        const liquidAfterSpend = Math.max(0, liquidCash - spendAmount);
+
+        const lifeMin = monthlyExpense * lifeMinMonths;
+        const lifeMax = monthlyExpense * lifeMaxMonths;
+        const lifeReserve = Math.min(liquidAfterSpend, lifeMax);
+        const stableLiquidRemainder = Math.max(0, liquidAfterSpend - lifeReserve);
+
+        const lifeAmount = lifeReserve + num(fd['ast-insurance']);
+        const earnAmount = num(fd['ast-ashare']) + num(fd['ast-hk']) + num(fd['ast-overseas']) + num(fd['ast-others']);
+        const preserveAmount = num(fd['ast-house']) + num(fd['ast-gold']) + stableLiquidRemainder;
+        const baseAssets = Math.max(num(totalAssets), 1);
+
+        let earnMinPct = 25;
+        let earnMaxPct = 55;
+        if (cashCoverageMonths < 6 || repayIncomeRatio > 0.35 || surplusRatio < 0.15) {
+            earnMinPct = 10;
+            earnMaxPct = 30;
+        } else if (cashCoverageMonths >= 12 && surplusRatio >= 0.25 && Number(riskToleranceCode) >= 30) {
+            earnMinPct = 35;
+            earnMaxPct = 65;
+        }
+
+        let preserveMinPct = 15;
+        let preserveMaxPct = hasLargeExpense ? 60 : 50;
+        if (num(fd['ast-house']) / baseAssets > 0.7) {
+            preserveMaxPct = 65;
+        }
+
+        const classifyAmount = (value, minValue, maxValue, lowAdvice, highAdvice, okAdvice) => {
+            if (value < minValue) return { status: '偏低', color: 'var(--accent-red)', advice: lowAdvice, isOk: false };
+            if (value > maxValue) return { status: '偏高', color: 'var(--accent-orange)', advice: highAdvice, isOk: false };
+            return { status: '合理', color: 'var(--accent-emerald)', advice: okAdvice, isOk: true };
+        };
+
+        const classifyPct = (value, minPct, maxPct, lowAdvice, highAdvice, okAdvice) => {
+            const pct = value / baseAssets * 100;
+            return classifyAmount(pct, minPct, maxPct, lowAdvice, highAdvice, okAdvice);
+        };
+
+        const spendStatus = classifyAmount(
+            spendAmount, spendMin, spendMax,
+            '近期生活费和确定性开销储备不足，先补足独立现金账户。',
+            '近期可花资金过厚，可把超出部分转入应急金或稳健增值资产。',
+            '日常开销资金与未来三年开销预留基本匹配。'
+        );
+        const lifeStatus = classifyAmount(
+            lifeAmount, lifeMin, lifeMax + num(fd['ast-insurance']),
+            '失业、医疗或家庭意外缓冲不足，优先补齐应急金和基础保障。',
+            '保命资金占用偏多，确认保障充足后可分批转入保值或生钱资产。',
+            '风险兜底资金覆盖度较好，家庭抗冲击能力较稳。'
+        );
+        const earnStatus = classifyPct(
+            earnAmount, earnMinPct, earnMaxPct,
+            '生钱资产不足，长期购买力可能被通胀侵蚀。',
+            '生钱资产偏高，若现金防线不足，回撤时可能被迫卖出。',
+            '权益和经营类资产占比与当前风险承受力大致匹配。'
+        );
+        const preserveStatus = classifyPct(
+            preserveAmount, preserveMinPct, preserveMaxPct,
+            '保值稳健资产不足，组合对通胀和系统性波动的缓冲偏弱。',
+            '保本升值资产偏重，尤其房产占比高时会压低流动性。',
+            '稳健保值资产能够承担资产底仓和波动缓冲角色。'
+        );
+
+        const buckets = [
+            {
+                key: 'spend',
+                title: '要花的钱',
+                subtitle: '未来 2-12 个月生活费与确定性开销',
+                amount: spendAmount,
+                ratio: spendAmount / baseAssets,
+                targetText: `${spendMinMonths}-${spendMaxMonths} 个月必要支出`,
+                components: '活期现金、货币/短债中优先隔离的近期支出',
+                ...spendStatus
+            },
+            {
+                key: 'life',
+                title: '保命的钱',
+                subtitle: '失业、医疗、家庭意外与保障防线',
+                amount: lifeAmount,
+                ratio: lifeAmount / baseAssets,
+                targetText: `${lifeMinMonths}-${lifeMaxMonths} 个月必要支出 + 基础保障`,
+                components: '应急现金、货币/短债、养老金/保险现金价值',
+                ...lifeStatus
+            },
+            {
+                key: 'earn',
+                title: '生钱的钱',
+                subtitle: '承担长期现金流与增长弹性的资产',
+                amount: earnAmount,
+                ratio: earnAmount / baseAssets,
+                targetText: `${earnMinPct}-${earnMaxPct}% 总资产`,
+                components: 'A股、港股、海外权益、其他可增值资产',
+                ...earnStatus
+            },
+            {
+                key: 'preserve',
+                title: '保本升值的钱',
+                subtitle: '稳健底仓、抗通胀与资产压舱石',
+                amount: preserveAmount,
+                ratio: preserveAmount / baseAssets,
+                targetText: `${preserveMinPct}-${preserveMaxPct}% 总资产`,
+                components: '房产、黄金、超额货币/短债留存',
+                ...preserveStatus
+            }
+        ];
+
+        const okCount = buckets.filter(item => item.isOk).length;
+        const criticalLow = spendStatus.status === '偏低' || lifeStatus.status === '偏低';
+        const score = Math.min(100, okCount * 22 + (criticalLow ? 0 : 12));
+        let overallStatus = '结构需调整';
+        let overallColor = 'var(--accent-orange)';
+        if (okCount >= 3 && !criticalLow) {
+            overallStatus = '配置较合理';
+            overallColor = 'var(--accent-emerald)';
+        } else if (criticalLow) {
+            overallStatus = '基础防线不足';
+            overallColor = 'var(--accent-red)';
+        } else if (earnStatus.status === '偏高') {
+            overallStatus = '收益资产偏激进';
+            overallColor = 'var(--accent-orange)';
+        }
+
+        return {
+            overallStatus,
+            overallColor,
+            score,
+            summary: `四类资金中 ${okCount}/4 项处于建议区间。先确保“要花的钱”和“保命的钱”不缺口，再讨论“生钱的钱”的进攻比例。`,
+            buckets
+        };
+    },
+
     evaluateFamilyProfile(fd, investableAssets, netWorth, totalAssets, leverage, repayIncomeRatio, surplusRatio, cashCoverageMonths, investmentGoalCodes, riskToleranceCode) {
         // 画像判定优先次序
         let profileKey = "balanced";
@@ -541,7 +688,8 @@ const portfolioEngine = {
             longterm,
             hedge,
             reason,
-            isProhibitAggressive
+            isProhibitAggressive,
+            fourMoney: this.calculateFourMoneyAnalysis(fd, totalAssets, netWorth, leverage, repayIncomeRatio, surplusRatio, cashCoverageMonths, riskToleranceCode)
         };
     }
 };

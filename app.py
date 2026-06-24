@@ -562,6 +562,65 @@ if menu == "1. 家庭资产体检与配置建议":
         </div>
         """, unsafe_allow_html=True)
 
+        # 四类钱配置合理性分析
+        four_money = res.get('fourMoney')
+        if four_money:
+            color_map = {
+                "var(--accent-red)": "#EF4444",
+                "var(--accent-orange)": "#F59E0B",
+                "var(--accent-emerald)": "#10B981",
+                "var(--accent-blue)": "#3B82F6",
+                "var(--text-secondary)": "#94A3B8",
+            }
+
+            def css_color(value):
+                return color_map.get(value, value)
+
+            def fmt_amount(value):
+                amount = float(value or 0)
+                if amount >= 100000000:
+                    return f"{amount / 100000000:.2f} 亿元"
+                return f"{amount / 10000:.1f} 万元"
+
+            cards_html = ""
+            for item in four_money.get('buckets', []):
+                item_color = css_color(item.get('color', '#94A3B8'))
+                cards_html += f"""
+                <div style='background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.06); border-left:4px solid {item_color}; border-radius:8px; padding:12px;'>
+                    <div style='display:flex; justify-content:space-between; gap:10px; align-items:flex-start; margin-bottom:8px;'>
+                        <div>
+                            <div style='font-size:0.92rem; font-weight:700; color:#FFFFFF;'>{item['title']}</div>
+                            <div style='font-size:0.72rem; color:#94A3B8; line-height:1.35; margin-top:2px;'>{item['subtitle']}</div>
+                        </div>
+                        <span style='font-size:0.72rem; font-weight:700; color:{item_color}; background:rgba(255,255,255,0.05); padding:3px 8px; border-radius:999px;'>{item['status']}</span>
+                    </div>
+                    <div style='font-size:1.05rem; font-weight:700; color:#FFFFFF; margin-bottom:4px;'>{fmt_amount(item['amount'])}
+                        <span style='font-size:0.76rem; color:#94A3B8; font-weight:500;'>占总资产 {item['ratio'] * 100:.1f}%</span>
+                    </div>
+                    <div style='font-size:0.72rem; line-height:1.45; color:#94A3B8;'>
+                        <div>建议区间：{item['targetText']}</div>
+                        <div>资产口径：{item['components']}</div>
+                        <div style='margin-top:5px; color:{item_color};'>{item['advice']}</div>
+                    </div>
+                </div>
+                """
+
+            st.markdown(f"""
+            <div class='card'>
+                <div class='card-title'>🧭 四类钱配置合理性分析</div>
+                <div style='font-size:0.8rem; color:#94A3B8; margin-bottom:12px; line-height:1.4;'>
+                    按家庭用途拆分为“要花的钱、保命的钱、生钱的钱、保本升值的钱”，优先判断基础防线是否足够，再判断增长配置是否过度。
+                </div>
+                <div style='background:rgba(255,255,255,0.02); border:1px dashed rgba(255,255,255,0.1); border-radius:6px; padding:10px 12px; font-size:0.82rem; line-height:1.45; margin-bottom:12px;'>
+                    <strong style='color:{css_color(four_money.get('overallColor', '#94A3B8'))};'>{four_money['overallStatus']} · {four_money['score']} 分</strong>
+                    <span style='color:#94A3B8; margin-left:8px;'>{four_money['summary']}</span>
+                </div>
+                <div style='display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;'>
+                    {cards_html}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
         # 三桶可视化展示
         st.markdown(f"""
         <div class='card'>

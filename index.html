@@ -588,6 +588,64 @@
             gap: 2px;
         }
 
+        .four-money-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .four-money-card {
+            background: rgba(255, 255, 255, 0.025);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-left: 4px solid var(--card-border);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .four-money-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .four-money-title {
+            font-size: 0.92rem;
+            font-weight: 700;
+            color: #FFFFFF;
+        }
+
+        .four-money-subtitle {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            line-height: 1.35;
+            margin-top: 2px;
+        }
+
+        .four-money-status {
+            flex: 0 0 auto;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .four-money-amount {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #FFFFFF;
+            margin-bottom: 4px;
+        }
+
+        .four-money-meta {
+            font-size: 0.72rem;
+            line-height: 1.45;
+            color: var(--text-secondary);
+        }
+
         .action-list {
             margin-top: 12px;
             padding-left: 20px;
@@ -1066,7 +1124,22 @@
                         </div>
                     </div>
 
-                    <!-- 2. 三桶配置建议 -->
+                    <!-- 2. 四类钱配置合理性分析 -->
+                    <div class="card">
+                        <div class="card-title-text">🧭 四类钱配置合理性分析</div>
+                        <div style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.4;">
+                            按家庭用途拆分为“要花的钱、保命的钱、生钱的钱、保本升值的钱”，优先判断基础防线是否足够，再判断增长配置是否过度。
+                        </div>
+                        <div id="four-money-summary-box" style="background: rgba(255,255,255,0.02); border: 1px dashed var(--card-border); border-radius: 6px; padding: 10px 12px; font-size: 0.82rem; line-height: 1.45;">
+                            <strong id="four-money-overall" style="color: var(--text-secondary);">等待输入</strong>
+                            <span id="four-money-summary" style="color: var(--text-secondary); margin-left: 8px;">请先输入家庭资产、负债与现金流明细。</span>
+                        </div>
+                        <div class="four-money-grid" id="four-money-grid">
+                            <!-- 四类钱结构化渲染 -->
+                        </div>
+                    </div>
+
+                    <!-- 3. 三桶配置建议 -->
                     <div class="card">
                         <div class="card-title-text">🪣 三桶资产防御防线配置建议</div>
                         <div style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.4;">
@@ -1111,7 +1184,7 @@
                         </div>
                     </div>
 
-                    <!-- 3. 图表可视化 -->
+                    <!-- 4. 图表可视化 -->
                     <div class="card">
                         <div class="card-title-text">📊 资产与收支对比图表</div>
                         <div id="plotly-pie-assets" style="height: 260px; width: 100%;"></div>
@@ -3248,6 +3321,7 @@
                 if (document.getElementById('lbl-recom-reason')) {
                     document.getElementById('lbl-recom-reason').innerText = "等待输入家庭财务明细数据以生成具体的配置原因。";
                 }
+                renderFamilyFourMoneyAnalysis(null, false);
                 return;
             }
 
@@ -3272,6 +3346,9 @@
 
             const pQuote = document.getElementById('profile-quote-lbl');
             if (pQuote) pQuote.innerHTML = res.quote;
+
+            globalFamilyMetrics.fourMoney = res.fourMoney;
+            renderFamilyFourMoneyAnalysis(res.fourMoney, hasData);
 
             // 智能配置原因
             const reasonEl = document.getElementById('lbl-recom-reason');
@@ -3310,6 +3387,48 @@
 
             const lblHedge = document.getElementById('lbl-hedge-pct');
             if (lblHedge) lblHedge.innerText = `${hedge}%`;
+        }
+
+        function renderFamilyFourMoneyAnalysis(analysis, hasData) {
+            const overallEl = document.getElementById('four-money-overall');
+            const summaryEl = document.getElementById('four-money-summary');
+            const gridEl = document.getElementById('four-money-grid');
+            if (!overallEl || !summaryEl || !gridEl) return;
+
+            if (!hasData || !analysis || !analysis.buckets) {
+                overallEl.innerText = '等待输入';
+                overallEl.style.color = 'var(--text-secondary)';
+                summaryEl.innerText = '请先输入家庭资产、负债与现金流明细。';
+                gridEl.innerHTML = '';
+                return;
+            }
+
+            overallEl.innerText = `${analysis.overallStatus} · ${analysis.score} 分`;
+            overallEl.style.color = analysis.overallColor;
+            summaryEl.innerText = analysis.summary;
+            gridEl.innerHTML = analysis.buckets.map(item => `
+                <div class="four-money-card" style="border-left-color: ${item.color};">
+                    <div class="four-money-head">
+                        <div>
+                            <div class="four-money-title">${item.title}</div>
+                            <div class="four-money-subtitle">${item.subtitle}</div>
+                        </div>
+                        <span class="four-money-status" style="color: ${item.color};">${item.status}</span>
+                    </div>
+                    <div class="four-money-amount">${formatFamilyAmount(item.amount)} <span style="font-size:0.76rem;color:var(--text-secondary);font-weight:500;">占总资产 ${(item.ratio * 100).toFixed(1)}%</span></div>
+                    <div class="four-money-meta">
+                        <div>建议区间：${item.targetText}</div>
+                        <div>资产口径：${item.components}</div>
+                        <div style="margin-top:5px;color:${item.color};">${item.advice}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function formatFamilyAmount(value) {
+            const amount = Number(value) || 0;
+            if (amount >= 100000000) return `${(amount / 100000000).toFixed(2)} 亿元`;
+            return `${(amount / 10000).toFixed(1)} 万元`;
         }
 
         // 依据画像生成建议比例和指南
@@ -3537,6 +3656,20 @@
 
             const todoList = Array.from(document.getElementById('todo-list').children).map(li => `- [ ] ${li.innerText}`).join('\n');
             const avoidList = Array.from(document.getElementById('avoid-list').children).map(li => `- ${li.innerText}`).join('\n');
+            const fourMoney = m.fourMoney;
+            const fourMoneySection = fourMoney ? `
+---
+
+## 🧭 三、四类钱配置合理性分析
+- **综合判断**：${fourMoney.overallStatus}（${fourMoney.score} 分）
+- **系统说明**：${fourMoney.summary}
+
+${fourMoney.buckets.map(item => `### ${item.title}：${item.status}
+- 当前金额：${formatFamilyAmount(item.amount)}，占总资产 ${(item.ratio * 100).toFixed(1)}%
+- 建议区间：${item.targetText}
+- 资产口径：${item.components}
+- 调整提示：${item.advice}`).join('\n\n')}
+` : '';
 
             return `# 🏥 家庭资产体检与资产配置建议报告
 
@@ -3565,9 +3698,11 @@
 - **家庭脆弱性评分 (0-100)**：${m.vulnerability} 分 （越低越安全）
 - **理财进攻性评分 (0-100)**：${m.aggressiveness} 分
 
+${fourMoneySection}
+
 ---
 
-## 🪣 三、三桶防御防线资产配置比例
+## 🪣 四、三桶防御防线资产配置比例
 - **🪣 安全防御桶**：**${document.getElementById('lbl-safety-pct').innerText}**
   *建议流向：现金、短期存款、优质货币基金、极短久期信用债/短融基金*
 - **🪣 长期成长桶**：**${document.getElementById('lbl-longterm-pct').innerText}**
@@ -3577,7 +3712,7 @@
 
 ---
 
-## 🎯 四、家庭财务调理待办与避坑指南
+## 🎯 五、家庭财务调理待办与避坑指南
 
 ### ✅ 最该先做的三件事
 ${todoList}

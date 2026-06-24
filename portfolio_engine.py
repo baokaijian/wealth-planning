@@ -463,6 +463,168 @@ def run_stress_test(weights, assets, invest_principal, monthly_withdraw, buffer_
     }
 
 
+def calculate_four_money_analysis(fd, total_assets, net_worth, leverage, repay_income_ratio, surplus_ratio, cash_coverage_months, risk_tolerance_code):
+    """
+    四类钱配置合理性分析：要花的钱、保命的钱、生钱的钱、保本升值的钱。
+    """
+    def num(key):
+        try:
+            return float(fd.get(key, 0) or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    monthly_expense = max(num('f-fixed-expense'), 1.0)
+    liquid_cash = num('ast-cash') + num('ast-mmf')
+    has_large_expense = any(fd.get(key) for key in [
+        'expense-buyhouse', 'expense-edu', 'expense-med', 'expense-biz', 'expense-city', 'expense-other'
+    ])
+    has_family_pressure = (
+        fd.get('f-children') == 'yes' or fd.get('f-elders') == 'yes' or
+        fd.get('f-stability') == 'volatile' or leverage > 0.45 or repay_income_ratio > 0.3
+    )
+
+    spend_min_months = 6 if has_large_expense else 2
+    spend_max_months = 12 if has_large_expense else 3
+    life_min_months = 12 if has_family_pressure else 6
+    life_max_months = 18 if has_family_pressure else 12
+
+    spend_min = monthly_expense * spend_min_months
+    spend_max = monthly_expense * spend_max_months
+    spend_amount = min(liquid_cash, spend_max)
+    liquid_after_spend = max(0.0, liquid_cash - spend_amount)
+
+    life_min = monthly_expense * life_min_months
+    life_max = monthly_expense * life_max_months
+    life_reserve = min(liquid_after_spend, life_max)
+    stable_liquid_remainder = max(0.0, liquid_after_spend - life_reserve)
+
+    life_amount = life_reserve + num('ast-insurance')
+    earn_amount = num('ast-ashare') + num('ast-hk') + num('ast-overseas') + num('ast-others')
+    preserve_amount = num('ast-house') + num('ast-gold') + stable_liquid_remainder
+    base_assets = max(float(total_assets or 0), 1.0)
+
+    earn_min_pct = 25
+    earn_max_pct = 55
+    try:
+        tolerance = float(risk_tolerance_code or 0)
+    except (TypeError, ValueError):
+        tolerance = 0.0
+
+    if cash_coverage_months < 6 or repay_income_ratio > 0.35 or surplus_ratio < 0.15:
+        earn_min_pct = 10
+        earn_max_pct = 30
+    elif cash_coverage_months >= 12 and surplus_ratio >= 0.25 and tolerance >= 30:
+        earn_min_pct = 35
+        earn_max_pct = 65
+
+    preserve_min_pct = 15
+    preserve_max_pct = 60 if has_large_expense else 50
+    if num('ast-house') / base_assets > 0.7:
+        preserve_max_pct = 65
+
+    def classify_amount(value, min_value, max_value, low_advice, high_advice, ok_advice):
+        if value < min_value:
+            return {'status': '偏低', 'color': 'var(--accent-red)', 'advice': low_advice, 'isOk': False}
+        if value > max_value:
+            return {'status': '偏高', 'color': 'var(--accent-orange)', 'advice': high_advice, 'isOk': False}
+        return {'status': '合理', 'color': 'var(--accent-emerald)', 'advice': ok_advice, 'isOk': True}
+
+    def classify_pct(value, min_pct, max_pct, low_advice, high_advice, ok_advice):
+        pct = value / base_assets * 100
+        return classify_amount(pct, min_pct, max_pct, low_advice, high_advice, ok_advice)
+
+    spend_status = classify_amount(
+        spend_amount, spend_min, spend_max,
+        '近期生活费和确定性开销储备不足，先补足独立现金账户。',
+        '近期可花资金过厚，可把超出部分转入应急金或稳健增值资产。',
+        '日常开销资金与未来三年开销预留基本匹配。'
+    )
+    life_status = classify_amount(
+        life_amount, life_min, life_max + num('ast-insurance'),
+        '失业、医疗或家庭意外缓冲不足，优先补齐应急金和基础保障。',
+        '保命资金占用偏多，确认保障充足后可分批转入保值或生钱资产。',
+        '风险兜底资金覆盖度较好，家庭抗冲击能力较稳。'
+    )
+    earn_status = classify_pct(
+        earn_amount, earn_min_pct, earn_max_pct,
+        '生钱资产不足，长期购买力可能被通胀侵蚀。',
+        '生钱资产偏高，若现金防线不足，回撤时可能被迫卖出。',
+        '权益和经营类资产占比与当前风险承受力大致匹配。'
+    )
+    preserve_status = classify_pct(
+        preserve_amount, preserve_min_pct, preserve_max_pct,
+        '保值稳健资产不足，组合对通胀和系统性波动的缓冲偏弱。',
+        '保本升值资产偏重，尤其房产占比高时会压低流动性。',
+        '稳健保值资产能够承担资产底仓和波动缓冲角色。'
+    )
+
+    buckets = [
+        {
+            'key': 'spend',
+            'title': '要花的钱',
+            'subtitle': '未来 2-12 个月生活费与确定性开销',
+            'amount': spend_amount,
+            'ratio': spend_amount / base_assets,
+            'targetText': f'{spend_min_months}-{spend_max_months} 个月必要支出',
+            'components': '活期现金、货币/短债中优先隔离的近期支出',
+            **spend_status
+        },
+        {
+            'key': 'life',
+            'title': '保命的钱',
+            'subtitle': '失业、医疗、家庭意外与保障防线',
+            'amount': life_amount,
+            'ratio': life_amount / base_assets,
+            'targetText': f'{life_min_months}-{life_max_months} 个月必要支出 + 基础保障',
+            'components': '应急现金、货币/短债、养老金/保险现金价值',
+            **life_status
+        },
+        {
+            'key': 'earn',
+            'title': '生钱的钱',
+            'subtitle': '承担长期现金流与增长弹性的资产',
+            'amount': earn_amount,
+            'ratio': earn_amount / base_assets,
+            'targetText': f'{earn_min_pct}-{earn_max_pct}% 总资产',
+            'components': 'A股、港股、海外权益、其他可增值资产',
+            **earn_status
+        },
+        {
+            'key': 'preserve',
+            'title': '保本升值的钱',
+            'subtitle': '稳健底仓、抗通胀与资产压舱石',
+            'amount': preserve_amount,
+            'ratio': preserve_amount / base_assets,
+            'targetText': f'{preserve_min_pct}-{preserve_max_pct}% 总资产',
+            'components': '房产、黄金、超额货币/短债留存',
+            **preserve_status
+        }
+    ]
+
+    ok_count = sum(1 for item in buckets if item['isOk'])
+    critical_low = spend_status['status'] == '偏低' or life_status['status'] == '偏低'
+    score = min(100, ok_count * 22 + (0 if critical_low else 12))
+    overall_status = '结构需调整'
+    overall_color = 'var(--accent-orange)'
+    if ok_count >= 3 and not critical_low:
+        overall_status = '配置较合理'
+        overall_color = 'var(--accent-emerald)'
+    elif critical_low:
+        overall_status = '基础防线不足'
+        overall_color = 'var(--accent-red)'
+    elif earn_status['status'] == '偏高':
+        overall_status = '收益资产偏激进'
+        overall_color = 'var(--accent-orange)'
+
+    return {
+        'overallStatus': overall_status,
+        'overallColor': overall_color,
+        'score': score,
+        'summary': f'四类资金中 {ok_count}/4 项处于建议区间。先确保“要花的钱”和“保命的钱”不缺口，再讨论“生钱的钱”的进攻比例。',
+        'buckets': buckets
+    }
+
+
 def evaluate_family_profile(fd, investable_assets, net_worth, total_assets, leverage, repay_income_ratio, surplus_ratio, cash_coverage_months, investment_goal_codes, risk_tolerance_code):
     """
     5. 家庭财务画像体检
@@ -540,5 +702,9 @@ def evaluate_family_profile(fd, investable_assets, net_worth, total_assets, leve
         'longterm': longterm,
         'hedge': hedge,
         'reason': reason,
-        'isProhibitAggressive': is_prohibit_aggressive
+        'isProhibitAggressive': is_prohibit_aggressive,
+        'fourMoney': calculate_four_money_analysis(
+            fd, total_assets, net_worth, leverage, repay_income_ratio,
+            surplus_ratio, cash_coverage_months, risk_tolerance_code
+        )
     }
