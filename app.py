@@ -634,28 +634,24 @@ if menu == "1. 家庭资产体检与配置建议":
                     return f"{amount / 100000000:.2f} 亿元"
                 return f"{amount / 10000:.1f} 万元"
 
-            cards_html = ""
+            cards = []
             for item in four_money.get('buckets', []):
                 item_color = css_color(item.get('color', '#587084'))
-                cards_html += f"""
-                <div style='background:#FBFDFE; border:1px solid #DCE7EF; border-left:4px solid {item_color}; border-radius:8px; padding:12px;'>
-                    <div style='display:flex; justify-content:space-between; gap:10px; align-items:flex-start; margin-bottom:8px;'>
-                        <div>
-                            <div style='font-size:0.92rem; font-weight:700; color:#102033;'>{item['title']}</div>
-                            <div style='font-size:0.72rem; color:#587084; line-height:1.35; margin-top:2px;'>{item['subtitle']}</div>
-                        </div>
-                        <span style='font-size:0.72rem; font-weight:700; color:{item_color}; background:rgba(16,32,51,0.05); padding:3px 8px; border-radius:999px;'>{item['status']}</span>
-                    </div>
-                    <div style='font-size:1.05rem; font-weight:700; color:#102033; margin-bottom:4px;'>{fmt_amount(item['amount'])}
-                        <span style='font-size:0.76rem; color:#587084; font-weight:500;'>占总资产 {item['ratio'] * 100:.1f}%</span>
-                    </div>
-                    <div style='font-size:0.72rem; line-height:1.45; color:#587084;'>
-                        <div>建议区间：{item['targetText']}</div>
-                        <div>资产口径：{item['components']}</div>
-                        <div style='margin-top:5px; color:{item_color};'>{item['advice']}</div>
-                    </div>
-                </div>
-                """
+                cards.append(
+                    f"<div style='background:#FBFDFE; border:1px solid #DCE7EF; border-left:4px solid {item_color}; border-radius:8px; padding:12px;'>"
+                    f"<div style='display:flex; justify-content:space-between; gap:10px; align-items:flex-start; margin-bottom:8px;'>"
+                    f"<div><div style='font-size:0.92rem; font-weight:700; color:#102033;'>{item['title']}</div>"
+                    f"<div style='font-size:0.72rem; color:#587084; line-height:1.35; margin-top:2px;'>{item['subtitle']}</div></div>"
+                    f"<span style='font-size:0.72rem; font-weight:700; color:{item_color}; background:rgba(16,32,51,0.05); padding:3px 8px; border-radius:999px;'>{item['status']}</span>"
+                    f"</div>"
+                    f"<div style='font-size:1.05rem; font-weight:700; color:#102033; margin-bottom:4px;'>{fmt_amount(item['amount'])} "
+                    f"<span style='font-size:0.76rem; color:#587084; font-weight:500;'>占总资产 {item['ratio'] * 100:.1f}%</span></div>"
+                    f"<div style='font-size:0.72rem; line-height:1.45; color:#587084;'>"
+                    f"<div>建议区间：{item['targetText']}</div><div>资产口径：{item['components']}</div>"
+                    f"<div style='margin-top:5px; color:{item_color};'>{item['advice']}</div>"
+                    f"</div></div>"
+                )
+            cards_html = "".join(cards)
 
             st.markdown(f"""
             <div class='card'>
