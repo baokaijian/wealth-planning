@@ -12,7 +12,7 @@ from datetime import datetime
 import portfolio_engine
 
 # ==========================================
-# 页面基本配置与现代暗黑主题 CSS 注入
+# 页面基本配置与浅色专业主题 CSS 注入
 # ==========================================
 st.set_page_config(
     page_title="家庭资产体检与均衡配置中心",
@@ -21,72 +21,96 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 注入自定义 CSS 以强化视觉美感（玻璃幕墙与暗黑科技风）
+# 注入自定义 CSS，与静态页面保持同一套浅色金融工具视觉语言。
 st.markdown("""
 <style>
-    /* 全局背景色与字体 */
     .stApp {
-        background-color: #0E1117;
-        color: #E2E8F0;
+        background-color: #F7FAFC;
+        color: #102033;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
-    
-    /* 侧边栏样式 */
+
+    .block-container {
+        padding-top: 2rem;
+        max-width: 1440px;
+    }
+
     section[data-testid="stSidebar"] {
-        background-color: #1A1F2C !important;
-        border-right: 1px solid #2D3748;
+        background-color: #FFFFFF !important;
+        border-right: 1px solid #DCE7EF;
     }
-    
-    /* 玻璃幕墙卡片效果 */
+
+    section[data-testid="stSidebar"] * {
+        color: #102033;
+    }
+
     .card {
-        background: rgba(26, 31, 44, 0.65);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
+        background: #FFFFFF;
+        border: 1px solid #DCE7EF;
+        border-radius: 8px;
+        padding: 18px;
+        margin-bottom: 18px;
+        box-shadow: 0 1px 2px rgba(16, 32, 51, 0.04);
     }
-    
+
     .card-title {
-        font-size: 1.1rem;
-        font-weight: 600;
+        font-size: 1rem;
+        font-weight: 800;
         color: #10B981;
-        margin-bottom: 12px;
-        border-left: 4px solid #10B981;
+        margin-bottom: 10px;
+        border-left: 3px solid #10B981;
         padding-left: 8px;
     }
-    
-    /* 突出数值面板 */
+
     .metric-value {
-        font-size: 2rem;
-        font-weight: 700;
-        color: #FFFFFF;
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #102033;
         line-height: 1.2;
+        font-variant-numeric: tabular-nums;
     }
-    
+
     .metric-label {
-        font-size: 0.85rem;
-        color: #94A3B8;
+        font-size: 0.78rem;
+        color: #8AA0B2;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.04em;
+        font-weight: 700;
     }
-    
-    /* 数据表美化 */
+
     div[data-testid="stTable"] table {
-        background-color: #1A1F2C !important;
-        color: #E2E8F0 !important;
-        border-radius: 8px;
+        background-color: #FFFFFF !important;
+        color: #102033 !important;
+        border-radius: 8px !important;
         border-collapse: collapse;
         width: 100%;
     }
-    
-    /* 调整输入框背景 */
+
+    div[data-testid="stTable"] th {
+        background-color: #F2F7FA !important;
+        color: #587084 !important;
+        font-weight: 800 !important;
+    }
+
+    div[data-testid="stTable"] td {
+        border-bottom: 1px solid #EAF1F6 !important;
+    }
+
     input, select, textarea {
-        background-color: #2D3748 !important;
-        color: #FFFFFF !important;
-        border: 1px solid #4A5568 !important;
+        background-color: #FFFFFF !important;
+        color: #102033 !important;
+        border: 1px solid #DCE7EF !important;
+        border-radius: 6px !important;
+    }
+
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="input"] > div {
+        background-color: #FFFFFF !important;
+        border-color: #DCE7EF !important;
+    }
+
+    .stAlert {
+        border-radius: 8px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -396,7 +420,7 @@ for code in ASSETS_CONFIG.keys():
 # 模块 1: 家庭资产体检与配置建议
 # ==========================================
 if menu == "1. 家庭资产体检与配置建议":
-    st.markdown("<h1 style='color:#FFFFFF; margin-bottom:10px;'>👤 家庭资产体检与配置建议</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='color:#102033; margin-bottom:10px;'>👤 家庭资产体检与配置建议</h1>", unsafe_allow_html=True)
     st.markdown("""
     <div style='background:rgba(59,130,246,0.05); border:1px solid #3B82F6; border-radius:8px; padding:15px; margin-bottom:20px; font-size:0.9rem;'>
         🔒 <strong>隐私声明：</strong> 本问卷仅在您的浏览器本地运行，所有输入均用于当前页面的计算，<strong>不会上传到服务器，也不会被后台保存</strong>。
@@ -420,12 +444,12 @@ if menu == "1. 家庭资产体检与配置建议":
             
             st.write("未来 3 年是否有预计大额支出 (可多选)")
             e_cols = st.columns(3)
-            fd['expense-buyhouse'] = e_cols[0].checkbox("买房/换房", value=fd.get('expense-buyhouse', False))
-            fd['expense-edu'] = e_cols[1].checkbox("子女教育", value=fd.get('expense-edu', False))
-            fd['expense-med'] = e_cols[2].checkbox("大额医疗", value=fd.get('expense-med', False))
-            fd['expense-biz'] = e_cols[0].checkbox("创业资金", value=fd.get('expense-biz', False))
-            fd['expense-city'] = e_cols[1].checkbox("更换城市", value=fd.get('expense-city', False))
-            fd['expense-other'] = e_cols[2].checkbox("其他大额支出", value=fd.get('expense-other', False))
+            fd['expense-buyhouse'] = e_cols[0].checkbox("买房/换房", value=fd.get('expense-buyhouse', False), key="expense_buyhouse_checkbox")
+            fd['expense-edu'] = e_cols[1].checkbox("子女教育", value=fd.get('expense-edu', False), key="expense_edu_checkbox")
+            fd['expense-med'] = e_cols[2].checkbox("大额医疗", value=fd.get('expense-med', False), key="expense_med_checkbox")
+            fd['expense-biz'] = e_cols[0].checkbox("创业资金", value=fd.get('expense-biz', False), key="expense_biz_checkbox")
+            fd['expense-city'] = e_cols[1].checkbox("更换城市", value=fd.get('expense-city', False), key="expense_city_checkbox")
+            fd['expense-other'] = e_cols[2].checkbox("其他大额支出", value=fd.get('expense-other', False), key="expense_other_checkbox")
 
             spend_col1, spend_col2 = st.columns(2)
             fd['f-planned-spend-12m'] = spend_col1.number_input("未来 12 个月确定要用的钱 (元)", min_value=0.0, value=float(fd.get('f-planned-spend-12m', 0.0)), step=10000.0)
@@ -508,13 +532,13 @@ if menu == "1. 家庭资产体检与配置建议":
 
             st.write("主要投资核心目标 (可多选)")
             g_cols = st.columns(4)
-            fd['goal-cash'] = g_cols[0].checkbox("现金流补充", value=fd.get('goal-cash', False))
-            fd['goal-edu'] = g_cols[1].checkbox("子女教育金", value=fd.get('goal-edu', False))
-            fd['goal-pension'] = g_cols[2].checkbox("养老储备", value=fd.get('goal-pension', False))
-            fd['goal-house'] = g_cols[3].checkbox("买房/换房", value=fd.get('goal-house', False))
-            fd['goal-protect'] = g_cols[0].checkbox("财富保值", value=fd.get('goal-protect', False))
-            fd['goal-growth'] = g_cols[1].checkbox("资产增值", value=fd.get('goal-growth', False))
-            fd['goal-retire'] = g_cols[2].checkbox("提前退休", value=fd.get('goal-retire', False))
+            fd['goal-cash'] = g_cols[0].checkbox("现金流补充", value=fd.get('goal-cash', False), key="goal_cash_checkbox")
+            fd['goal-edu'] = g_cols[1].checkbox("子女教育金", value=fd.get('goal-edu', False), key="goal_edu_checkbox")
+            fd['goal-pension'] = g_cols[2].checkbox("养老储备", value=fd.get('goal-pension', False), key="goal_pension_checkbox")
+            fd['goal-house'] = g_cols[3].checkbox("买房/换房", value=fd.get('goal-house', False), key="goal_house_checkbox")
+            fd['goal-protect'] = g_cols[0].checkbox("财富保值", value=fd.get('goal-protect', False), key="goal_protect_checkbox")
+            fd['goal-growth'] = g_cols[1].checkbox("资产增值", value=fd.get('goal-growth', False), key="goal_growth_checkbox")
+            fd['goal-retire'] = g_cols[2].checkbox("提前退休", value=fd.get('goal-retire', False), key="goal_retire_checkbox")
 
         # 保存更新
         st.session_state.family_data = fd
@@ -584,9 +608,9 @@ if menu == "1. 家庭资产体检与配置建议":
         st.markdown(f"""
         <div class='card' style='border: 1px solid {color_hex};'>
             <div class='card-title' style='color:{color_hex}; border-left-color:{color_hex};'>📊 家庭财务健康诊断</div>
-            <h3 style='margin-top:0; color:#FFFFFF;'>{res['profileTitle']}</h3>
+            <h3 style='margin-top:0; color:#102033;'>{res['profileTitle']}</h3>
             <p style='font-size:0.92rem; line-height:1.4;'>{res['profileDiag']}</p>
-            <blockquote style='font-style:italic; font-size:0.85rem; color:#94A3B8; border-left:2px solid #4A5568; padding-left:10px;'>{res['quote']}</blockquote>
+            <blockquote style='font-style:italic; font-size:0.85rem; color:#587084; border-left:2px solid #DCE7EF; padding-left:10px;'>{res['quote']}</blockquote>
         </div>
         """, unsafe_allow_html=True)
 
@@ -598,7 +622,7 @@ if menu == "1. 家庭资产体检与配置建议":
                 "var(--accent-orange)": "#F59E0B",
                 "var(--accent-emerald)": "#10B981",
                 "var(--accent-blue)": "#3B82F6",
-                "var(--text-secondary)": "#94A3B8",
+                "var(--text-secondary)": "#587084",
             }
 
             def css_color(value):
@@ -612,20 +636,20 @@ if menu == "1. 家庭资产体检与配置建议":
 
             cards_html = ""
             for item in four_money.get('buckets', []):
-                item_color = css_color(item.get('color', '#94A3B8'))
+                item_color = css_color(item.get('color', '#587084'))
                 cards_html += f"""
-                <div style='background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.06); border-left:4px solid {item_color}; border-radius:8px; padding:12px;'>
+                <div style='background:#FBFDFE; border:1px solid #DCE7EF; border-left:4px solid {item_color}; border-radius:8px; padding:12px;'>
                     <div style='display:flex; justify-content:space-between; gap:10px; align-items:flex-start; margin-bottom:8px;'>
                         <div>
-                            <div style='font-size:0.92rem; font-weight:700; color:#FFFFFF;'>{item['title']}</div>
-                            <div style='font-size:0.72rem; color:#94A3B8; line-height:1.35; margin-top:2px;'>{item['subtitle']}</div>
+                            <div style='font-size:0.92rem; font-weight:700; color:#102033;'>{item['title']}</div>
+                            <div style='font-size:0.72rem; color:#587084; line-height:1.35; margin-top:2px;'>{item['subtitle']}</div>
                         </div>
-                        <span style='font-size:0.72rem; font-weight:700; color:{item_color}; background:rgba(255,255,255,0.05); padding:3px 8px; border-radius:999px;'>{item['status']}</span>
+                        <span style='font-size:0.72rem; font-weight:700; color:{item_color}; background:rgba(16,32,51,0.05); padding:3px 8px; border-radius:999px;'>{item['status']}</span>
                     </div>
-                    <div style='font-size:1.05rem; font-weight:700; color:#FFFFFF; margin-bottom:4px;'>{fmt_amount(item['amount'])}
-                        <span style='font-size:0.76rem; color:#94A3B8; font-weight:500;'>占总资产 {item['ratio'] * 100:.1f}%</span>
+                    <div style='font-size:1.05rem; font-weight:700; color:#102033; margin-bottom:4px;'>{fmt_amount(item['amount'])}
+                        <span style='font-size:0.76rem; color:#587084; font-weight:500;'>占总资产 {item['ratio'] * 100:.1f}%</span>
                     </div>
-                    <div style='font-size:0.72rem; line-height:1.45; color:#94A3B8;'>
+                    <div style='font-size:0.72rem; line-height:1.45; color:#587084;'>
                         <div>建议区间：{item['targetText']}</div>
                         <div>资产口径：{item['components']}</div>
                         <div style='margin-top:5px; color:{item_color};'>{item['advice']}</div>
@@ -636,12 +660,12 @@ if menu == "1. 家庭资产体检与配置建议":
             st.markdown(f"""
             <div class='card'>
                 <div class='card-title'>🧭 四类钱配置合理性分析</div>
-                <div style='font-size:0.8rem; color:#94A3B8; margin-bottom:12px; line-height:1.4;'>
+                <div style='font-size:0.8rem; color:#587084; margin-bottom:12px; line-height:1.4;'>
                     按家庭用途拆分为“要花的钱、保命的钱、生钱的钱、保本升值的钱”，优先判断基础防线是否足够，再判断增长配置是否过度。
                 </div>
-                <div style='background:rgba(255,255,255,0.02); border:1px dashed rgba(255,255,255,0.1); border-radius:6px; padding:10px 12px; font-size:0.82rem; line-height:1.45; margin-bottom:12px;'>
-                    <strong style='color:{css_color(four_money.get('overallColor', '#94A3B8'))};'>{four_money['overallStatus']} · {four_money['score']} 分</strong>
-                    <span style='color:#94A3B8; margin-left:8px;'>{four_money['summary']}</span>
+                <div style='background:#FBFDFE; border:1px dashed #DCE7EF; border-radius:6px; padding:10px 12px; font-size:0.82rem; line-height:1.45; margin-bottom:12px;'>
+                    <strong style='color:{css_color(four_money.get('overallColor', '#587084'))};'>{four_money['overallStatus']} · {four_money['score']} 分</strong>
+                    <span style='color:#587084; margin-left:8px;'>{four_money['summary']}</span>
                 </div>
                 <div style='display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;'>
                     {cards_html}
@@ -653,7 +677,7 @@ if menu == "1. 家庭资产体检与配置建议":
         st.markdown(f"""
         <div class='card'>
             <div class='card-title'>🪣 三桶资产防御防线配置建议</div>
-            <div style='font-size: 0.8rem; color:#94A3B8; margin-bottom:15px;'>
+            <div style='font-size: 0.8rem; color:#587084; margin-bottom:15px;'>
                 配置建议：安全储备 {res['safety']}% | 权益增长 {res['longterm']}% | 综合对冲 {res['hedge']}%
             </div>
         """, unsafe_allow_html=True)
@@ -670,14 +694,14 @@ if menu == "1. 家庭资产体检与配置建议":
         ))
         fig_buckets.update_layout(
             barmode='stack', height=130, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-            font_color='#E2E8F0', margin=dict(t=10, b=10, l=10, r=10), showlegend=True, legend=dict(orientation='h', y=-0.5)
+            font_color='#102033', margin=dict(t=10, b=10, l=10, r=10), showlegend=True, legend=dict(orientation='h', y=-0.5)
         )
         st.plotly_chart(fig_buckets, use_container_width=True)
         
         st.markdown(f"""
             <div style='font-size: 0.85rem; margin-top: 15px;'>
                 <strong>🤔 为什么这么配？（资产配置结构原理解析）</strong>
-                <p style='color:#94A3B8; line-height:1.4; background: rgba(255,255,255,0.02); padding: 8px; border-radius: 4px; border: 1px dashed rgba(255,255,255,0.1);'>{res['reason']}</p>
+                <p style='color:#587084; line-height:1.4; background: #FBFDFE; padding: 8px; border-radius: 4px; border: 1px dashed #DCE7EF;'>{res['reason']}</p>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -687,12 +711,12 @@ if menu == "1. 家庭资产体检与配置建议":
         <div class='card'>
             <div class='metric-label'>刚性支出现金覆盖月数</div>
             <div class='metric-value'>{cash_coverage_months:.1f} 个月</div>
-            <hr style='border:0; border-top:1px solid rgba(255,255,255,0.08); margin:10px 0;'>
-            <table style='font-size:0.85rem; width:100%; border-collapse:collapse; color:#94A3B8;'>
-                <tr><td>家庭资产负债率 (LTV)</td><td style='text-align:right; font-weight:600; color:#FFFFFF;'>{leverage*100:.1f}%</td></tr>
-                <tr><td>月贷款还本付息比 (DSR)</td><td style='text-align:right; font-weight:600; color:#FFFFFF;'>{repay_income_ratio*100:.1f}%</td></tr>
-                <tr><td>月可支配储蓄结余率</td><td style='text-align:right; font-weight:600; color:#FFFFFF;'>{surplus_ratio*100:.1f}%</td></tr>
-                <tr><td>理财市场集中度风险 (HHI)</td><td style='text-align:right; font-weight:600; color:#FFFFFF;'>{concentration*100:.1f}%</td></tr>
+            <hr style='border:0; border-top:1px solid #DCE7EF; margin:10px 0;'>
+            <table style='font-size:0.85rem; width:100%; border-collapse:collapse; color:#587084;'>
+                <tr><td>家庭资产负债率 (LTV)</td><td style='text-align:right; font-weight:600; color:#102033;'>{leverage*100:.1f}%</td></tr>
+                <tr><td>月贷款还本付息比 (DSR)</td><td style='text-align:right; font-weight:600; color:#102033;'>{repay_income_ratio*100:.1f}%</td></tr>
+                <tr><td>月可支配储蓄结余率</td><td style='text-align:right; font-weight:600; color:#102033;'>{surplus_ratio*100:.1f}%</td></tr>
+                <tr><td>理财市场集中度风险 (HHI)</td><td style='text-align:right; font-weight:600; color:#102033;'>{concentration*100:.1f}%</td></tr>
                 <tr style='color:#EF4444;'><td>家庭财务脆弱度评分</td><td style='text-align:right; font-weight:600;'>{vulnerability} 分</td></tr>
                 <tr style='color:#3B82F6;'><td>风险进攻偏好指数</td><td style='text-align:right; font-weight:600;'>{aggressiveness} 分</td></tr>
             </table>
@@ -707,14 +731,14 @@ if menu == "1. 家庭资产体检与配置建议":
             title="家庭资产占比",
             color_discrete_sequence=px.colors.qualitative.Pastel
         )
-        fig_assets.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='#E2E8F0', height=240, margin=dict(t=30, b=10, l=10, r=10))
+        fig_assets.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='#102033', height=240, margin=dict(t=30, b=10, l=10, r=10))
         st.plotly_chart(fig_assets, use_container_width=True)
 
 # ==========================================
 # 模块 2: 资产配置与股息测算看板
 # ==========================================
 elif menu == "2. 资产配置与股息测算看板":
-    st.markdown("<h1 style='color:#FFFFFF; margin-bottom:10px;'>📊 资产配置与股息测算看板</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='color:#102033; margin-bottom:10px;'>📊 资产配置与股息测算看板</h1>", unsafe_allow_html=True)
     st.write(f"当前可用总本金 **{principal:.1f}** 万元，其中已调拨 **{buffer_seed:.1f}** 万元进入初始缓冲池，实际进入组合配置的可投资本金为 **{invest_principal:.1f}** 万元。")
     
     st.markdown("### 🛠️ 组合权重与股息率调整")
@@ -729,8 +753,8 @@ elif menu == "2. 资产配置与股息测算看板":
         with col:
             st.markdown(f"""
             <div class='card' style='padding: 12px; margin-bottom: 5px; border-radius:8px;'>
-                <div style='font-weight:600; color:#FFFFFF; font-size:0.85rem;'>{info['name']}</div>
-                <div style='color:#94A3B8; font-size:0.7rem; margin-bottom:5px;'>
+                <div style='font-weight:600; color:#102033; font-size:0.85rem;'>{info['name']}</div>
+                <div style='color:#587084; font-size:0.7rem; margin-bottom:5px;'>
                     代码: {code} | 角色: <span style='color:#10B981;'>{info['role']}</span>
                 </div>
             </div>
@@ -829,7 +853,7 @@ elif menu == "2. 资产配置与股息测算看板":
         title="组合资产角色分布",
         color_discrete_sequence=px.colors.qualitative.Bold
     )
-    fig_role.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='#E2E8F0', height=280)
+    fig_role.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='#102033', height=280)
     st.plotly_chart(fig_role, use_container_width=True)
 
     # 标的资产表格明细
@@ -852,10 +876,10 @@ elif menu == "2. 资产配置与股息测算看板":
 # 模块 3: 现金缓冲池平滑模拟器
 # ==========================================
 elif menu == "3. 现金缓冲池平滑模拟器":
-    st.markdown("<h1 style='color:#FFFFFF; margin-bottom:10px;'>⏱️ 现金缓冲池平滑模拟器</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='color:#102033; margin-bottom:10px;'>⏱️ 现金缓冲池平滑模拟器</h1>", unsafe_allow_html=True)
     st.write("大多数红利资产的分红在少数月份集中派发。默认安全结论只基于分红、票息、现金利息和缓冲池，不把成长资产上涨当成稳定现金流。")
 
-    rebalance_harvest = st.checkbox("乐观情景：卖出成长资产补充现金流", value=False, help="仅作为附加情景，不计入默认现金流安全结论")
+    rebalance_harvest = st.checkbox("乐观情景：卖出成长资产补充现金流", value=False, help="仅作为附加情景，不计入默认现金流安全结论", key="buffer_rebalance_harvest_checkbox")
     harvest_scenario = st.selectbox(
         "卖出成长资产补流情景",
         ["conservative", "neutral", "optimistic"],
@@ -994,7 +1018,7 @@ elif menu == "3. 现金缓冲池平滑模拟器":
         yaxis_title="水位/金额 (元)",
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
-        font_color='#E2E8F0',
+        font_color='#102033',
         hovermode="x unified"
     )
     st.plotly_chart(fig_buffer, use_container_width=True)
@@ -1019,7 +1043,7 @@ elif menu == "3. 现金缓冲池平滑模拟器":
 # 模块 4: 估值温度计与测算工具
 # ==========================================
 elif menu == "4. 估值温度计与测算工具":
-    st.markdown("<h1 style='color:#FFFFFF; margin-bottom:10px;'>🌡️ 估值温度计与测算助手</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='color:#102033; margin-bottom:10px;'>🌡️ 估值温度计与测算助手</h1>", unsafe_allow_html=True)
     st.write("根据估值高低动态调整每期定投比例：低位高性价比多买，高位低性价比少买。")
 
     # 估值指数切换
@@ -1089,9 +1113,9 @@ elif menu == "4. 估值温度计与测算工具":
     # 诊断横幅
     color_banner = "#10B981" if res['factor'] > 1.1 else ("#EF4444" if res['factor'] < 0.9 else "#3B82F6")
     st.markdown(f"""
-    <div style='background:rgba(255,255,255,0.03); border:1px solid {color_banner}; border-radius:8px; padding:15px; margin-bottom:20px;'>
+    <div style='background:#FBFDFE; border:1px solid {color_banner}; border-radius:8px; padding:15px; margin-bottom:20px;'>
         <h4 style='color:{color_banner};margin-top:0;'>🏷️ 估值评级诊断：{res['valuationZone']}</h4>
-        <p style='color:#E2E8F0;font-size:0.95rem;margin-bottom:0;'>{res['tips']}</p>
+        <p style='color:#102033;font-size:0.95rem;margin-bottom:0;'>{res['tips']}</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1171,7 +1195,7 @@ elif menu == "4. 估值温度计与测算工具":
             yaxis_title="股息率 (%)" if index_clean == 'H30269' else "市盈率 (PE)",
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
-            font_color='#E2E8F0',
+            font_color='#102033',
             height=300
         )
         st.plotly_chart(fig_val, use_container_width=True)
@@ -1182,7 +1206,7 @@ elif menu == "4. 估值温度计与测算工具":
 # 模块 5: 年度资产再平衡测算
 # ==========================================
 elif menu == "5. 年度资产再平衡测算":
-    st.markdown("<h1 style='color:#FFFFFF; margin-bottom:10px;'>⚖️ 持仓账本与资产再平衡测算</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='color:#102033; margin-bottom:10px;'>⚖️ 持仓账本与资产再平衡测算</h1>", unsafe_allow_html=True)
     st.write("为了保持资产组合符合预设比例，通常建议于每年底检查持仓并做再平衡测算。")
 
     st.markdown("### 📝 输入每只配置资产的当期市值 (万元)")
@@ -1213,7 +1237,7 @@ elif menu == "5. 年度资产再平衡测算":
     else:
         st.markdown(f"### 📊 年度再平衡提示方案")
         st.write(f"当前投资组合总市值为 **{total_hold_val:.2f}** 万元 (不含外部缓冲池)。")
-        incremental_mode = st.checkbox("增量资金再平衡优先", value=True)
+        incremental_mode = st.checkbox("增量资金再平衡优先", value=True, key="rebalance_incremental_mode_checkbox")
         new_cash = st.number_input("本期可用于再平衡的新增资金 (万元)", min_value=0.0, max_value=1000.0, value=10.0, step=1.0, disabled=not incremental_mode)
 
         plan_rows = []
@@ -1279,7 +1303,7 @@ elif menu == "5. 年度资产再平衡测算":
 # 模块 6: 风险压力测试
 # ==========================================
 elif menu == "6. 风险压力测试":
-    st.markdown("<h1 style='color:#FFFFFF; margin-bottom:10px;'>⚡ 组合极端市场压力测试</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='color:#102033; margin-bottom:10px;'>⚡ 组合极端市场压力测试</h1>", unsafe_allow_html=True)
     st.warning("⚠️ **重要风险提示：** 极端市场压力测试仅作为弹性分析工具，分红率和净值表现不代表收益承诺。")
 
     st.markdown("### 🛠️ 压力测试极端行情模拟参数")
@@ -1362,7 +1386,7 @@ elif menu == "6. 风险压力测试":
         <div class='card' style='border: 1px solid {color};'>
             <div class='metric-label'>{period}个月内现金流防线</div>
             <div class='metric-value' style='color:{color}; font-size:1.6rem;'>{status}</div>
-            <div style='font-size:0.78rem; color:#94A3B8; margin-top:5px;'>{desc}</div>
+            <div style='font-size:0.78rem; color:#587084; margin-top:5px;'>{desc}</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1412,7 +1436,7 @@ elif menu == "6. 风险压力测试":
         y=[0] * 36,
         mode='lines',
         name='零点破产线',
-        line=dict(color='#94A3B8', dash='dash')
+        line=dict(color='#587084', dash='dash')
     ))
     fig_stress.update_layout(
         title="压力测试下 36 个月缓冲池水位投影趋势",
@@ -1420,7 +1444,7 @@ elif menu == "6. 风险压力测试":
         yaxis_title="余额 (元)",
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
-        font_color='#E2E8F0',
+        font_color='#102033',
         height=320
     )
     st.plotly_chart(fig_stress, use_container_width=True)
@@ -1429,7 +1453,7 @@ elif menu == "6. 风险压力测试":
 # 模块 7: 人生财富游戏
 # ==========================================
 elif menu == "7. 人生财富游戏":
-    st.markdown("<h1 style='color:#FFFFFF; margin-bottom:10px;'>🎮 人生财富游戏</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='color:#102033; margin-bottom:10px;'>🎮 人生财富游戏</h1>", unsafe_allow_html=True)
     st.info("本模块是中国家庭财富教育模拟，不复制任何现有桌游规则。每回合代表 1 年，覆盖 22 岁大学毕业到 60 岁退休的过程。开局身份与城市随机生成，不允许手动选择；成长资产浮盈不计入稳定现金流，只有分红、票息、租金、利息和副业净流入计入被动现金流。")
 
     WEALTH_GAME_START_AGE = 22
@@ -2002,12 +2026,12 @@ elif menu == "7. 人生财富游戏":
 
     m1, m2, m3, m4, m5, m6 = st.columns(6)
     cards = [
-        ("年龄 / 阶段", f"{game['age']} 岁 / {game['family_stage']}", "#FFFFFF"),
+        ("年龄 / 阶段", f"{game['age']} 岁 / {game['family_stage']}", "#102033"),
         ("年度现金流", f"¥{metrics['annual_cashflow']:,.0f}", "#10B981" if metrics["annual_cashflow"] >= 0 else "#EF4444"),
         ("被动现金流", f"¥{metrics['passive_income']:,.0f}", "#3B82F6"),
         ("必要支出", f"¥{metrics['essential_expense']:,.0f}", "#F59E0B"),
         ("应急金月数", f"{metrics['emergency_months']:.1f}", "#10B981" if metrics["emergency_months"] >= 6 else "#EF4444"),
-        ("净资产 / 负债率", f"¥{metrics['net_worth']:,.0f} / {metrics['debt_ratio']*100:.1f}%", "#FFFFFF")
+        ("净资产 / 负债率", f"¥{metrics['net_worth']:,.0f} / {metrics['debt_ratio']*100:.1f}%", "#102033")
     ]
     for col, (label, value, color) in zip([m1, m2, m3, m4, m5, m6], cards):
         col.markdown(f"<div class='card'><div class='metric-label'>{label}</div><div class='metric-value' style='color:{color};'>{value}</div></div>", unsafe_allow_html=True)
@@ -2073,12 +2097,12 @@ elif menu == "7. 人生财富游戏":
         fig_game.update_layout(
             title="财富路径趋势",
             xaxis_title="年龄",
-            yaxis=dict(title="净资产", gridcolor="rgba(255,255,255,0.05)"),
+            yaxis=dict(title="净资产", gridcolor="rgba(16,32,51,0.05)"),
             yaxis2=dict(title="现金流", overlaying="y", side="right"),
             yaxis3=dict(visible=False, overlaying="y"),
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
-            font_color="#E2E8F0",
+            font_color="#102033",
             hovermode="x unified",
             height=360
         )
