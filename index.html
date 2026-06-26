@@ -506,12 +506,31 @@
             padding: 8px 10px;
             text-align: center;
             white-space: nowrap;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
         }
 
-        .step-pill:first-child {
-            color: var(--accent-blue);
+        .step-pill:hover {
+            background: var(--surface-hover);
+            border-color: var(--border-hover);
+            color: var(--text-primary);
+        }
+
+        .step-pill.active,
+        .step-pill[aria-current="step"] {
+            color: var(--accent-blue-strong);
             background: var(--blue-container);
             border-color: #D2E3FC;
+        }
+
+        .step-pill:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.18);
+        }
+
+        .family-step-section {
+            scroll-margin-top: 116px;
         }
 
         .slider-container {
@@ -770,7 +789,7 @@
         }
 
         .action-btn,
-        button:not(.nav-btn) {
+        button:not(.nav-btn):not(.step-pill) {
             background: var(--accent-blue);
             color: #FFFFFF;
             border: 1px solid transparent;
@@ -789,7 +808,7 @@
         }
 
         .action-btn:hover,
-        button:not(.nav-btn):hover {
+        button:not(.nav-btn):not(.step-pill):hover {
             transform: translateY(-1px);
             box-shadow: var(--shadow-sm);
         }
@@ -1006,15 +1025,15 @@
                 <!-- 左栏：问卷输入 -->
                 <div class="flex-col-left">
                     <div class="questionnaire-stepper" aria-label="家庭资产体检填写步骤">
-                        <div class="step-pill">1 家庭信息</div>
-                        <div class="step-pill">2 收入现金流</div>
-                        <div class="step-pill">3 资产</div>
-                        <div class="step-pill">4 债务</div>
-                        <div class="step-pill">5 风险目标</div>
+                        <button type="button" class="step-pill active" data-family-step-target="family-step-info" aria-current="step" onclick="scrollFamilyStepTo('family-step-info')">1 家庭信息</button>
+                        <button type="button" class="step-pill" data-family-step-target="family-step-income" onclick="scrollFamilyStepTo('family-step-income')">2 收入现金流</button>
+                        <button type="button" class="step-pill" data-family-step-target="family-step-assets" onclick="scrollFamilyStepTo('family-step-assets')">3 资产</button>
+                        <button type="button" class="step-pill" data-family-step-target="family-step-debts" onclick="scrollFamilyStepTo('family-step-debts')">4 债务</button>
+                        <button type="button" class="step-pill" data-family-step-target="family-step-goals" onclick="scrollFamilyStepTo('family-step-goals')">5 风险目标</button>
                     </div>
                     
                     <!-- 1. 家庭基本信息 -->
-                    <div class="card">
+                    <div class="card family-step-section" id="family-step-info">
                         <div class="card-title-text">👤 家庭基本信息</div>
                         <div class="input-group-row">
                             <div class="input-group">
@@ -1069,7 +1088,7 @@
                     </div>
 
                     <!-- 2. 收入与现金流 -->
-                    <div class="card">
+                    <div class="card family-step-section" id="family-step-income">
                         <div class="card-title-text">💵 收入与月现金流</div>
                         <div class="input-group-row">
                             <div class="input-group">
@@ -1137,7 +1156,7 @@
                     </div>
 
                     <!-- 3. 家庭资产明细 -->
-                    <div class="card">
+                    <div class="card family-step-section" id="family-step-assets">
                         <div class="card-title-text">🏦 家庭现有资产 (单位：元)</div>
                         <div class="input-group-triple">
                             <div class="input-group">
@@ -1186,7 +1205,7 @@
                     </div>
 
                     <!-- 4. 家庭债务明细 -->
-                    <div class="card">
+                    <div class="card family-step-section" id="family-step-debts">
                         <div class="card-title-text">💳 家庭债务负担 (单位：元)</div>
                         <div class="input-group-triple">
                             <div class="input-group">
@@ -1237,7 +1256,7 @@
                     </div>
 
                     <!-- 5. 投资约束与理财目标 -->
-                    <div class="card">
+                    <div class="card family-step-section" id="family-step-goals">
                         <div class="card-title-text">🚦 投资性格约束与诉求目标</div>
                         <div class="input-group-row">
                             <div class="input-group">
@@ -2046,6 +2065,7 @@
 
             // 初始化家庭资产体检与配置数据
             initFamilyProfile();
+            initFamilyStepperNavigation();
 
             // 同步一次策略控制台输入数据至其余部分
             updateCoreState();
@@ -2980,6 +3000,9 @@
 
             setTimeout(() => {
                 renderAllCharts();
+                if (tabId === 'tab-family') {
+                    updateFamilyStepperFromScroll();
+                }
             }, 50);
         }
 
@@ -3351,6 +3374,65 @@
             'expense-buyhouse', 'expense-edu', 'expense-med', 'expense-biz', 'expense-city', 'expense-other',
             'goal-cash', 'goal-edu', 'goal-pension', 'goal-house', 'goal-protect', 'goal-growth', 'goal-retire'
         ];
+
+        const familyStepSectionIds = ['family-step-info', 'family-step-income', 'family-step-assets', 'family-step-debts', 'family-step-goals'];
+        let familyStepperScrollTicking = false;
+        let isFamilyStepperInitialized = false;
+
+        function setFamilyStepperActive(targetId) {
+            document.querySelectorAll('.step-pill[data-family-step-target]').forEach(btn => {
+                const isActive = btn.dataset.familyStepTarget === targetId;
+                btn.classList.toggle('active', isActive);
+                if (isActive) {
+                    btn.setAttribute('aria-current', 'step');
+                } else {
+                    btn.removeAttribute('aria-current');
+                }
+            });
+        }
+
+        function scrollFamilyStepTo(targetId) {
+            const target = document.getElementById(targetId);
+            if (!target) return;
+            setFamilyStepperActive(targetId);
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function updateFamilyStepperFromScroll() {
+            if (state.currentTab !== 'tab-family') return;
+            const sections = familyStepSectionIds
+                .map(id => document.getElementById(id))
+                .filter(Boolean);
+            if (sections.length === 0) return;
+
+            const header = document.querySelector('header');
+            const activationLine = (header?.offsetHeight || 0) + 40;
+            let activeId = sections[0].id;
+
+            sections.forEach(section => {
+                if (section.getBoundingClientRect().top <= activationLine) {
+                    activeId = section.id;
+                }
+            });
+            setFamilyStepperActive(activeId);
+        }
+
+        function handleFamilyStepperScroll() {
+            if (familyStepperScrollTicking) return;
+            familyStepperScrollTicking = true;
+            window.requestAnimationFrame(() => {
+                updateFamilyStepperFromScroll();
+                familyStepperScrollTicking = false;
+            });
+        }
+
+        function initFamilyStepperNavigation() {
+            if (isFamilyStepperInitialized) return;
+            isFamilyStepperInitialized = true;
+            window.addEventListener('scroll', handleFamilyStepperScroll, { passive: true });
+            window.addEventListener('resize', handleFamilyStepperScroll);
+            updateFamilyStepperFromScroll();
+        }
 
         function initFamilyProfile() {
             const cached = localStorage.getItem('family_profile_data');
@@ -4697,6 +4779,7 @@ ${avoidList}
             resetWealthGame,
             runStressTest,
             saveFamilyToLocal,
+            scrollFamilyStepTo,
             startWealthGame,
             switchTab,
             updateCoreState,
