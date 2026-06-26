@@ -11,23 +11,29 @@
     <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
     <style>
         :root {
-            --bg-color: #F7FAFC;
+            --bg-color: #F8FAFD;
             --sidebar-bg: #FFFFFF;
             --card-bg: #FFFFFF;
-            --subtle-bg: #EEF4F8;
-            --card-border: #DCE7EF;
-            --border-hover: #BBD0DF;
-            --text-primary: #102033;
-            --text-secondary: #587084;
-            --text-muted: #8AA0B2;
-            --accent-emerald: #10B981;
-            --accent-blue: #2563EB;
-            --accent-orange: #F59E0B;
-            --accent-red: #EF4444;
-            --accent-purple: #7C3AED;
+            --subtle-bg: #F1F3F4;
+            --surface-hover: #F8FAFD;
+            --blue-container: #E8F0FE;
+            --green-container: #E6F4EA;
+            --yellow-container: #FEF7E0;
+            --red-container: #FCE8E6;
+            --card-border: #DADCE0;
+            --border-hover: #C4C7C5;
+            --text-primary: #202124;
+            --text-secondary: #5F6368;
+            --text-muted: #80868B;
+            --accent-emerald: #188038;
+            --accent-blue: #1A73E8;
+            --accent-blue-strong: #174EA6;
+            --accent-orange: #F9AB00;
+            --accent-red: #D93025;
+            --accent-purple: #A142F4;
             --input-bg: #FFFFFF;
-            --shadow-sm: 0 1px 2px rgba(16, 32, 51, 0.04);
-            --shadow-md: 0 12px 30px rgba(16, 32, 51, 0.08);
+            --shadow-sm: 0 1px 2px rgba(60, 64, 67, 0.08), 0 1px 3px rgba(60, 64, 67, 0.06);
+            --shadow-md: 0 1px 3px rgba(60, 64, 67, 0.12), 0 4px 8px rgba(60, 64, 67, 0.08);
             --radius-card: 8px;
             --radius-control: 6px;
         }
@@ -50,12 +56,12 @@
         }
 
         aside {
-            width: 248px;
+            width: 264px;
             background: var(--sidebar-bg);
             border-right: 1px solid var(--card-border);
             display: flex;
             flex-direction: column;
-            padding: 22px 14px;
+            padding: 18px 12px;
             position: fixed;
             top: 0;
             bottom: 0;
@@ -66,14 +72,14 @@
 
         .logo-area {
             text-align: left;
-            margin-bottom: 20px;
-            padding: 0 8px;
+            margin-bottom: 16px;
+            padding: 0 10px;
         }
 
         .logo-area h2 {
             color: var(--text-primary);
-            font-size: 1.05rem;
-            font-weight: 800;
+            font-size: 1rem;
+            font-weight: 700;
             letter-spacing: 0;
             display: flex;
             align-items: center;
@@ -92,12 +98,12 @@
             border: 1px solid transparent;
             color: var(--text-secondary);
             text-align: left;
-            padding: 10px 12px;
-            font-size: 0.88rem;
-            font-weight: 600;
-            border-radius: var(--radius-control);
+            padding: 10px 14px;
+            font-size: 0.86rem;
+            font-weight: 500;
+            border-radius: 999px;
             cursor: pointer;
-            transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+            transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
             width: 100%;
             line-height: 1.35;
         }
@@ -108,10 +114,10 @@
         }
 
         .nav-btn.active {
-            background: rgba(16, 185, 129, 0.11);
-            color: #047857;
-            font-weight: 800;
-            border-color: rgba(16, 185, 129, 0.25);
+            background: var(--blue-container);
+            color: var(--accent-blue-strong);
+            font-weight: 700;
+            border-color: transparent;
         }
 
         .sidebar-config {
@@ -121,8 +127,7 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
-            background: #FBFDFE;
-            box-shadow: var(--shadow-sm);
+            background: var(--surface-hover);
             margin-top: auto;
         }
 
@@ -135,30 +140,35 @@
         }
 
         main {
-            margin-left: 248px;
-            padding: 28px;
+            margin-left: 264px;
+            padding: 24px;
             flex-grow: 1;
-            max-width: 1440px;
-            width: calc(100% - 248px);
+            max-width: 1480px;
+            width: calc(100% - 264px);
         }
 
         header {
-            background: rgba(255, 255, 255, 0.88);
+            background: rgba(255, 255, 255, 0.94);
             border: 1px solid var(--card-border);
             border-radius: var(--radius-card);
             box-shadow: var(--shadow-sm);
-            padding: 18px 20px;
+            padding: 16px 18px;
             margin-bottom: 18px;
             position: sticky;
             top: 16px;
             z-index: 5;
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
         }
 
         header h1 {
-            font-size: 1.55rem;
-            font-weight: 800;
+            font-size: 1.5rem;
+            font-weight: 700;
             color: var(--text-primary);
             margin-bottom: 4px;
             letter-spacing: 0;
@@ -167,7 +177,7 @@
         header p {
             color: var(--text-secondary);
             font-size: 0.9rem;
-            margin-bottom: 10px;
+            margin-bottom: 0;
             max-width: 960px;
         }
 
@@ -178,12 +188,12 @@
             align-items: center;
             gap: 5px;
             font-size: 0.74rem;
-            padding: 4px 9px;
+            padding: 5px 10px;
             border-radius: 999px;
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.22);
-            color: #047857;
-            font-weight: 700;
+            background: var(--green-container);
+            border: 1px solid #CEEAD6;
+            color: var(--accent-emerald);
+            font-weight: 600;
             transition: all 0.2s;
         }
 
@@ -194,12 +204,12 @@
             padding: 18px;
             margin-bottom: 18px;
             box-shadow: var(--shadow-sm);
-            transition: border-color 0.18s ease, box-shadow 0.18s ease;
+            transition: border-color 0.16s ease, box-shadow 0.16s ease;
         }
 
         .card:hover {
             border-color: var(--border-hover);
-            box-shadow: var(--shadow-md);
+            box-shadow: var(--shadow-sm);
         }
 
         .card-header-bar {
@@ -212,17 +222,17 @@
 
         .card-title-text {
             font-size: 1rem;
-            font-weight: 800;
+            font-weight: 700;
             color: var(--text-primary);
-            border-left: 3px solid var(--accent-emerald);
-            padding-left: 9px;
+            border-left: 3px solid var(--accent-blue);
+            padding-left: 10px;
             line-height: 1.25;
         }
 
         .instruction-box,
         .privacy-banner {
-            background: rgba(37, 99, 235, 0.06);
-            border: 1px solid rgba(37, 99, 235, 0.18);
+            background: var(--blue-container);
+            border: 1px solid #D2E3FC;
             border-radius: var(--radius-card);
             padding: 12px 14px;
             margin-bottom: 18px;
@@ -231,7 +241,7 @@
         }
 
         .instruction-box summary {
-            font-weight: 800;
+            font-weight: 700;
             color: var(--accent-blue);
             cursor: pointer;
             outline: none;
@@ -270,7 +280,6 @@
             border: 1px solid var(--card-border);
             border-radius: var(--radius-card);
             padding: 15px;
-            box-shadow: var(--shadow-sm);
             display: flex;
             flex-direction: column;
             gap: 6px;
@@ -282,27 +291,27 @@
             font-size: 0.72rem;
             color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.04em;
-            font-weight: 700;
+            letter-spacing: 0;
+            font-weight: 600;
         }
 
         .metric-val-num {
             font-size: 1.65rem;
-            font-weight: 800;
+            font-weight: 700;
             color: var(--text-primary);
             transition: color 0.2s;
             font-variant-numeric: tabular-nums;
             line-height: 1.15;
         }
 
-        .badge-cash { background: rgba(16, 185, 129, 0.1); color: #047857; border-color: rgba(16, 185, 129, 0.25); }
-        .badge-dividend_income { background: rgba(37, 99, 235, 0.1); color: var(--accent-blue); border-color: rgba(37, 99, 235, 0.24); }
-        .badge-domestic_beta { background: rgba(245, 158, 11, 0.12); color: #B45309; border-color: rgba(245, 158, 11, 0.25); }
-        .badge-tech_growth { background: rgba(124, 58, 237, 0.1); color: var(--accent-purple); border-color: rgba(124, 58, 237, 0.24); }
+        .badge-cash { background: var(--green-container); color: var(--accent-emerald); border-color: #CEEAD6; }
+        .badge-dividend_income { background: var(--blue-container); color: var(--accent-blue); border-color: #D2E3FC; }
+        .badge-domestic_beta { background: var(--yellow-container); color: #A05A00; border-color: #FEEFC3; }
+        .badge-tech_growth { background: #F3E8FD; color: var(--accent-purple); border-color: #E9D2FD; }
         .badge-overseas_beta,
         .badge-overseas_broad,
-        .badge-overseas_tech { background: rgba(37, 99, 235, 0.1); color: var(--accent-blue); border-color: rgba(37, 99, 235, 0.22); }
-        .badge-hedge { background: rgba(88, 112, 132, 0.1); color: var(--text-secondary); border-color: rgba(88, 112, 132, 0.2); }
+        .badge-overseas_tech { background: var(--blue-container); color: var(--accent-blue); border-color: #D2E3FC; }
+        .badge-hedge { background: var(--subtle-bg); color: var(--text-secondary); border-color: var(--card-border); }
 
         .alert-banner {
             padding: 12px 14px;
@@ -314,30 +323,34 @@
             flex-direction: column;
             gap: 4px;
             border: 1px solid var(--card-border);
+            border-left: 4px solid var(--accent-blue);
             background: #FFFFFF;
             color: var(--text-secondary);
         }
 
         .alert-success {
-            background: rgba(16, 185, 129, 0.08);
-            border-color: rgba(16, 185, 129, 0.25);
-            color: #047857;
+            background: var(--green-container);
+            border-color: #CEEAD6;
+            border-left-color: var(--accent-emerald);
+            color: var(--accent-emerald);
         }
 
         .alert-warning {
-            background: rgba(245, 158, 11, 0.1);
-            border-color: rgba(245, 158, 11, 0.28);
-            color: #92400E;
+            background: var(--yellow-container);
+            border-color: #FEEFC3;
+            border-left-color: var(--accent-orange);
+            color: #A05A00;
         }
 
         .alert-info {
-            background: rgba(37, 99, 235, 0.06);
-            border-color: rgba(37, 99, 235, 0.18);
-            color: #1D4ED8;
+            background: var(--blue-container);
+            border-color: #D2E3FC;
+            border-left-color: var(--accent-blue);
+            color: var(--accent-blue);
         }
 
         .stress-result-card {
-            background: #FBFDFE;
+            background: var(--surface-hover);
             border: 1px solid var(--card-border);
             border-radius: var(--radius-card);
             padding: 14px;
@@ -371,9 +384,9 @@
             position: sticky;
             top: 0;
             z-index: 1;
-            background: #F2F7FA;
+            background: var(--subtle-bg);
             color: var(--text-secondary);
-            font-weight: 800;
+            font-weight: 700;
             font-size: 0.78rem;
             padding: 10px 12px;
             border-bottom: 1px solid var(--card-border);
@@ -382,17 +395,17 @@
 
         td {
             padding: 10px 12px;
-            border-bottom: 1px solid #EAF1F6;
+            border-bottom: 1px solid #ECEFF1;
             font-size: 0.86rem;
             vertical-align: middle;
         }
 
         tbody tr:nth-child(even) td {
-            background: #FBFDFE;
+            background: var(--surface-hover);
         }
 
         tr:hover td {
-            background: #F1F8F5;
+            background: var(--blue-container);
         }
 
         input,
@@ -413,17 +426,17 @@
         input:focus,
         select:focus,
         textarea:focus {
-            border-color: rgba(16, 185, 129, 0.8);
-            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.14);
         }
 
         input[type="checkbox"] {
             width: auto;
-            accent-color: var(--accent-emerald);
+            accent-color: var(--accent-blue);
         }
 
         input[type="range"] {
-            accent-color: var(--accent-emerald);
+            accent-color: var(--accent-blue);
             cursor: pointer;
         }
 
@@ -436,7 +449,7 @@
         .input-group label {
             font-size: 0.82rem;
             color: var(--text-secondary);
-            font-weight: 700;
+            font-weight: 600;
         }
 
         .input-group-row,
@@ -466,7 +479,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            background: #FBFDFE;
+            background: var(--surface-hover);
             border: 1px solid var(--card-border);
             border-radius: var(--radius-control);
             padding: 8px 10px;
@@ -489,16 +502,16 @@
             border-radius: 999px;
             color: var(--text-secondary);
             font-size: 0.78rem;
-            font-weight: 800;
+            font-weight: 600;
             padding: 8px 10px;
             text-align: center;
             white-space: nowrap;
         }
 
         .step-pill:first-child {
-            color: #047857;
-            background: rgba(16, 185, 129, 0.1);
-            border-color: rgba(16, 185, 129, 0.25);
+            color: var(--accent-blue);
+            background: var(--blue-container);
+            border-color: #D2E3FC;
         }
 
         .slider-container {
@@ -514,7 +527,7 @@
         .slider-val {
             color: var(--text-primary);
             font-size: 0.86rem;
-            font-weight: 800;
+            font-weight: 700;
             min-width: 45px;
             text-align: right;
             font-variant-numeric: tabular-nums;
@@ -601,7 +614,7 @@
         }
 
         .small-metric-card {
-            background: #FBFDFE;
+            background: var(--surface-hover);
             border: 1px solid var(--card-border);
             border-radius: var(--radius-card);
             padding: 10px;
@@ -613,7 +626,7 @@
 
         .small-metric-val {
             font-size: 1.05rem;
-            font-weight: 800;
+            font-weight: 700;
             color: var(--text-primary);
             font-variant-numeric: tabular-nums;
         }
@@ -625,14 +638,14 @@
             border-radius: var(--radius-card);
             padding: 14px;
             margin-bottom: 16px;
-            border: 1px solid rgba(37, 99, 235, 0.18);
+            border: 1px solid #D2E3FC;
             border-left: 4px solid var(--accent-blue);
-            background: rgba(37, 99, 235, 0.04);
+            background: var(--blue-container);
         }
 
         .profile-title {
             font-size: 1.05rem;
-            font-weight: 800;
+            font-weight: 700;
             margin-bottom: 8px;
             display: flex;
             align-items: center;
@@ -645,14 +658,14 @@
             line-height: 1.55;
             color: var(--text-secondary);
             font-style: italic;
-            border-top: 1px solid rgba(37, 99, 235, 0.14);
+            border-top: 1px solid #D2E3FC;
             padding-top: 8px;
             margin-top: 8px;
         }
 
         .bucket-bar-container {
             margin: 16px 0;
-            background: #FBFDFE;
+            background: var(--surface-hover);
             padding: 12px;
             border-radius: var(--radius-card);
             border: 1px solid var(--card-border);
@@ -700,7 +713,7 @@
         }
 
         .four-money-card {
-            background: #FBFDFE;
+            background: var(--surface-hover);
             border: 1px solid var(--card-border);
             border-left: 4px solid var(--card-border);
             border-radius: var(--radius-card);
@@ -717,7 +730,7 @@
 
         .four-money-title {
             font-size: 0.9rem;
-            font-weight: 800;
+            font-weight: 700;
             color: var(--text-primary);
         }
 
@@ -731,7 +744,7 @@
 
         .four-money-amount {
             font-size: 1.02rem;
-            font-weight: 800;
+            font-weight: 700;
             color: var(--text-primary);
             margin-bottom: 4px;
             font-variant-numeric: tabular-nums;
@@ -764,7 +777,7 @@
             padding: 10px 12px;
             border-radius: var(--radius-control);
             font-size: 0.86rem;
-            font-weight: 800;
+            font-weight: 700;
             cursor: pointer;
             transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
             display: inline-flex;
@@ -784,13 +797,13 @@
         .action-btn.secondary {
             background: #FFFFFF;
             color: var(--accent-blue);
-            border-color: rgba(37, 99, 235, 0.22);
+            border-color: #D2E3FC;
         }
 
         .action-btn.danger {
-            background: rgba(239, 68, 68, 0.1);
+            background: var(--red-container);
             color: var(--accent-red);
-            border-color: rgba(239, 68, 68, 0.25);
+            border-color: #FAD2CF;
         }
 
         h4, h5 {
@@ -1364,7 +1377,7 @@
                         <div style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.4;">
                             按家庭用途拆分为“要花的钱、保命的钱、生钱的钱、保本升值的钱”，优先判断基础防线是否足够，再判断增长配置是否过度。
                         </div>
-                        <div id="four-money-summary-box" style="background: rgba(255,255,255,0.02); border: 1px dashed var(--card-border); border-radius: 6px; padding: 10px 12px; font-size: 0.82rem; line-height: 1.45;">
+                        <div id="four-money-summary-box" style="background: var(--surface-hover); border: 1px dashed var(--card-border); border-radius: 6px; padding: 10px 12px; font-size: 0.82rem; line-height: 1.45;">
                             <strong id="four-money-overall" style="color: var(--text-secondary);">等待输入</strong>
                             <span id="four-money-summary" style="color: var(--text-secondary); margin-left: 8px;">请先输入家庭资产、负债与现金流明细。</span>
                         </div>
@@ -1382,9 +1395,9 @@
 
                         <div class="bucket-bar-container">
                             <div class="bucket-bar" id="recom-bucket-bar">
-                                <div class="bucket-segment" style="background-color: #10B981; width: 33.3%;">安全桶</div>
-                                <div class="bucket-segment" style="background-color: #3B82F6; width: 33.3%;">权益桶</div>
-                                <div class="bucket-segment" style="background-color: #F59E0B; width: 33.4%;">对冲桶</div>
+                                <div class="bucket-segment" style="background-color: #188038; width: 33.3%;">安全桶</div>
+                                <div class="bucket-segment" style="background-color: #1A73E8; width: 33.3%;">权益桶</div>
+                                <div class="bucket-segment" style="background-color: #F9AB00; width: 33.4%;">对冲桶</div>
                             </div>
                             <div class="bucket-labels">
                                 <div class="bucket-lbl-item" style="color: var(--accent-emerald);">
@@ -1404,7 +1417,7 @@
 
                         <!-- 为什么这么配的结构化解释 -->
                         <div class="card-title-text" style="font-size: 0.88rem; margin-top: 20px; margin-bottom: 8px;">🤔 为什么这么配？（资产配置结构原理解析）</div>
-                        <p id="lbl-recom-reason" style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.45; background: rgba(255,255,255,0.02); padding: 10px 12px; border-radius: 6px; margin-top: 0; border: 1px dashed var(--card-border);">
+                        <p id="lbl-recom-reason" style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.45; background: var(--surface-hover); padding: 10px 12px; border-radius: 6px; margin-top: 0; border: 1px dashed var(--card-border);">
                             等待输入家庭财务明细数据以生成具体的配置原因。
                         </p>
 
@@ -1745,7 +1758,7 @@
            TAB 5: STRESS TEST
            ========================================== -->
         <div id="tab5-view" class="tab-content">
-            <div class="alert-banner alert-warning" style="margin-bottom: 25px; background-color: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: var(--accent-orange);">
+            <div class="alert-banner alert-warning" style="margin-bottom: 25px;">
                 <strong>⚠️ 重要风险提示</strong><br>
                 ETF 分红不等于债券票息，分红金额和分红月份都可能随市场行情及基金公司政策变化而发生波动。压力测试仅用于极端市况下的弹性和最坏情况模拟，不作为投资建议或收益保证。
             </div>
@@ -1836,7 +1849,7 @@
                                 <span style="color: var(--text-secondary);">家庭最大本金回撤承受能力</span>
                                 <span id="t5-user-tolerance-val" style="font-weight: 600; color: var(--accent-blue);">--%</span>
                             </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px; padding: 6px 10px; border-radius: 6px; background: rgba(255,255,255,0.03);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px; padding: 6px 10px; border-radius: 6px; background: var(--surface-hover);">
                                 <span style="font-weight: 500;">承受力匹配判定</span>
                                 <span id="t5-tolerance-match-status" style="font-weight: 700;">待评估</span>
                             </div>
@@ -1891,9 +1904,9 @@
 
             <div class="card" style="margin-bottom: 20px; display:flex; gap: 12px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
                 <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                    <button onclick="startWealthGame()" style="background:var(--accent-emerald); color:#04111A; border:none; padding:9px 14px; border-radius:6px; font-weight:700; cursor:pointer;">随机新开局</button>
+                    <button onclick="startWealthGame()" style="background:var(--accent-emerald); color:#FFFFFF; border:none; padding:9px 14px; border-radius:6px; font-weight:700; cursor:pointer;">随机新开局</button>
                     <button onclick="advanceWealthGame()" style="background:var(--accent-blue); color:white; border:none; padding:9px 14px; border-radius:6px; font-weight:700; cursor:pointer;">下一年：结算年度</button>
-                    <button onclick="resetWealthGame()" style="background:rgba(239,68,68,0.15); color:var(--accent-red); border:1px solid rgba(239,68,68,0.35); padding:9px 14px; border-radius:6px; font-weight:700; cursor:pointer;">重置</button>
+                    <button onclick="resetWealthGame()" style="background:var(--red-container); color:var(--accent-red); border:1px solid #FAD2CF; padding:9px 14px; border-radius:6px; font-weight:700; cursor:pointer;">重置</button>
                 </div>
                 <div id="wg-status-chip" style="font-size:0.85rem; color:var(--text-secondary);">本地存档未载入</div>
             </div>
@@ -1939,11 +1952,11 @@
                     <div class="card" style="margin-bottom:20px;">
                         <div class="card-title-text" style="margin-bottom:15px;">年度决策</div>
                         <div style="display:grid; gap:10px;">
-                            <button id="wg-action-save" onclick="applyWealthGameDecision('save')" style="padding:10px;border-radius:6px;border:1px solid rgba(16,185,129,0.35);background:rgba(16,185,129,0.08);color:var(--accent-emerald);font-weight:700;cursor:pointer;">增加储蓄 / 建应急金</button>
-                            <button id="wg-action-invest" onclick="applyWealthGameDecision('invest')" style="padding:10px;border-radius:6px;border:1px solid rgba(59,130,246,0.35);background:rgba(59,130,246,0.08);color:var(--accent-blue);font-weight:700;cursor:pointer;">长期定投 / 增加资产</button>
-                            <button id="wg-action-debt" onclick="applyWealthGameDecision('debt')" style="padding:10px;border-radius:6px;border:1px solid rgba(245,158,11,0.35);background:rgba(245,158,11,0.08);color:var(--accent-orange);font-weight:700;cursor:pointer;">提前还债 / 降低杠杆</button>
-                            <button id="wg-action-skill" onclick="applyWealthGameDecision('skill')" style="padding:10px;border-radius:6px;border:1px solid rgba(167,139,250,0.35);background:rgba(167,139,250,0.08);color:#A78BFA;font-weight:700;cursor:pointer;">提升技能 / 副业尝试</button>
-                            <button id="wg-action-insurance" onclick="applyWealthGameDecision('insurance')" style="padding:10px;border-radius:6px;border:1px solid rgba(148,163,184,0.35);background:rgba(148,163,184,0.08);color:var(--text-primary);font-weight:700;cursor:pointer;">补足保险 / 风险防线</button>
+                            <button id="wg-action-save" onclick="applyWealthGameDecision('save')" style="padding:10px;border-radius:6px;border:1px solid #CEEAD6;background:var(--green-container);color:var(--accent-emerald);font-weight:700;cursor:pointer;">增加储蓄 / 建应急金</button>
+                            <button id="wg-action-invest" onclick="applyWealthGameDecision('invest')" style="padding:10px;border-radius:6px;border:1px solid #D2E3FC;background:var(--blue-container);color:var(--accent-blue);font-weight:700;cursor:pointer;">长期定投 / 增加资产</button>
+                            <button id="wg-action-debt" onclick="applyWealthGameDecision('debt')" style="padding:10px;border-radius:6px;border:1px solid #FEEFC3;background:var(--yellow-container);color:var(--accent-orange);font-weight:700;cursor:pointer;">提前还债 / 降低杠杆</button>
+                            <button id="wg-action-skill" onclick="applyWealthGameDecision('skill')" style="padding:10px;border-radius:6px;border:1px solid #E9D2FD;background:#F3E8FD;color:var(--accent-purple);font-weight:700;cursor:pointer;">提升技能 / 副业尝试</button>
+                            <button id="wg-action-insurance" onclick="applyWealthGameDecision('insurance')" style="padding:10px;border-radius:6px;border:1px solid var(--card-border);background:var(--subtle-bg);color:var(--text-primary);font-weight:700;cursor:pointer;">补足保险 / 风险防线</button>
                         </div>
                     </div>
 
@@ -2118,8 +2131,8 @@
             const badge = document.getElementById('live-data-badge');
             
             let statusText = "";
-            let badgeBg = "rgba(16, 185, 129, 0.1)";
-            let badgeBorder = "rgba(16, 185, 129, 0.3)";
+            let badgeBg = "var(--green-container)";
+            let badgeBorder = "#CEEAD6";
             let badgeColor = "var(--accent-emerald)";
             
             if (state.fetchStatus === 'success') {
@@ -2132,16 +2145,16 @@
                 
                 if (isExpired) {
                     statusText = `⚠️ ${sourceLabel}已过期 (数据时间: ${state.dataTimestamp})`;
-                    badgeBg = "rgba(245, 158, 11, 0.1)";
-                    badgeBorder = "rgba(245, 158, 11, 0.3)";
+                    badgeBg = "var(--yellow-container)";
+                    badgeBorder = "#FEEFC3";
                     badgeColor = "var(--accent-orange)";
                 } else {
                     statusText = `🟢 ${sourceLabel}已同步 (数据时间: ${state.dataTimestamp})`;
                 }
             } else if (state.fetchStatus === 'fallback') {
                 statusText = `🔴 数据源载入失败，已降级为离线测算数据`;
-                badgeBg = "rgba(239, 68, 68, 0.1)";
-                badgeBorder = "rgba(239, 68, 68, 0.3)";
+                badgeBg = "var(--red-container)";
+                badgeBorder = "#FAD2CF";
                 badgeColor = "var(--accent-red)";
             } else {
                 statusText = `⏳ 正在载入市场数据...`;
@@ -2422,16 +2435,16 @@
             
             // Show proper CSS color/style based on warning
             if (res.factor > 1.1) {
-                ratingAlert.style.backgroundColor = "rgba(16, 185, 129, 0.1)";
-                ratingAlert.style.borderColor = "rgba(16, 185, 129, 0.3)";
+                ratingAlert.style.backgroundColor = "var(--green-container)";
+                ratingAlert.style.borderColor = "#CEEAD6";
                 ratingAlert.style.color = "var(--accent-emerald)";
             } else if (res.factor < 0.9) {
-                ratingAlert.style.backgroundColor = "rgba(245, 158, 11, 0.1)";
-                ratingAlert.style.borderColor = "rgba(245, 158, 11, 0.3)";
+                ratingAlert.style.backgroundColor = "var(--yellow-container)";
+                ratingAlert.style.borderColor = "#FEEFC3";
                 ratingAlert.style.color = "var(--accent-orange)";
             } else {
-                ratingAlert.style.backgroundColor = "rgba(59, 130, 246, 0.1)";
-                ratingAlert.style.borderColor = "rgba(59, 130, 246, 0.3)";
+                ratingAlert.style.backgroundColor = "var(--blue-container)";
+                ratingAlert.style.borderColor = "#D2E3FC";
                 ratingAlert.style.color = "var(--accent-blue)";
             }
             ratingAlert.innerHTML = `<strong>估值诊断结论：</strong> 估值处于 ${res.valuationZone}，当前定投系数为 <strong>${res.factor.toFixed(1)}x</strong>。<br>${res.tips}`;
@@ -3007,7 +3020,7 @@
                 type: 'pie',
                 hole: 0.4,
                 marker: {
-                    colors: ['#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#EF4444', '#14B8A6', '#6366F1']
+                    colors: ['#188038', '#1A73E8', '#A142F4', '#D93025', '#F9AB00', '#5F6368', '#129EAF', '#185ABC']
                 },
                 textinfo: 'percent',
                 textposition: 'inside',
@@ -3019,12 +3032,12 @@
                 plot_bgcolor: 'rgba(0,0,0,0)',
                 showlegend: true,
                 legend: {
-                    font: { color: '#587084', size: 10 },
+                    font: { color: '#5F6368', size: 10 },
                     orientation: 'h',
                     y: -0.1
                 },
                 margin: { t: 10, b: 60, l: 10, r: 10 },
-                font: { color: '#102033' }
+                font: { color: '#202124' }
             };
 
             Plotly.newPlot('t1-plotly-pie', data, layout, { responsive: true, displayModeBar: false });
@@ -3045,7 +3058,7 @@
                 type: 'scatter',
                 mode: 'lines+markers',
                 name: '缓冲池余额 (元)',
-                line: { color: '#10B981', width: 3 },
+                line: { color: '#188038', width: 3 },
                 marker: { size: 6 }
             };
 
@@ -3054,7 +3067,7 @@
                 y: divs,
                 type: 'bar',
                 name: '当月分红到账 (元)',
-                marker: { color: '#3B82F6', opacity: 0.7 }
+                marker: { color: '#1A73E8', opacity: 0.7 }
             };
 
             const data = [trace2];
@@ -3064,7 +3077,7 @@
                     y: harvests,
                     type: 'bar',
                     name: '情景卖出资产补流 (元)',
-                    marker: { color: '#A78BFA', opacity: 0.65 }
+                    marker: { color: '#A142F4', opacity: 0.65 }
                 });
             }
             data.push(trace1);
@@ -3074,22 +3087,22 @@
                 plot_bgcolor: 'rgba(0,0,0,0)',
                 showlegend: true,
                 legend: {
-                    font: { color: '#102033' },
+                    font: { color: '#202124' },
                     x: 0.01,
                     y: 0.99
                 },
                 xaxis: {
-                    title: { text: '模拟时间线', font: { color: '#587084' } },
-                    tickfont: { color: '#587084', size: 9 },
-                    gridcolor: '#EAF1F6'
+                    title: { text: '模拟时间线', font: { color: '#5F6368' } },
+                    tickfont: { color: '#5F6368', size: 9 },
+                    gridcolor: '#ECEFF1'
                 },
                 yaxis: {
-                    title: { text: '金额 (元)', font: { color: '#587084' } },
-                    tickfont: { color: '#587084' },
-                    gridcolor: '#EAF1F6'
+                    title: { text: '金额 (元)', font: { color: '#5F6368' } },
+                    tickfont: { color: '#5F6368' },
+                    gridcolor: '#ECEFF1'
                 },
                 margin: { t: 30, b: 40, l: 60, r: 20 },
-                font: { color: '#102033' },
+                font: { color: '#202124' },
                 hovermode: 'x unified'
             };
 
@@ -3173,13 +3186,13 @@
                 const statusVal = document.getElementById(`stress-status-${p}`);
                 
                 if (isBreached) {
-                    card.style.borderColor = 'rgba(239, 68, 68, 0.4)';
-                    card.style.backgroundColor = 'rgba(239, 68, 68, 0.03)';
+                    card.style.borderColor = '#FAD2CF';
+                    card.style.backgroundColor = 'var(--red-container)';
                     statusVal.innerText = `🔴 已击穿 (第 ${breachedMonth} 月)`;
                     statusVal.style.color = 'var(--accent-red)';
                 } else {
-                    card.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-                    card.style.backgroundColor = 'rgba(16, 185, 129, 0.03)';
+                    card.style.borderColor = '#CEEAD6';
+                    card.style.backgroundColor = 'var(--green-container)';
                     // Find minimum balance in this period
                     const periodBalances = stressBufferHistory.slice(0, p);
                     const minBal = Math.min(...periodBalances);
@@ -3238,7 +3251,7 @@
                               '<b>股息率</b>: %{y:.2f}%<br>' +
                               '<b>PE (市盈率)</b>: %{customdata[0]:.2f}<br>' +
                               '<b>PB (市净率)</b>: %{customdata[1]:.2f}<extra></extra>',
-                line: { color: '#3B82F6', width: 2 }
+                line: { color: '#1A73E8', width: 2 }
             };
 
             const traceCurrent = {
@@ -3256,16 +3269,16 @@
                 paper_bgcolor: 'rgba(0,0,0,0)',
                 plot_bgcolor: 'rgba(0,0,0,0)',
                 xaxis: {
-                    tickfont: { color: '#587084' },
-                    gridcolor: '#EAF1F6'
+                    tickfont: { color: '#5F6368' },
+                    gridcolor: '#ECEFF1'
                 },
                 yaxis: {
-                    title: { text: '股息率 (%)', font: { color: '#587084' } },
-                    tickfont: { color: '#587084' },
-                    gridcolor: '#EAF1F6'
+                    title: { text: '股息率 (%)', font: { color: '#5F6368' } },
+                    tickfont: { color: '#5F6368' },
+                    gridcolor: '#ECEFF1'
                 },
                 margin: { t: 20, b: 40, l: 40, r: 20 },
-                font: { color: '#102033' },
+                font: { color: '#202124' },
                 showlegend: false
             };
 
@@ -3285,7 +3298,7 @@
                 mode: 'lines+markers',
                 name: '压力下余额 (元)',
                 marker: { size: 5 },
-                line: { color: stressBufferHistory.some(v => v < 0) ? '#EF4444' : '#3B82F6', width: 2 }
+                line: { color: stressBufferHistory.some(v => v < 0) ? '#D93025' : '#1A73E8', width: 2 }
             };
 
             const traceZero = {
@@ -3294,7 +3307,7 @@
                 type: 'scatter',
                 mode: 'lines',
                 name: '击穿警戒线',
-                line: { color: '#8AA0B2', width: 1.5, dash: 'dash' }
+                line: { color: '#80868B', width: 1.5, dash: 'dash' }
             };
 
             const data = [traceLine, traceZero];
@@ -3303,16 +3316,16 @@
                 paper_bgcolor: 'rgba(0,0,0,0)',
                 plot_bgcolor: 'rgba(0,0,0,0)',
                 xaxis: {
-                    tickfont: { color: '#587084', size: 9 },
-                    gridcolor: '#EAF1F6'
+                    tickfont: { color: '#5F6368', size: 9 },
+                    gridcolor: '#ECEFF1'
                 },
                 yaxis: {
-                    title: { text: '缓冲池余额 (元)', font: { color: '#587084' } },
-                    tickfont: { color: '#587084' },
-                    gridcolor: '#EAF1F6'
+                    title: { text: '缓冲池余额 (元)', font: { color: '#5F6368' } },
+                    tickfont: { color: '#5F6368' },
+                    gridcolor: '#ECEFF1'
                 },
                 margin: { t: 20, b: 40, l: 60, r: 20 },
-                font: { color: '#102033' },
+                font: { color: '#202124' },
                 showlegend: false
             };
 
@@ -3801,7 +3814,7 @@
                 type: 'pie',
                 hole: 0.45,
                 marker: {
-                    colors: ['#3B82F6', '#10B981', '#6366F1', '#EC4899', '#8B5CF6', '#F59E0B', '#64748B', '#14B8A6', '#475569']
+                    colors: ['#1A73E8', '#188038', '#185ABC', '#D93025', '#A142F4', '#F9AB00', '#5F6368', '#129EAF', '#3C4043']
                 },
                 textinfo: 'percent',
                 textposition: 'inside'
@@ -3811,7 +3824,7 @@
                 paper_bgcolor: 'rgba(0,0,0,0)',
                 plot_bgcolor: 'rgba(0,0,0,0)',
                 margin: { t: 15, b: 15, l: 15, r: 15 },
-                font: { color: '#102033', size: 9 },
+                font: { color: '#202124', size: 9 },
                 showlegend: true,
                 legend: { x: 0.8, y: 0.5, font: { size: 8 } }
             };
@@ -3832,7 +3845,7 @@
                     y: [fd['f-monthly-income'], fd['f-fixed-expense'], fd['debt-monthly-repay'], fd['f-surplus-income']],
                     type: 'bar',
                     marker: {
-                        color: ['#3B82F6', '#EF4444', '#F59E0B', '#10B981']
+                        color: ['#1A73E8', '#D93025', '#F9AB00', '#188038']
                     }
                 }
             ];
@@ -3841,9 +3854,9 @@
                 paper_bgcolor: 'rgba(0,0,0,0)',
                 plot_bgcolor: 'rgba(0,0,0,0)',
                 margin: { t: 30, b: 30, l: 50, r: 15 },
-                font: { color: '#102033', size: 9 },
-                xaxis: { gridcolor: '#EAF1F6', tickfont: { color: '#587084', size: 9 } },
-                yaxis: { title: '金额 (元)', gridcolor: '#EAF1F6', tickfont: { color: '#587084' } }
+                font: { color: '#202124', size: 9 },
+                xaxis: { gridcolor: '#ECEFF1', tickfont: { color: '#5F6368', size: 9 } },
+                yaxis: { title: '金额 (元)', gridcolor: '#ECEFF1', tickfont: { color: '#5F6368' } }
             };
 
             const barEl = document.getElementById('plotly-bar-debt');
@@ -4631,7 +4644,7 @@ ${avoidList}
             const rows = WEALTH_GAME_PROFILE_OPTIONS.map(option => {
                 const p = buildWealthGameProfile(option.identityKey, option.cityKey);
                 const isCurrent = game.identityKey === option.identityKey && game.cityKey === option.cityKey;
-                return `<tr style="${isCurrent ? 'background:rgba(16,185,129,0.12); color:var(--accent-emerald);' : ''}">
+                return `<tr style="${isCurrent ? 'background:var(--green-container); color:var(--accent-emerald);' : ''}">
                     <td>${p.label}${isCurrent ? '（当前）' : ''}</td>
                     <td>${p.city}</td>
                     <td>${formatCny(p.salary)}</td>
@@ -4651,19 +4664,19 @@ ${avoidList}
             if (!div || !game.history || game.history.length === 0) return;
             const x = game.history.map(item => `${item.age}岁`);
             const data = [
-                { x, y: game.history.map(item => item.netWorth), type: 'scatter', mode: 'lines+markers', name: '净资产', line: { color: '#10B981', width: 2 } },
-                { x, y: game.history.map(item => item.cashflow), type: 'scatter', mode: 'lines+markers', name: '年度现金流', line: { color: '#3B82F6', width: 2 }, yaxis: 'y2' },
-                { x, y: game.history.map(item => item.emergencyMonths), type: 'scatter', mode: 'lines', name: '应急金月数', line: { color: '#F59E0B', width: 2 }, yaxis: 'y3' }
+                { x, y: game.history.map(item => item.netWorth), type: 'scatter', mode: 'lines+markers', name: '净资产', line: { color: '#188038', width: 2 } },
+                { x, y: game.history.map(item => item.cashflow), type: 'scatter', mode: 'lines+markers', name: '年度现金流', line: { color: '#1A73E8', width: 2 }, yaxis: 'y2' },
+                { x, y: game.history.map(item => item.emergencyMonths), type: 'scatter', mode: 'lines', name: '应急金月数', line: { color: '#F9AB00', width: 2 }, yaxis: 'y3' }
             ];
             const layout = {
                 paper_bgcolor: 'rgba(0,0,0,0)',
                 plot_bgcolor: 'rgba(0,0,0,0)',
-                font: { color: '#102033' },
+                font: { color: '#202124' },
                 margin: { t: 25, b: 45, l: 60, r: 60 },
-                legend: { orientation: 'h', y: 1.12, font: { color: '#587084' } },
-                xaxis: { gridcolor: '#EAF1F6', tickfont: { color: '#587084' } },
-                yaxis: { title: '净资产', gridcolor: '#EAF1F6', tickfont: { color: '#587084' } },
-                yaxis2: { title: '现金流', overlaying: 'y', side: 'right', tickfont: { color: '#587084' } },
+                legend: { orientation: 'h', y: 1.12, font: { color: '#5F6368' } },
+                xaxis: { gridcolor: '#ECEFF1', tickfont: { color: '#5F6368' } },
+                yaxis: { title: '净资产', gridcolor: '#ECEFF1', tickfont: { color: '#5F6368' } },
+                yaxis2: { title: '现金流', overlaying: 'y', side: 'right', tickfont: { color: '#5F6368' } },
                 yaxis3: { visible: false, overlaying: 'y' },
                 hovermode: 'x unified'
             };
