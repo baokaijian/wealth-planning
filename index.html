@@ -311,6 +311,8 @@
         .badge-overseas_beta,
         .badge-overseas_broad,
         .badge-overseas_tech { background: var(--blue-container); color: var(--accent-blue); border-color: #D2E3FC; }
+        .badge-bond_duration { background: var(--green-container); color: var(--accent-emerald); border-color: #CEEAD6; }
+        .badge-cashflow_alt { background: #F3E8FD; color: var(--accent-purple); border-color: #E9D2FD; }
         .badge-hedge { background: var(--subtle-bg); color: var(--text-secondary); border-color: var(--card-border); }
 
         .alert-banner {
@@ -1512,10 +1514,21 @@
                 <strong>⚠️ 配置警告：</strong>当前所有资产权重之和为 <span id="t1-weight-sum">0%</span>，配置权重必须正好等于 **100%** 测算数值方才可信。
             </div>
 
+            <div class="alert-banner alert-info">
+                <strong>口径与免责：</strong>本看板仅用于 ETF/指数基金/大类资产配置测算，不构成投资建议，不推荐单只股票，不承诺任何分红、票息或收益。成长资产、黄金和 REITs 备选不计入稳定现金流。
+            </div>
+
             <div class="tab1-stacked-layout">
                 <!-- 资产配比饼图 -->
                 <div class="card">
-                    <div class="card-title-text" style="margin-bottom: 20px;">资产配比饼图分布</div>
+                    <div class="card-header-bar" style="margin-bottom: 20px;">
+                        <span class="card-title-text">资产配比饼图分布</span>
+                        <select id="t1-pie-view" onchange="renderTab1PieChart()" style="font-size:0.85rem;width:160px;">
+                            <option value="role" selected>按角色</option>
+                            <option value="market">按市场</option>
+                        </select>
+                    </div>
+                    <div id="t1-concentration-alerts" class="alert-banner alert-info hidden" style="margin-bottom: 12px;"></div>
                     <div id="t1-plotly-pie" style="height: 380px; width: 100%;"></div>
                 </div>
 
@@ -1532,6 +1545,7 @@
                                     <th>基金名称及代码</th>
                                     <th>资产角色</th>
                                     <th>目标市场 / 波动</th>
+                                    <th>现金流属性</th>
                                     <th>配置权重 (%)</th>
                                     <th>实际分配金额</th>
                                     <th>当前股息率 / 收益率</th>
@@ -1646,12 +1660,15 @@
                     <select id="t3-index-selector" onchange="changeTemperatureIndex()" style="font-size: 0.85rem; width: 280px;">
                         <option value="H30269" selected>📈 中证红利低波指数 (H30269)</option>
                         <option value="000300">🇨🇳 沪深300指数 (000300)</option>
+                        <option value="000510">🇨🇳 中证A500指数 (000510) [无历史数据]</option>
+                        <option value="000905">🇨🇳 中证500指数 (000905) [无历史数据]</option>
                         <option value="588000">💻 科创50指数 (588000) [无历史数据]</option>
-                        <option value="513100">🌐 纳斯达克100指数 (513100) [无历史数据]</option>
+                        <option value="SPX">🌐 标普500指数 (SPX) [无历史数据]</option>
+                        <option value="NDX">🌐 纳斯达克100指数 (NDX) [无历史数据]</option>
                     </select>
                 </div>
                 <div style="font-size: 0.8rem; color: var(--text-secondary); max-width: 500px; line-height: 1.4;">
-                    💡 <strong>切换说明：</strong> 中证红利低波对应红利现金流策略；沪深300对应国内宽基大类。无数据指数将自动降级至基础定投计划。
+                    💡 <strong>切换说明：</strong> 红利看股息率百分位，宽基和成长看估值百分位。无历史数据的指数将固定 1.0x，并显示“数据不足，保持基础计划”。
                 </div>
             </div>
 
@@ -2023,28 +2040,40 @@
         // ETF基准参数 (基准价格, 基准股息率)，用于根据最新价格反算实时股息率
         const ETF_BASE = {
             '511880': { base_price: 100.0, base_yield: 1.8 },
+            '511360': { base_price: 113.6, base_yield: 2.7 },
             '512890': { base_price: 1.17, base_yield: 4.5 },
-            '515450': { base_price: 1.43, base_yield: 4.2 },
             '510880': { base_price: 3.20, base_yield: 4.0 },
+            '561960': { base_price: 1.05, base_yield: 4.2 },
             '513530': { base_price: 1.61, base_yield: 4.8 },
             '510300': { base_price: 3.50, base_yield: 1.5 },
+            '563360': { base_price: 1.00, base_yield: 1.2 },
+            '510500': { base_price: 6.00, base_yield: 0.8 },
             '588000': { base_price: 0.80, base_yield: 0.2 },
+            '513500': { base_price: 2.20, base_yield: 1.2 },
             '513100': { base_price: 1.30, base_yield: 0.5 },
             '518880': { base_price: 4.50, base_yield: 0.0 },
-            '511360': { base_price: 108.0, base_yield: 2.5 }
+            '511520': { base_price: 110.0, base_yield: 2.6 },
+            '511010': { base_price: 125.0, base_yield: 2.3 },
+            '508099': { base_price: 3.00, base_yield: 4.5 }
         };
 
         const DEFAULT_ASSETS_CONFIG = [
-            { code: "511880", name: "银华日利货币 ETF", type: "ETF", role: "cash", market: "CN", volatility_level: "low", income_type: "cash_interest", weight: 5.0, estimated_yield: 1.8, estimated_return: 1.8, distribution_months: {"1":0.083,"2":0.083,"3":0.083,"4":0.083,"5":0.083,"6":0.083,"7":0.083,"8":0.083,"9":0.083,"10":0.083,"11":0.083,"12":0.083}, strategy_note: "场内高流动性交易型货币基金，等同现金，平滑日常支取", risk_note: "货币市场利率下行，整体收益率随之下降的风险" },
-            { code: "512890", name: "中证红利低波 ETF", type: "ETF", role: "dividend_income", market: "CN", volatility_level: "medium", income_type: "dividend", weight: 20.0, estimated_yield: 4.5, estimated_return: 7.0, distribution_months: {"7":0.5,"12":0.5}, strategy_note: "选取高股息低波动率标的，适合核心防御和红利现金流获取", risk_note: "分红不及预期风险，底层行业景气度及指数编制波动风险" },
-            { code: "515450", name: "标普大盘红利低波 ETF", type: "ETF", role: "dividend_income", market: "CN", volatility_level: "medium", income_type: "dividend", weight: 10.0, estimated_yield: 4.2, estimated_return: 6.8, distribution_months: {"7":1.0}, strategy_note: "大市值红利股票筛选，兼具蓝筹稳定性与优异派息表现", risk_note: "样本股分红政策变更及底层大盘股价格波动风险" },
-            { code: "510880", name: "华泰柏瑞红利 ETF", type: "ETF", role: "dividend_income", market: "CN", volatility_level: "medium", income_type: "dividend", weight: 10.0, estimated_yield: 4.0, estimated_return: 6.5, distribution_months: {"12":1.0}, strategy_note: "经典上证红利ETF，聚焦成熟期、大市值高息龙头标的", risk_note: "煤炭银行等周期股占比偏高，指数行业集中度相对较大" },
-            { code: "513530", name: "恒生红利低波 ETF", type: "ETF", role: "dividend_income", market: "HK", volatility_level: "high", income_type: "dividend", weight: 10.0, estimated_yield: 4.8, estimated_return: 7.5, distribution_months: {"7":0.5,"12":0.5}, strategy_note: "配置港股优质低估红利资产，实现跨币种离岸现金流流入", risk_note: "港股通20%红利税折损风险，汇率波动及港股高波动特征" },
-            { code: "510300", name: "华泰柏瑞沪深300 ETF", type: "ETF", role: "domestic_beta", market: "CN", volatility_level: "medium", income_type: "capital_growth", weight: 15.0, estimated_yield: 1.5, estimated_return: 8.0, distribution_months: {"10":1.0}, strategy_note: "代表国内核心宽基资产，获取国内宏观经济长期平稳增长Beta", risk_note: "国内宏观经济增速放缓及A股系统性震荡下行风险" },
-            { code: "588000", name: "华夏科创50 ETF", type: "ETF", role: "tech_growth", market: "CN", volatility_level: "high", income_type: "capital_growth", weight: 10.0, estimated_yield: 0.2, estimated_return: 10.0, distribution_months: {"12":1.0}, strategy_note: "聚焦战略性新兴产业与硬科技核心资产，博取高成长增值弹性", risk_note: "高估值下回撤大，高波动，行业集中及科技迭代不确定性" },
-            { code: "513100", name: "易方达纳斯达克100 ETF", type: "ETF", role: "overseas_tech", target_index_code: "NDX", market: "US", volatility_level: "high", income_type: "capital_growth", weight: 10.0, estimated_yield: 0.5, estimated_return: 9.5, distribution_months: {"12":1.0}, strategy_note: "挂钩美股核心科技成长大盘；属于海外科技，不等同于海外宽基", risk_note: "美股估值高位回撤风险，汇率波动对实际本位币资产的影响" },
-            { code: "518880", name: "华安黄金 ETF", type: "ETF", role: "hedge", market: "Global", volatility_level: "medium", income_type: "hedge", weight: 5.0, estimated_yield: 0.0, estimated_return: 4.5, distribution_months: {}, strategy_note: "实物黄金挂钩，对冲极端通胀及系统性地缘冲突风险", risk_note: "黄金资产无股息票息产出，主要面临黄金价格短期波动风险" },
-            { code: "511360", name: "中债信用债 ETF", type: "ETF", role: "hedge", market: "CN", volatility_level: "low", income_type: "cash_interest", weight: 5.0, estimated_yield: 2.5, estimated_return: 3.5, distribution_months: {"6":0.5,"12":0.5}, strategy_note: "配置高评级信用债，获取稳定票息，组合波动的重要安全气垫", risk_note: "信用债利率波动风险及市场流动性紧缩带来的估值调整风险" }
+            {"code": "511880", "name": "银华日利货币 ETF", "type": "ETF", "role": "cash", "target_index_code": null, "market": "CN", "volatility_level": "low", "income_type": "cash_interest", "rebalance_band": 1, "weight": 4.0, "estimated_yield": 1.8, "estimated_return": 1.8, "distribution_months": {"1": 0.083, "2": 0.083, "3": 0.083, "4": 0.083, "5": 0.083, "6": 0.083, "7": 0.083, "8": 0.083, "9": 0.083, "10": 0.083, "11": 0.083, "12": 0.083}, "strategy_note": "现金类底仓，承担日常流动性与避免被迫卖出的缓冲功能", "risk_note": "不构成投资建议；货币市场收益率会随利率下行而下降，不承诺利息或收益"},
+            {"code": "511360", "name": "短融 ETF", "type": "ETF", "role": "cash", "target_index_code": null, "market": "CN", "volatility_level": "low", "income_type": "cash_interest", "rebalance_band": 1, "weight": 2.0, "estimated_yield": 2.7, "estimated_return": 2.8, "distribution_months": {"3": 0.25, "6": 0.25, "9": 0.25, "12": 0.25}, "strategy_note": "短债/短融类现金增强，用于提高闲置资金票息但仍服务流动性", "risk_note": "不构成投资建议；短债也存在利率与流动性波动，不承诺分红、票息或收益"},
+            {"code": "512890", "name": "中证红利低波 ETF", "type": "ETF", "role": "dividend_income", "target_index_code": "H30269", "market": "CN", "volatility_level": "medium", "income_type": "dividend", "rebalance_band": 3, "weight": 14.0, "estimated_yield": 4.5, "estimated_return": 7.0, "distribution_months": {"7": 0.5, "12": 0.5}, "strategy_note": "红利现金流核心底盘，偏高股息与低波动筛选", "risk_note": "不构成投资建议；分红金额和频率取决于成分股与基金政策，不承诺分红或收益"},
+            {"code": "510880", "name": "华泰柏瑞红利 ETF", "type": "ETF", "role": "dividend_income", "target_index_code": "000015", "market": "CN", "volatility_level": "medium", "income_type": "dividend", "rebalance_band": 3, "weight": 6.0, "estimated_yield": 4.0, "estimated_return": 6.5, "distribution_months": {"12": 1.0}, "strategy_note": "上证红利类现金流补充，增加红利策略来源差异", "risk_note": "不构成投资建议；周期行业占比可能较高，分红和净值均会波动"},
+            {"code": "561960", "name": "央企股东回报 ETF", "type": "ETF", "role": "dividend_income", "target_index_code": "932039", "market": "CN", "volatility_level": "medium", "income_type": "dividend", "rebalance_band": 3, "weight": 5.0, "estimated_yield": 4.2, "estimated_return": 6.6, "distribution_months": {"6": 0.5, "12": 0.5}, "strategy_note": "央企红利/股东回报方向，分散传统红利行业集中度", "risk_note": "不构成投资建议；央企风格会受政策、行业景气和估值切换影响，不承诺分红"},
+            {"code": "513530", "name": "恒生港股通高股息低波 ETF", "type": "ETF", "role": "dividend_income", "target_index_code": "HSHDY", "market": "HK", "volatility_level": "high", "income_type": "dividend", "rebalance_band": 5, "weight": 10.0, "estimated_yield": 4.8, "estimated_return": 7.5, "distribution_months": {"7": 0.5, "12": 0.5}, "strategy_note": "港股红利资产，补充离岸市场与币种分散下的现金流来源", "risk_note": "不构成投资建议；港股波动、汇率、税费和分红政策均可能影响实际现金流"},
+            {"code": "510300", "name": "沪深300 ETF", "type": "ETF", "role": "domestic_beta", "target_index_code": "000300", "market": "CN", "volatility_level": "medium", "income_type": "capital_growth", "rebalance_band": 3, "weight": 8.0, "estimated_yield": 1.5, "estimated_return": 8.0, "distribution_months": {"10": 1.0}, "strategy_note": "国内核心大盘宽基，承担中国经济 beta 暴露", "risk_note": "不构成投资建议；宽基仍有系统性回撤，预期回报不等于承诺收益"},
+            {"code": "563360", "name": "中证A500 ETF", "type": "ETF", "role": "domestic_beta", "target_index_code": "000510", "market": "CN", "volatility_level": "medium", "income_type": "capital_growth", "rebalance_band": 3, "weight": 7.0, "estimated_yield": 1.2, "estimated_return": 8.2, "distribution_months": {}, "strategy_note": "A股新一代宽基代表，补充行业覆盖与核心资产广度", "risk_note": "不构成投资建议；指数历史较短，估值数据不足时保持基础计划，不承诺收益"},
+            {"code": "510500", "name": "中证500 ETF", "type": "ETF", "role": "domestic_beta", "target_index_code": "000905", "market": "CN", "volatility_level": "high", "income_type": "capital_growth", "rebalance_band": 4, "weight": 5.0, "estimated_yield": 0.8, "estimated_return": 8.8, "distribution_months": {}, "strategy_note": "中盘宽基 beta，补充沪深300以外的经济结构弹性", "risk_note": "不构成投资建议；中盘指数波动高于大盘，回撤和估值波动不可忽视"},
+            {"code": "588000", "name": "科创50 ETF", "type": "ETF", "role": "tech_growth", "target_index_code": "588000", "market": "CN", "volatility_level": "high", "income_type": "capital_growth", "rebalance_band": 5, "weight": 7.0, "estimated_yield": 0.2, "estimated_return": 10.0, "distribution_months": {}, "strategy_note": "国内硬科技成长弹性，仅承担组合增长期权，不作为稳定现金流来源", "risk_note": "不构成投资建议；科技资产高波动高回撤，估值和产业周期不确定，不承诺收益"},
+            {"code": "513500", "name": "标普500 ETF", "type": "ETF", "role": "overseas_broad", "target_index_code": "SPX", "market": "US", "volatility_level": "medium", "income_type": "capital_growth", "rebalance_band": 5, "weight": 12.0, "estimated_yield": 1.2, "estimated_return": 8.0, "distribution_months": {}, "strategy_note": "海外宽基，承担全球市场 beta 与美元资产分散，不等同于海外科技", "risk_note": "不构成投资建议；存在海外市场、汇率、额度、溢价和税费风险，不承诺收益"},
+            {"code": "513100", "name": "纳斯达克100 ETF", "type": "ETF", "role": "overseas_tech", "target_index_code": "NDX", "market": "US", "volatility_level": "high", "income_type": "capital_growth", "rebalance_band": 5, "weight": 5.0, "estimated_yield": 0.5, "estimated_return": 9.5, "distribution_months": {}, "strategy_note": "海外科技成长弹性，明确不等于海外宽基，需控制集中度", "risk_note": "不构成投资建议；美股科技估值、汇率和基金溢价均可能导致大幅波动"},
+            {"code": "518880", "name": "黄金 ETF", "type": "ETF", "role": "hedge", "target_index_code": null, "market": "Global", "volatility_level": "medium", "income_type": "hedge", "rebalance_band": 5, "weight": 6.0, "estimated_yield": 0.0, "estimated_return": 4.5, "distribution_months": {}, "strategy_note": "黄金对冲通胀、汇率和极端风险，不提供稳定票息", "risk_note": "不构成投资建议；黄金无分红，价格可能长时间震荡或回撤，不承诺收益"},
+            {"code": "511520", "name": "政金债券 ETF", "type": "ETF", "role": "bond_duration", "target_index_code": null, "market": "CN", "volatility_level": "low", "income_type": "cash_interest", "rebalance_band": 2, "weight": 4.0, "estimated_yield": 2.6, "estimated_return": 3.2, "distribution_months": {"6": 0.5, "12": 0.5}, "strategy_note": "中长期政金债/利率债久期资产，承担利率下行和风险事件对冲", "risk_note": "不构成投资建议；久期债会受利率上行影响产生净值回撤，不承诺票息或收益"},
+            {"code": "511010", "name": "国债 ETF", "type": "ETF", "role": "bond_duration", "target_index_code": null, "market": "CN", "volatility_level": "low", "income_type": "cash_interest", "rebalance_band": 2, "weight": 3.0, "estimated_yield": 2.3, "estimated_return": 3.0, "distribution_months": {"6": 0.5, "12": 0.5}, "strategy_note": "国债类利率债，和黄金一起承担组合防御与对冲角色", "risk_note": "不构成投资建议；债券基金净值会随利率变化波动，不承诺分红、票息或收益"},
+            {"code": "508099", "name": "REITs 现金流增强备选", "type": "REITs", "role": "cashflow_alt", "target_index_code": null, "market": "CN", "volatility_level": "high", "income_type": "alternative_income", "rebalance_band": 5, "weight": 2.0, "estimated_yield": 4.5, "estimated_return": 6.0, "distribution_months": {"4": 0.25, "7": 0.25, "10": 0.25, "12": 0.25}, "strategy_note": "可选现金流增强观察位，默认低权重，只有在理解底层资产后再小比例使用", "risk_note": "不构成投资建议；REITs 分红和估值高度依赖底层经营与流动性，不计入稳定现金流，不承诺分红或收益"}
         ];
 
         // 估值模拟历史曲线数据
@@ -2128,13 +2157,15 @@
             if (role === 'dividend_income') return 'H30269';
             if (role === 'domestic_beta') return '000300';
             if (role === 'tech_growth') return '588000';
+            if (role === 'overseas_broad') return 'SPX';
             if (role === 'overseas_tech') return 'NDX';
             return null;
         }
 
         function getDefaultRebalanceBand(role) {
             if (role === 'cash') return 1;
-            if (role === 'hedge') return 2;
+            if (role === 'bond_duration') return 2;
+            if (role === 'hedge') return 5;
             if (role === 'tech_growth' || role === 'overseas_tech' || role === 'overseas_broad') return 5;
             return 3;
         }
@@ -2348,9 +2379,21 @@
                 'overseas_broad': '🌐 海外宽基',
                 'overseas_tech': '🌐 海外科技',
                 'overseas_beta': '🌐 海外权益',
+                'bond_duration': '🧱 久期债券',
+                'cashflow_alt': '🏢 现金流增强',
                 'hedge': '🛡️ 黄金/债券'
             };
             return mapping[role] || role;
+        }
+
+        function isStableCashflowAsset(asset) {
+            return asset.income_type === 'dividend' || asset.income_type === 'cash_interest';
+        }
+
+        function getCashflowAttribute(asset) {
+            if (asset.role === 'hedge' || asset.income_type === 'hedge') return '对冲资产';
+            if (isStableCashflowAsset(asset)) return '稳定现金流';
+            return '非稳定现金流';
         }
 
         function getVolatilityLabel(level) {
@@ -2387,9 +2430,13 @@
             let role = 'dividend_income';
             if (indexCode === '000300') {
                 role = 'domestic_beta';
+            } else if (indexCode === '000510' || indexCode === '000905') {
+                role = 'domestic_beta';
             } else if (indexCode === '588000') {
                 role = 'tech_growth';
-            } else if (indexCode === '513100') {
+            } else if (indexCode === 'SPX') {
+                role = 'overseas_broad';
+            } else if (indexCode === 'NDX') {
                 role = 'overseas_tech';
             }
 
@@ -2496,6 +2543,7 @@
                         </td>
                         <td><span class="role-badge badge-${asset.role}">${getRoleLabel(asset.role)}</span></td>
                         <td><span style="font-size:0.85rem">${asset.market} / ${getVolatilityLabel(asset.volatility_level)}</span></td>
+                        <td><span id="t1_cashflow_${code}" style="font-size:0.82rem;font-weight:600;">${getCashflowAttribute(asset)}</span></td>
                         <td>
                             <input class="weight-input-field" type="number" id="w_val_${code}" step="0.5" min="0" max="100" value="${asset.weight}" oninput="userInputsChanged()">
                         </td>
@@ -2582,40 +2630,58 @@
             // 预设比例
             const presets = {
                 conservative: {
-                    '511880': 15.0,
-                    '512890': 30.0,
-                    '515450': 15.0,
-                    '510880': 10.0,
-                    '513530': 10.0,
-                    '510300': 5.0,
-                    '588000': 0.0,
+                    '511880': 7.0,
+                    '511360': 8.0,
+                    '512890': 18.0,
+                    '510880': 8.0,
+                    '561960': 6.0,
+                    '513530': 8.0,
+                    '510300': 8.0,
+                    '563360': 5.0,
+                    '510500': 2.0,
+                    '588000': 2.0,
+                    '513500': 8.0,
                     '513100': 0.0,
-                    '518880': 5.0,
-                    '511360': 10.0
+                    '518880': 8.0,
+                    '511520': 7.0,
+                    '511010': 5.0,
+                    '508099': 0.0
                 },
                 balanced: {
-                    '511880': 5.0,
-                    '512890': 20.0,
-                    '515450': 10.0,
-                    '510880': 10.0,
+                    '511880': 4.0,
+                    '511360': 2.0,
+                    '512890': 14.0,
+                    '510880': 6.0,
+                    '561960': 5.0,
                     '513530': 10.0,
-                    '510300': 15.0,
-                    '588000': 10.0,
-                    '513100': 10.0,
-                    '518880': 5.0,
-                    '511360': 5.0
+                    '510300': 8.0,
+                    '563360': 7.0,
+                    '510500': 5.0,
+                    '588000': 7.0,
+                    '513500': 12.0,
+                    '513100': 5.0,
+                    '518880': 6.0,
+                    '511520': 4.0,
+                    '511010': 3.0,
+                    '508099': 2.0
                 },
                 aggressive: {
-                    '511880': 0.0,
+                    '511880': 4.0,
+                    '511360': 1.0,
                     '512890': 10.0,
-                    '515450': 5.0,
                     '510880': 5.0,
-                    '513530': 5.0,
-                    '510300': 20.0,
-                    '588000': 20.0,
-                    '513100': 20.0,
-                    '518880': 10.0,
-                    '511360': 5.0
+                    '561960': 3.0,
+                    '513530': 7.0,
+                    '510300': 10.0,
+                    '563360': 9.0,
+                    '510500': 6.0,
+                    '588000': 15.0,
+                    '513500': 12.0,
+                    '513100': 10.0,
+                    '518880': 5.0,
+                    '511520': 2.0,
+                    '511010': 1.0,
+                    '508099': 0.0
                 }
             };
 
@@ -2694,7 +2760,14 @@
                 const detail = res.assetDetails.find(d => d.code === code);
                 if (detail) {
                     document.getElementById(`t1_invest_${code}`).innerText = `${detail.allocatedAmt.toFixed(2)} 万元`;
-                    document.getElementById(`t1_div_${code}`).innerText = `¥${Math.round(detail.expectedAnnualDiv).toLocaleString()}`;
+                    const divCell = document.getElementById(`t1_div_${code}`);
+                    divCell.innerText = detail.stableCashflow ? `¥${Math.round(detail.expectedAnnualDiv).toLocaleString()}` : '不计入';
+                    divCell.style.color = detail.stableCashflow ? 'var(--text-primary)' : 'var(--text-secondary)';
+                    const attrCell = document.getElementById(`t1_cashflow_${code}`);
+                    if (attrCell) {
+                        attrCell.innerText = getCashflowAttribute(asset);
+                        attrCell.style.color = detail.stableCashflow ? 'var(--accent-emerald)' : (asset.role === 'hedge' ? 'var(--text-secondary)' : 'var(--accent-orange)');
+                    }
                 }
             });
 
@@ -2706,6 +2779,7 @@
             } else {
                 warningEl.classList.add('hidden');
             }
+            renderConcentrationAlerts(res.assetDetails);
 
             // 输出指标卡片
             document.getElementById('t1-blended-yield').innerText = `${(res.blendedCashYield).toFixed(2)}%`;
@@ -2878,7 +2952,7 @@
                     const targetIndex = asset.target_index_code || getDefaultTargetIndexCode(asset.role);
                     const dcaRes = targetIndex ? portfolioEngine.getDcaAdjustment(rawValuationHistoryList, targetIndex, asset.role) : {
                         factor: 1.0,
-                        valuationZone: "现金/对冲资产不做估值择时",
+                        valuationZone: "数据不足，保持基础计划",
                         hasHistory: false
                     };
                     const amtWan = baseDca * (asset.weight / 100) * dcaRes.factor;
@@ -3036,10 +3110,58 @@
         }
 
         // 占比饼图
+        function aggregateWeightsBy(dimension) {
+            const grouped = {};
+            Object.keys(state.assets).forEach(code => {
+                const asset = state.assets[code];
+                const key = dimension === 'market' ? (asset.market || 'Unknown') : getRoleLabel(asset.role);
+                grouped[key] = (grouped[key] || 0) + (parseFloat(asset.weight) || 0);
+            });
+            return grouped;
+        }
+
+        function renderConcentrationAlerts(assetDetails) {
+            const alertEl = document.getElementById('t1-concentration-alerts');
+            if (!alertEl || !assetDetails) return;
+
+            const roleWeights = {};
+            const marketWeights = {};
+            let techWeight = 0.0;
+            let dividendWeight = 0.0;
+
+            assetDetails.forEach(detail => {
+                roleWeights[detail.role] = (roleWeights[detail.role] || 0) + detail.weight;
+                marketWeights[detail.market] = (marketWeights[detail.market] || 0) + detail.weight;
+                if (detail.role === 'tech_growth' || detail.role === 'overseas_tech') techWeight += detail.weight;
+                if (detail.role === 'dividend_income') dividendWeight += detail.weight;
+            });
+
+            const messages = [];
+            Object.entries(roleWeights).forEach(([role, weight]) => {
+                if (weight > 45) messages.push(`单一角色 ${getRoleLabel(role)} 已达 ${weight.toFixed(1)}%，建议降低角色集中度。`);
+            });
+            Object.entries(marketWeights).forEach(([market, weight]) => {
+                if (weight > 70) messages.push(`单一市场 ${market} 已达 ${weight.toFixed(1)}%，建议增加跨市场和币种分散。`);
+            });
+            if (techWeight > 25) messages.push(`科技相关资产已达 ${techWeight.toFixed(1)}%，高波动成长仓位需要受家庭体检风险约束。`);
+            if (dividendWeight > 45) messages.push(`红利类资产已达 ${dividendWeight.toFixed(1)}%，现金流底盘过厚，可能牺牲增长弹性。`);
+
+            if (messages.length === 0) {
+                alertEl.className = 'alert-banner alert-success';
+                alertEl.innerHTML = '<strong>分散度检查：</strong> 当前默认组合未触发角色、市场、科技或红利集中度阈值。测算仅作资产配置学习，不构成投资建议，不承诺分红或收益。';
+            } else {
+                alertEl.className = 'alert-banner alert-warning';
+                alertEl.innerHTML = `<strong>集中度提示：</strong><br>${messages.map(msg => `• ${msg}`).join('<br>')}<br><span style="display:block;margin-top:5px;">所有提示仅作配置风险边界参考，不构成投资建议，不承诺分红或收益。</span>`;
+            }
+        }
+
         function renderTab1PieChart() {
+            const viewSelect = document.getElementById('t1-pie-view');
+            const dimension = viewSelect ? viewSelect.value : 'role';
+            const grouped = aggregateWeightsBy(dimension);
             const data = [{
-                values: Object.keys(state.assets).map(code => state.assets[code].weight),
-                labels: Object.keys(state.assets).map(code => state.assets[code].name),
+                values: Object.values(grouped),
+                labels: Object.keys(grouped),
                 type: 'pie',
                 hole: 0.4,
                 marker: {
@@ -3174,12 +3296,16 @@
                     overseas_beta: parseFloat(document.getElementById('stress-drawdown-overseas').value),
                     overseas_broad: parseFloat(document.getElementById('stress-drawdown-overseas').value),
                     overseas_tech: parseFloat(document.getElementById('stress-drawdown-overseas').value),
-                    hedge: parseFloat(document.getElementById('stress-drawdown-hedge').value)
+                    hedge: parseFloat(document.getElementById('stress-drawdown-hedge').value),
+                    bond_duration: parseFloat(document.getElementById('stress-drawdown-hedge').value),
+                    cashflow_alt: parseFloat(document.getElementById('stress-drawdown-tech').value)
                 },
                 dividendDrop: {
                     cash: parseFloat(document.getElementById('stress-divdrop-cash').value),
                     dividend_income: parseFloat(document.getElementById('stress-divdrop-dividend').value),
                     hedge: parseFloat(document.getElementById('stress-divdrop-hedge').value),
+                    bond_duration: parseFloat(document.getElementById('stress-divdrop-hedge').value),
+                    cashflow_alt: 100,
                     domestic_beta: 0,
                     tech_growth: 0,
                     overseas_beta: 0,

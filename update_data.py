@@ -14,20 +14,30 @@ try:
     SEC_IDS = [f"sh{item['code']}" for item in assets_data]
 except Exception as e:
     print("Error loading assets.json, fallback to hardcoded list:", e)
-    SEC_IDS = ['sh512890', 'sh515450', 'sh510880', 'sh515080', 'sh513530', 'sh511360', 'sh518880']
+    SEC_IDS = [
+        'sh511880', 'sh511360', 'sh512890', 'sh510880', 'sh561960', 'sh513530',
+        'sh510300', 'sh563360', 'sh510500', 'sh588000', 'sh513500', 'sh513100',
+        'sh518880', 'sh511520', 'sh511010', 'sh508099'
+    ]
 
 # ETF基准参数 (基准价格, 基准股息率)，用于根据最新价格反算实时股息率
 ETF_BASE = {
     '511880': {'base_price': 100.0, 'base_yield': 1.8},
+    '511360': {'base_price': 113.6, 'base_yield': 2.7},
     '512890': {'base_price': 1.17, 'base_yield': 4.5},
-    '515450': {'base_price': 1.43, 'base_yield': 4.2},
     '510880': {'base_price': 3.20, 'base_yield': 4.0},
+    '561960': {'base_price': 1.05, 'base_yield': 4.2},
     '513530': {'base_price': 1.61, 'base_yield': 4.8},
     '510300': {'base_price': 3.50, 'base_yield': 1.5},
+    '563360': {'base_price': 1.00, 'base_yield': 1.2},
+    '510500': {'base_price': 6.00, 'base_yield': 0.8},
     '588000': {'base_price': 0.80, 'base_yield': 0.2},
+    '513500': {'base_price': 2.20, 'base_yield': 1.2},
     '513100': {'base_price': 1.30, 'base_yield': 0.5},
     '518880': {'base_price': 4.50, 'base_yield': 0.0},
-    '511360': {'base_price': 108.0, 'base_yield': 2.5}
+    '511520': {'base_price': 110.0, 'base_yield': 2.6},
+    '511010': {'base_price': 125.0, 'base_yield': 2.3},
+    '508099': {'base_price': 3.00, 'base_yield': 4.5}
 }
 
 url = f"http://qt.gtimg.cn/q={','.join(SEC_IDS)}"

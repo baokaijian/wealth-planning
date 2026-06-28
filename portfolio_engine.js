@@ -5,6 +5,10 @@
  */
 
 const portfolioEngine = {
+    isStableCashflowAsset(asset) {
+        return asset.income_type === 'dividend' || asset.income_type === 'cash_interest';
+    },
+
     // 1. 组合收益测算
     calculatePortfolio(weights, assets, principal, bufferSeed, moneyMarketRate) {
         const investPrincipal = Math.max(principal - bufferSeed, 0.0);
@@ -27,7 +31,8 @@ const portfolioEngine = {
 
             // 分配金额与预计年化/月化分红
             const allocatedAmt = investPrincipal * (weight / 100.0);
-            const expectedAnnualDiv = allocatedAmt * (currentYield / 100.0) * 10000; // 元
+            const stableCashflow = this.isStableCashflowAsset(asset);
+            const expectedAnnualDiv = stableCashflow ? allocatedAmt * (currentYield / 100.0) * 10000 : 0.0; // 元
 
             assetDetails.push({
                 code: code,
@@ -42,6 +47,7 @@ const portfolioEngine = {
                 estimated_return: estReturn,
                 target_index_code: asset.target_index_code,
                 rebalance_band: asset.rebalance_band || 3,
+                stableCashflow,
                 allocatedAmt: allocatedAmt,
                 expectedAnnualDiv: expectedAnnualDiv,
                 strategy_note: asset.strategy_note,
@@ -49,7 +55,7 @@ const portfolioEngine = {
             });
 
             // 收益率累加分摊到各个口径
-            if (asset.income_type === 'dividend' || asset.income_type === 'cash_interest') {
+            if (stableCashflow) {
                 blendedCashYield += (weight / 100.0) * currentYield;
             }
             if (asset.income_type === 'capital_growth') {
@@ -101,7 +107,7 @@ const portfolioEngine = {
                 const weight = parseFloat(weights[code]) || 0.0;
                 const currentYield = asset.yield !== undefined ? asset.yield : asset.estimated_yield;
 
-                if (asset.income_type === 'dividend' || asset.income_type === 'cash_interest') {
+                if (this.isStableCashflowAsset(asset)) {
                     const distMonths = asset.distribution_months || asset.months || {};
                     const monthDistRatio = distMonths[cMonth.toString()] || 0.0;
                     if (monthDistRatio > 0.0) {
@@ -423,7 +429,7 @@ const portfolioEngine = {
                 const weight = parseFloat(weights[code]) || 0.0;
                 const currentYield = asset.yield !== undefined ? asset.yield : asset.estimated_yield;
 
-                if (asset.income_type === 'dividend' || asset.income_type === 'cash_interest') {
+                if (this.isStableCashflowAsset(asset)) {
                     const distMonths = asset.distribution_months || asset.months || {};
                     const monthDistRatio = distMonths[cMonth.toString()] || 0.0;
                     if (monthDistRatio > 0.0) {

@@ -171,18 +171,24 @@ if assets_list:
         }
 else:
     # 备用硬编码以防万一
-    fallback_raw = [
-        {"code": "511880", "name": "银华日利货币 ETF", "type": "ETF", "role": "cash", "market": "CN", "volatility_level": "low", "income_type": "cash_interest", "weight": 5.0, "estimated_yield": 1.8, "estimated_return": 1.8, "distribution_months": {"1":0.083, "2":0.083, "3":0.083, "4":0.083, "5":0.083, "6":0.083, "7":0.083, "8":0.083, "9":0.083, "10":0.083, "11":0.083, "12":0.083}, "strategy_note": "场内高流动性货币基金，等同现金，平滑日常支取", "risk_note": "收益率随市场降息下行风险"},
-        {"code": "512890", "name": "中证红利低波 ETF", "type": "ETF", "role": "dividend_income", "market": "CN", "volatility_level": "medium", "income_type": "dividend", "weight": 20.0, "estimated_yield": 4.5, "estimated_return": 7.0, "distribution_months": {"7":0.5, "12":0.5}, "strategy_note": "精选高股息低波红利股，适合核心现金流防御", "risk_note": "A股市场波动风险及分红不及预期风险"},
-        {"code": "515450", "name": "标普大盘红利低波 ETF", "type": "ETF", "role": "dividend_income", "market": "CN", "volatility_level": "medium", "income_type": "dividend", "weight": 10.0, "estimated_yield": 4.2, "estimated_return": 6.8, "distribution_months": {"7":1.0}, "strategy_note": "标普红利低波筛选，大盘蓝筹红利代表", "risk_note": "红利税变动及标的股分红变动风险"},
-        {"code": "510880", "name": "华泰柏瑞红利 ETF", "type": "ETF", "role": "dividend_income", "market": "CN", "volatility_level": "medium", "income_type": "dividend", "weight": 10.0, "estimated_yield": 4.0, "estimated_return": 6.5, "distribution_months": {"12":1.0}, "strategy_note": "上证红利老牌ETF，周期红利代表", "risk_note": "行业集中度偏高，钢铁煤炭等周期股占比波动"},
-        {"code": "513530", "name": "恒生红利低波 ETF", "type": "ETF", "role": "dividend_income", "market": "HK", "volatility_level": "high", "income_type": "dividend", "weight": 10.0, "estimated_yield": 4.8, "estimated_return": 7.5, "distribution_months": {"7":0.5, "12":0.5}, "strategy_note": "获取港股低估值红利，离岸派息配置", "risk_note": "港股通红利税（20%）扣减及汇率波动风险"},
-        {"code": "510300", "name": "华泰柏瑞沪深300 ETF", "type": "ETF", "role": "domestic_beta", "market": "CN", "volatility_level": "medium", "income_type": "capital_growth", "weight": 15.0, "estimated_yield": 1.5, "estimated_return": 8.0, "distribution_months": {"10":1.0}, "strategy_note": "获取中国经济长期核心Beta增值", "risk_note": "国内宏观经济系统性下行风险"},
-        {"code": "588000", "name": "华夏科创50 ETF", "type": "ETF", "role": "tech_growth", "market": "CN", "volatility_level": "high", "income_type": "capital_growth", "weight": 10.0, "estimated_yield": 0.2, "estimated_return": 10.0, "distribution_months": {"12":1.0}, "strategy_note": "聚焦国内硬科技成长标的，获取弹性成长溢价", "risk_note": "科技股高估值回撤及高波动风险"},
-        {"code": "513100", "name": "易方达纳斯达克100 ETF", "type": "ETF", "role": "overseas_tech", "target_index_code": "NDX", "market": "US", "volatility_level": "high", "income_type": "capital_growth", "rebalance_band": 5, "weight": 10.0, "estimated_yield": 0.5, "estimated_return": 9.5, "distribution_months": {"12":1.0}, "strategy_note": "海外科技成长资产，不等同海外宽基", "risk_note": "海外估值高位回撤及汇率波动风险"},
-        {"code": "518880", "name": "华安黄金 ETF", "type": "ETF", "role": "hedge", "market": "Global", "volatility_level": "medium", "income_type": "hedge", "weight": 5.0, "estimated_yield": 0.0, "estimated_return": 4.5, "distribution_months": {}, "strategy_note": "避险商品，对抗通胀及地缘极端危机", "risk_note": "黄金无利息且金价高位价格波动风险"},
-        {"code": "511360", "name": "中债信用债 ETF", "type": "ETF", "role": "hedge", "market": "CN", "volatility_level": "low", "income_type": "cash_interest", "weight": 5.0, "estimated_yield": 2.5, "estimated_return": 3.5, "distribution_months": {"6":0.5, "12":0.5}, "strategy_note": "低波动债基，提供平稳票息收入和防御防线", "risk_note": "信用利差走阔及市场降息波动风险"}
-    ]
+    fallback_raw = json.loads("""[
+      {"code": "511880", "name": "银华日利货币 ETF", "type": "ETF", "role": "cash", "target_index_code": null, "market": "CN", "volatility_level": "low", "income_type": "cash_interest", "rebalance_band": 1, "weight": 4.0, "estimated_yield": 1.8, "estimated_return": 1.8, "distribution_months": {"1": 0.083, "2": 0.083, "3": 0.083, "4": 0.083, "5": 0.083, "6": 0.083, "7": 0.083, "8": 0.083, "9": 0.083, "10": 0.083, "11": 0.083, "12": 0.083}, "strategy_note": "现金类底仓，承担日常流动性与避免被迫卖出的缓冲功能", "risk_note": "不构成投资建议；货币市场收益率会随利率下行而下降，不承诺利息或收益"},
+      {"code": "511360", "name": "短融 ETF", "type": "ETF", "role": "cash", "target_index_code": null, "market": "CN", "volatility_level": "low", "income_type": "cash_interest", "rebalance_band": 1, "weight": 2.0, "estimated_yield": 2.7, "estimated_return": 2.8, "distribution_months": {"3": 0.25, "6": 0.25, "9": 0.25, "12": 0.25}, "strategy_note": "短债/短融类现金增强，用于提高闲置资金票息但仍服务流动性", "risk_note": "不构成投资建议；短债也存在利率与流动性波动，不承诺分红、票息或收益"},
+      {"code": "512890", "name": "中证红利低波 ETF", "type": "ETF", "role": "dividend_income", "target_index_code": "H30269", "market": "CN", "volatility_level": "medium", "income_type": "dividend", "rebalance_band": 3, "weight": 14.0, "estimated_yield": 4.5, "estimated_return": 7.0, "distribution_months": {"7": 0.5, "12": 0.5}, "strategy_note": "红利现金流核心底盘，偏高股息与低波动筛选", "risk_note": "不构成投资建议；分红金额和频率取决于成分股与基金政策，不承诺分红或收益"},
+      {"code": "510880", "name": "华泰柏瑞红利 ETF", "type": "ETF", "role": "dividend_income", "target_index_code": "000015", "market": "CN", "volatility_level": "medium", "income_type": "dividend", "rebalance_band": 3, "weight": 6.0, "estimated_yield": 4.0, "estimated_return": 6.5, "distribution_months": {"12": 1.0}, "strategy_note": "上证红利类现金流补充，增加红利策略来源差异", "risk_note": "不构成投资建议；周期行业占比可能较高，分红和净值均会波动"},
+      {"code": "561960", "name": "央企股东回报 ETF", "type": "ETF", "role": "dividend_income", "target_index_code": "932039", "market": "CN", "volatility_level": "medium", "income_type": "dividend", "rebalance_band": 3, "weight": 5.0, "estimated_yield": 4.2, "estimated_return": 6.6, "distribution_months": {"6": 0.5, "12": 0.5}, "strategy_note": "央企红利/股东回报方向，分散传统红利行业集中度", "risk_note": "不构成投资建议；央企风格会受政策、行业景气和估值切换影响，不承诺分红"},
+      {"code": "513530", "name": "恒生港股通高股息低波 ETF", "type": "ETF", "role": "dividend_income", "target_index_code": "HSHDY", "market": "HK", "volatility_level": "high", "income_type": "dividend", "rebalance_band": 5, "weight": 10.0, "estimated_yield": 4.8, "estimated_return": 7.5, "distribution_months": {"7": 0.5, "12": 0.5}, "strategy_note": "港股红利资产，补充离岸市场与币种分散下的现金流来源", "risk_note": "不构成投资建议；港股波动、汇率、税费和分红政策均可能影响实际现金流"},
+      {"code": "510300", "name": "沪深300 ETF", "type": "ETF", "role": "domestic_beta", "target_index_code": "000300", "market": "CN", "volatility_level": "medium", "income_type": "capital_growth", "rebalance_band": 3, "weight": 8.0, "estimated_yield": 1.5, "estimated_return": 8.0, "distribution_months": {"10": 1.0}, "strategy_note": "国内核心大盘宽基，承担中国经济 beta 暴露", "risk_note": "不构成投资建议；宽基仍有系统性回撤，预期回报不等于承诺收益"},
+      {"code": "563360", "name": "中证A500 ETF", "type": "ETF", "role": "domestic_beta", "target_index_code": "000510", "market": "CN", "volatility_level": "medium", "income_type": "capital_growth", "rebalance_band": 3, "weight": 7.0, "estimated_yield": 1.2, "estimated_return": 8.2, "distribution_months": {}, "strategy_note": "A股新一代宽基代表，补充行业覆盖与核心资产广度", "risk_note": "不构成投资建议；指数历史较短，估值数据不足时保持基础计划，不承诺收益"},
+      {"code": "510500", "name": "中证500 ETF", "type": "ETF", "role": "domestic_beta", "target_index_code": "000905", "market": "CN", "volatility_level": "high", "income_type": "capital_growth", "rebalance_band": 4, "weight": 5.0, "estimated_yield": 0.8, "estimated_return": 8.8, "distribution_months": {}, "strategy_note": "中盘宽基 beta，补充沪深300以外的经济结构弹性", "risk_note": "不构成投资建议；中盘指数波动高于大盘，回撤和估值波动不可忽视"},
+      {"code": "588000", "name": "科创50 ETF", "type": "ETF", "role": "tech_growth", "target_index_code": "588000", "market": "CN", "volatility_level": "high", "income_type": "capital_growth", "rebalance_band": 5, "weight": 7.0, "estimated_yield": 0.2, "estimated_return": 10.0, "distribution_months": {}, "strategy_note": "国内硬科技成长弹性，仅承担组合增长期权，不作为稳定现金流来源", "risk_note": "不构成投资建议；科技资产高波动高回撤，估值和产业周期不确定，不承诺收益"},
+      {"code": "513500", "name": "标普500 ETF", "type": "ETF", "role": "overseas_broad", "target_index_code": "SPX", "market": "US", "volatility_level": "medium", "income_type": "capital_growth", "rebalance_band": 5, "weight": 12.0, "estimated_yield": 1.2, "estimated_return": 8.0, "distribution_months": {}, "strategy_note": "海外宽基，承担全球市场 beta 与美元资产分散，不等同于海外科技", "risk_note": "不构成投资建议；存在海外市场、汇率、额度、溢价和税费风险，不承诺收益"},
+      {"code": "513100", "name": "纳斯达克100 ETF", "type": "ETF", "role": "overseas_tech", "target_index_code": "NDX", "market": "US", "volatility_level": "high", "income_type": "capital_growth", "rebalance_band": 5, "weight": 5.0, "estimated_yield": 0.5, "estimated_return": 9.5, "distribution_months": {}, "strategy_note": "海外科技成长弹性，明确不等于海外宽基，需控制集中度", "risk_note": "不构成投资建议；美股科技估值、汇率和基金溢价均可能导致大幅波动"},
+      {"code": "518880", "name": "黄金 ETF", "type": "ETF", "role": "hedge", "target_index_code": null, "market": "Global", "volatility_level": "medium", "income_type": "hedge", "rebalance_band": 5, "weight": 6.0, "estimated_yield": 0.0, "estimated_return": 4.5, "distribution_months": {}, "strategy_note": "黄金对冲通胀、汇率和极端风险，不提供稳定票息", "risk_note": "不构成投资建议；黄金无分红，价格可能长时间震荡或回撤，不承诺收益"},
+      {"code": "511520", "name": "政金债券 ETF", "type": "ETF", "role": "bond_duration", "target_index_code": null, "market": "CN", "volatility_level": "low", "income_type": "cash_interest", "rebalance_band": 2, "weight": 4.0, "estimated_yield": 2.6, "estimated_return": 3.2, "distribution_months": {"6": 0.5, "12": 0.5}, "strategy_note": "中长期政金债/利率债久期资产，承担利率下行和风险事件对冲", "risk_note": "不构成投资建议；久期债会受利率上行影响产生净值回撤，不承诺票息或收益"},
+      {"code": "511010", "name": "国债 ETF", "type": "ETF", "role": "bond_duration", "target_index_code": null, "market": "CN", "volatility_level": "low", "income_type": "cash_interest", "rebalance_band": 2, "weight": 3.0, "estimated_yield": 2.3, "estimated_return": 3.0, "distribution_months": {"6": 0.5, "12": 0.5}, "strategy_note": "国债类利率债，和黄金一起承担组合防御与对冲角色", "risk_note": "不构成投资建议；债券基金净值会随利率变化波动，不承诺分红、票息或收益"},
+      {"code": "508099", "name": "REITs 现金流增强备选", "type": "REITs", "role": "cashflow_alt", "target_index_code": null, "market": "CN", "volatility_level": "high", "income_type": "alternative_income", "rebalance_band": 5, "weight": 2.0, "estimated_yield": 4.5, "estimated_return": 6.0, "distribution_months": {"4": 0.25, "7": 0.25, "10": 0.25, "12": 0.25}, "strategy_note": "可选现金流增强观察位，默认低权重，只有在理解底层资产后再小比例使用", "risk_note": "不构成投资建议；REITs 分红和估值高度依赖底层经营与流动性，不计入稳定现金流，不承诺分红或收益"}
+    ]""")
     for item in fallback_raw:
         code = item['code']
         months_int = {int(k): v for k, v in item['distribution_months'].items()}
@@ -329,40 +335,58 @@ if 'family_data' not in st.session_state:
 # ==========================================
 PRESETS = {
     "🛡️ 保守型现金流策略": {
-        '511880': 15.0,
-        '512890': 30.0,
-        '515450': 15.0,
-        '510880': 10.0,
-        '513530': 10.0,
-        '510300': 5.0,
-        '588000': 0.0,
+        '511880': 7.0,
+        '511360': 8.0,
+        '512890': 18.0,
+        '510880': 8.0,
+        '561960': 6.0,
+        '513530': 8.0,
+        '510300': 8.0,
+        '563360': 5.0,
+        '510500': 2.0,
+        '588000': 2.0,
+        '513500': 8.0,
         '513100': 0.0,
-        '518880': 5.0,
-        '511360': 10.0
+        '518880': 8.0,
+        '511520': 7.0,
+        '511010': 5.0,
+        '508099': 0.0
     },
     "⚖️ 均衡型增长配置": {
-        '511880': 5.0,
-        '512890': 20.0,
-        '515450': 10.0,
-        '510880': 10.0,
+        '511880': 4.0,
+        '511360': 2.0,
+        '512890': 14.0,
+        '510880': 6.0,
+        '561960': 5.0,
         '513530': 10.0,
-        '510300': 15.0,
-        '588000': 10.0,
-        '513100': 10.0,
-        '518880': 5.0,
-        '511360': 5.0
+        '510300': 8.0,
+        '563360': 7.0,
+        '510500': 5.0,
+        '588000': 7.0,
+        '513500': 12.0,
+        '513100': 5.0,
+        '518880': 6.0,
+        '511520': 4.0,
+        '511010': 3.0,
+        '508099': 2.0
     },
     "🚀 积极型成长突破": {
-        '511880': 0.0,
+        '511880': 4.0,
+        '511360': 1.0,
         '512890': 10.0,
-        '515450': 5.0,
         '510880': 5.0,
-        '513530': 5.0,
-        '510300': 20.0,
-        '588000': 20.0,
-        '513100': 20.0,
-        '518880': 10.0,
-        '511360': 5.0
+        '561960': 3.0,
+        '513530': 7.0,
+        '510300': 10.0,
+        '563360': 9.0,
+        '510500': 6.0,
+        '588000': 15.0,
+        '513500': 12.0,
+        '513100': 10.0,
+        '518880': 5.0,
+        '511520': 2.0,
+        '511010': 1.0,
+        '508099': 0.0
     }
 }
 
@@ -736,6 +760,7 @@ if menu == "1. 家庭资产体检与配置建议":
 elif menu == "2. 资产配置与股息测算看板":
     st.markdown("<h1 style='color:#102033; margin-bottom:10px;'>📊 资产配置与股息测算看板</h1>", unsafe_allow_html=True)
     st.write(f"当前可用总本金 **{principal:.1f}** 万元，其中已调拨 **{buffer_seed:.1f}** 万元进入初始缓冲池，实际进入组合配置的可投资本金为 **{invest_principal:.1f}** 万元。")
+    st.info("口径与免责：本看板仅用于 ETF/指数基金/大类资产配置测算，不构成投资建议，不推荐单只股票，不承诺任何分红、票息或收益。成长资产、黄金和 REITs 备选不计入稳定现金流。")
     
     st.markdown("### 🛠️ 组合权重与股息率调整")
     
@@ -837,16 +862,52 @@ elif menu == "2. 资产配置与股息测算看板":
     # 饼图与明细表格
     st.markdown("### 📋 投资明细与比重分布")
     
-    # 资产角色的分布统计
+    def cashflow_attribute(detail):
+        if detail.get('role') == 'hedge' or detail.get('income_type') == 'hedge':
+            return '对冲资产'
+        if detail.get('stableCashflow'):
+            return '稳定现金流'
+        return '非稳定现金流'
+
+    # 资产角色/市场的分布统计
     role_weights = {}
+    market_weights = {}
+    tech_weight = 0.0
+    dividend_weight = 0.0
     for detail in res['assetDetails']:
         role = detail['role']
         role_weights[role] = role_weights.get(role, 0.0) + detail['weight']
+        market = detail['market']
+        market_weights[market] = market_weights.get(market, 0.0) + detail['weight']
+        if role in ['tech_growth', 'overseas_tech']:
+            tech_weight += detail['weight']
+        if role == 'dividend_income':
+            dividend_weight += detail['weight']
+
+    concentration_msgs = []
+    for role, weight in role_weights.items():
+        if weight > 45:
+            concentration_msgs.append(f"单一角色 {role} 已达 {weight:.1f}%，建议降低角色集中度。")
+    for market, weight in market_weights.items():
+        if weight > 70:
+            concentration_msgs.append(f"单一市场 {market} 已达 {weight:.1f}%，建议增加市场和币种分散。")
+    if tech_weight > 25:
+        concentration_msgs.append(f"科技相关资产已达 {tech_weight:.1f}%，高波动仓位需要受家庭体检风险约束。")
+    if dividend_weight > 45:
+        concentration_msgs.append(f"红利类资产已达 {dividend_weight:.1f}%，现金流底盘过厚，增长弹性不足。")
+
+    if concentration_msgs:
+        st.warning("集中度提示：" + "；".join(concentration_msgs) + "。所有提示仅作配置风险边界参考，不构成投资建议，不承诺分红或收益。")
+    else:
+        st.success("分散度检查：当前组合未触发角色、市场、科技或红利集中度阈值。测算不构成投资建议，不承诺分红或收益。")
+
+    pie_view = st.radio("饼图视图", ["按资产角色", "按市场"], horizontal=True)
+    pie_weights = role_weights if pie_view == "按资产角色" else market_weights
     
     fig_role = px.pie(
-        names=list(role_weights.keys()),
-        values=list(role_weights.values()),
-        title="组合资产角色分布",
+        names=list(pie_weights.keys()),
+        values=list(pie_weights.values()),
+        title="组合资产角色分布" if pie_view == "按资产角色" else "组合市场分布",
         color_discrete_sequence=px.colors.qualitative.Bold
     )
     fig_role.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='#102033', height=280)
@@ -860,10 +921,11 @@ elif menu == "2. 资产配置与股息测算看板":
             '标的名称': d['name'],
             '配置角色': d['role'],
             '市场/波动': f"{d['market']} / {d['volatility_level']}",
+            '现金流属性': cashflow_attribute(d),
             '权重 (%)': f"{d['weight']:.1f}%",
             '分配金额': f"{d['allocatedAmt']:.2f} 万元",
             '股息/预期回报': f"{d['yield']:.2f}% / {d['estimated_return']:.2f}%",
-            '预计年分红/利息': f"¥{d['expectedAnnualDiv']:,.0f}",
+            '预计年分红/利息': f"¥{d['expectedAnnualDiv']:,.0f}" if d['stableCashflow'] else "不计入",
             '定位与主要风险': f"🎯 {d['strategy_note']}  ⚠️ {d['risk_note']}"
         })
     st.table(pd.DataFrame(table_rows))
@@ -1045,11 +1107,20 @@ elif menu == "4. 估值温度计与测算工具":
     # 估值指数切换
     index_code = st.selectbox(
         "请选择要进行定投校准的指数标的",
-        ["H30269 (中证红利低波)", "000300 (沪深300)"],
+        ["H30269 (中证红利低波)", "000300 (沪深300)", "000510 (中证A500)", "000905 (中证500)", "588000 (科创50)", "SPX (标普500)", "NDX (纳斯达克100)"],
         index=0
     )
     index_clean = index_code.split(" ")[0]
-    role_to_use = 'dividend_income' if index_clean == 'H30269' else 'domestic_beta'
+    if index_clean == 'H30269':
+        role_to_use = 'dividend_income'
+    elif index_clean == 'SPX':
+        role_to_use = 'overseas_broad'
+    elif index_clean == 'NDX':
+        role_to_use = 'overseas_tech'
+    elif index_clean == '588000':
+        role_to_use = 'tech_growth'
+    else:
+        role_to_use = 'domestic_beta'
 
     # 加载估值历史
     history_file = "valuation_history.json"
@@ -1128,6 +1199,7 @@ elif menu == "4. 估值温度计与测算工具":
             'dividend_income': 'H30269',
             'domestic_beta': '000300',
             'tech_growth': '588000',
+            'overseas_broad': 'SPX',
             'overseas_tech': 'NDX'
         }.get(role)
 
@@ -1140,7 +1212,7 @@ elif menu == "4. 估值温度计与测算工具":
         else:
             asset_res = {
                 'factor': 1.0,
-                'valuationZone': '现金/对冲资产不做估值择时'
+                'valuationZone': '数据不足，保持基础计划'
             }
         rec_amt = base_dca * (weights[code] / 100.0) * asset_res['factor']
         total_adjusted_dca += rec_amt
@@ -1337,7 +1409,9 @@ elif menu == "6. 风险压力测试":
             'overseas_beta': stress_drawdown_overseas,
             'overseas_broad': stress_drawdown_overseas,
             'overseas_tech': stress_drawdown_overseas,
-            'hedge': stress_drawdown_hedge
+            'hedge': stress_drawdown_hedge,
+            'bond_duration': stress_drawdown_hedge,
+            'cashflow_alt': stress_drawdown_tech
         },
         'dividendDrop': {
             'cash': 0.0,
@@ -1347,7 +1421,9 @@ elif menu == "6. 风险压力测试":
             'overseas_beta': 0.0,
             'overseas_broad': 0.0,
             'overseas_tech': 0.0,
-            'hedge': 0.0
+            'hedge': 0.0,
+            'bond_duration': stress_div_drop,
+            'cashflow_alt': 100.0
         }
     }
 

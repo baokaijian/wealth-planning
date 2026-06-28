@@ -1,5 +1,10 @@
 import datetime
 
+
+def is_stable_cashflow_asset(asset):
+    return asset.get('income_type') in ['dividend', 'cash_interest']
+
+
 def calculate_portfolio(weights, assets, principal, buffer_seed, money_market_rate):
     """
     1. 组合收益测算
@@ -28,7 +33,8 @@ def calculate_portfolio(weights, assets, principal, buffer_seed, money_market_ra
         est_return = asset.get('estimated_return') if asset.get('estimated_return') is not None else current_yield
 
         allocated_amt = invest_principal * (weight / 100.0)
-        expected_annual_div = allocated_amt * (current_yield / 100.0) * 10000.0  # 元
+        stable_cashflow = is_stable_cashflow_asset(asset)
+        expected_annual_div = allocated_amt * (current_yield / 100.0) * 10000.0 if stable_cashflow else 0.0  # 元
 
         asset_details.append({
             'code': code,
@@ -43,13 +49,14 @@ def calculate_portfolio(weights, assets, principal, buffer_seed, money_market_ra
             'estimated_return': est_return,
             'target_index_code': asset.get('target_index_code'),
             'rebalance_band': asset.get('rebalance_band', 3),
+            'stableCashflow': stable_cashflow,
             'allocatedAmt': allocated_amt,
             'expectedAnnualDiv': expected_annual_div,
             'strategy_note': asset.get('strategy_note', ''),
             'risk_note': asset.get('risk_note', '')
         })
 
-        if asset.get('income_type') in ['dividend', 'cash_interest']:
+        if stable_cashflow:
             blended_cash_yield += (weight / 100.0) * current_yield
         if asset.get('income_type') == 'capital_growth':
             blended_growth_return += (weight / 100.0) * est_return
@@ -107,7 +114,7 @@ def simulate_cashflow(months_range, monthly_withdraw, buffer_seed, invest_princi
             weight = float(weights.get(code, 0.0))
             current_yield = asset.get('yield') if asset.get('yield') is not None else asset.get('estimated_yield', 0.0)
 
-            if asset.get('income_type') in ['dividend', 'cash_interest']:
+            if is_stable_cashflow_asset(asset):
                 dist_months = asset.get('distribution_months', None) or asset.get('months', {})
                 month_dist_ratio = dist_months.get(str(c_month)) or dist_months.get(c_month) or 0.0
                 if month_dist_ratio > 0.0:
@@ -426,7 +433,7 @@ def run_stress_test(weights, assets, invest_principal, monthly_withdraw, buffer_
             weight = float(weights.get(code, 0.0))
             current_yield = asset.get('yield') if asset.get('yield') is not None else asset.get('estimated_yield', 0.0)
 
-            if asset.get('income_type') in ['dividend', 'cash_interest']:
+            if is_stable_cashflow_asset(asset):
                 dist_months = asset.get('distribution_months', None) or asset.get('months', {})
                 month_dist_ratio = dist_months.get(str(c_month)) or dist_months.get(c_month) or 0.0
                 if month_dist_ratio > 0.0:
