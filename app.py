@@ -937,17 +937,30 @@ elif menu == "3. 现金缓冲池平滑模拟器":
     st.markdown("<h1 style='color:#102033; margin-bottom:10px;'>⏱️ 现金缓冲池平滑模拟器</h1>", unsafe_allow_html=True)
     st.write("大多数红利资产的分红在少数月份集中派发。默认安全结论只基于分红、票息、现金利息和缓冲池，不把成长资产上涨当成稳定现金流。")
 
-    rebalance_harvest = st.checkbox("乐观情景：卖出成长资产补充现金流", value=False, help="仅作为附加情景，不计入默认现金流安全结论", key="buffer_rebalance_harvest_checkbox")
-    harvest_scenario = st.selectbox(
-        "卖出成长资产补流情景",
-        ["conservative", "neutral", "optimistic"],
-        index=1,
-        format_func=lambda x: {"conservative": "保守：-20% 至 0%", "neutral": "中性：0% 至 5%", "optimistic": "乐观：按预期收益率"}[x],
-        disabled=not rebalance_harvest
-    )
+    ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns(4)
+    with ctrl_col1:
+        start_month = st.selectbox("模拟起始月份", list(range(1, 13)), index=datetime.now().month - 1, format_func=lambda x: f"{x}月")
+    with ctrl_col2:
+        stable_income_drop = st.slider("稳定分红/票息下降比例 (%)", min_value=0, max_value=100, value=20, step=5)
+    with ctrl_col3:
+        delay_months = st.selectbox("分红到账延迟月数", list(range(0, 7)), index=0, format_func=lambda x: f"{x}个月")
+    with ctrl_col4:
+        pause_dividend_year = st.checkbox("模拟某一年分红暂停", value=False)
 
-    # 默认安全结论不纳入卖出成长资产
-    base_sim = portfolio_engine.simulate_cashflow(
+    harvest_col1, harvest_col2 = st.columns([1.2, 1.0])
+    with harvest_col1:
+        rebalance_harvest = st.checkbox("乐观情景：卖出成长资产补充现金流", value=False, help="仅作为附加情景，不计入默认现金流安全结论", key="buffer_rebalance_harvest_checkbox")
+    with harvest_col2:
+        harvest_scenario = st.selectbox(
+            "卖出成长资产补流情景",
+            ["conservative", "neutral", "optimistic"],
+            index=1,
+            format_func=lambda x: {"conservative": "保守：不假设可卖出获利", "neutral": "中性：最多按 3%", "optimistic": "乐观：按预期收益率"}[x],
+            disabled=not rebalance_harvest
+        )
+
+    # 正常口径：只基于稳定现金流，不含卖出资产补流。
+    normal_sim = portfolio_engine.simulate_cashflow(
         36,
         target_monthly * 10000.0,
         buffer_seed,
@@ -956,8 +969,30 @@ elif menu == "3. 现金缓冲池平滑模拟器":
         ASSETS_CONFIG,
         money_market_rate / 100.0,
         False,
-        'neutral'
+        'neutral',
+        start_month,
+        0,
+        0,
+        False
     )
+
+    # 压力口径：折损、延迟、分红暂停；默认安全结论以此为准。
+    stress_sim = portfolio_engine.simulate_cashflow(
+        36,
+        target_monthly * 10000.0,
+        buffer_seed,
+        invest_principal,
+        weights,
+        ASSETS_CONFIG,
+        money_market_rate / 100.0,
+        False,
+        'neutral',
+        start_month,
+        stable_income_drop,
+        delay_months,
+        pause_dividend_year
+    )
+
     sim = portfolio_engine.simulate_cashflow(
         36,
         target_monthly * 10000.0,
@@ -967,8 +1002,13 @@ elif menu == "3. 现金缓冲池平滑模拟器":
         ASSETS_CONFIG,
         money_market_rate / 100.0,
         rebalance_harvest,
-        harvest_scenario
-    ) if rebalance_harvest else base_sim
+        harvest_scenario,
+        start_month,
+        stable_income_drop,
+        delay_months,
+        pause_dividend_year
+    ) if rebalance_harvest else stress_sim
+
     feasibility = portfolio_engine.calculate_cashflow_feasibility(
         36,
         target_monthly * 10000.0,
@@ -976,16 +1016,28 @@ elif menu == "3. 现金缓冲池平滑模拟器":
         principal,
         weights,
         ASSETS_CONFIG,
-        money_market_rate / 100.0
+        money_market_rate / 100.0,
+        start_month,
+        stable_income_drop,
+        delay_months,
+        pause_dividend_year
     )
 
     # 关键指标体检
-    min_buffer = base_sim['minBuffer']
-    tot_div_sum = sum(base_sim['dividendsHistory'])
+    min_buffer = stress_sim['minBuffer']
+    tot_stable_sum = sum(stress_sim['totalStableIncomeHistory'])
     tot_harvest_sum = sum(sim['harvestHistory'])
+    annual_stable = tot_stable_sum / 3.0
+    annual_withdraw = target_monthly * 10000.0 * 12.0
+    stable_coverage = annual_stable / annual_withdraw if annual_withdraw > 0 else 0.0
+    buffer_coverage_months = buffer_seed / target_monthly if target_monthly > 0 else 0.0
+    weakest_month = stress_sim.get('minBufferMonth') or 1
+    weakest_cal_month = ((start_month - 1 + weakest_month - 1) % 12) + 1
+    total_withdraw = target_monthly * 10000.0 * 36.0
+    harvest_dependency = tot_harvest_sum / total_withdraw if total_withdraw > 0 else 0.0
 
     st.markdown("### 🔍 缓冲池安全性体检")
-    b_col1, b_col2, b_col3, b_col4, b_col5, b_col6 = st.columns(6)
+    b_col1, b_col2, b_col3, b_col4 = st.columns(4)
     with b_col1:
         st.markdown(f"""
         <div class='card'>
@@ -997,83 +1049,148 @@ elif menu == "3. 现金缓冲池平滑模拟器":
         status_color = "#10B981" if min_buffer > 0 else "#EF4444"
         st.markdown(f"""
         <div class='card'>
-            <div class='metric-label'>缓冲池最低水位</div>
+            <div class='metric-label'>压力口径最低水位</div>
             <div class='metric-value' style='color:{status_color};'>¥{min_buffer:,.0f}</div>
         </div>
         """, unsafe_allow_html=True)
     with b_col3:
         st.markdown(f"""
         <div class='card'>
-            <div class='metric-label'>3年预计累计红利</div>
-            <div class='metric-value'>¥{tot_div_sum:,.0f}</div>
+            <div class='metric-label'>正常口径最低水位</div>
+            <div class='metric-value'>¥{normal_sim['minBuffer']:,.0f}</div>
         </div>
         """, unsafe_allow_html=True)
     with b_col4:
         st.markdown(f"""
         <div class='card'>
-            <div class='metric-label'>建议每月支出不超过</div>
-            <div class='metric-value'>{feasibility['recommendedMonthlyExpenseWan']:.2f} 万</div>
+            <div class='metric-label'>3年累计稳定现金流入</div>
+            <div class='metric-value'>¥{tot_stable_sum:,.0f}</div>
         </div>
         """, unsafe_allow_html=True)
-    with b_col5:
-        st.markdown(f"""
-        <div class='card'>
-            <div class='metric-label'>理论安全月支取上限</div>
-            <div class='metric-value'>{feasibility['safeMonthlyWithdrawWan']:.2f} 万</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with b_col6:
+
+    q_col1, q_col2, q_col3, q_col4 = st.columns(4)
+    with q_col1:
+        st.markdown(f"<div class='card'><div class='metric-label'>当前缓冲池覆盖月数</div><div class='metric-value'>{buffer_coverage_months:.1f} 月</div></div>", unsafe_allow_html=True)
+    with q_col2:
+        color = "#10B981" if stable_coverage >= 0.6 else "#EF4444"
+        st.markdown(f"<div class='card'><div class='metric-label'>稳定现金流覆盖率</div><div class='metric-value' style='color:{color};'>{stable_coverage*100:.0f}%</div></div>", unsafe_allow_html=True)
+    with q_col3:
+        st.markdown(f"<div class='card'><div class='metric-label'>最脆弱月份</div><div class='metric-value'>第 {weakest_month} 月 / {weakest_cal_month}月</div></div>", unsafe_allow_html=True)
+    with q_col4:
+        metric_label = "卖出资产依赖度" if rebalance_harvest else "建议每月支出不超过"
+        metric_value = f"{harvest_dependency*100:.1f}%" if rebalance_harvest else f"{feasibility['recommendedMonthlyExpenseWan']:.2f} 万"
+        st.markdown(f"<div class='card'><div class='metric-label'>{metric_label}</div><div class='metric-value'>{metric_value}</div></div>", unsafe_allow_html=True)
+
+    limit_col1, limit_col2, limit_col3 = st.columns(3)
+    with limit_col1:
+        st.markdown(f"<div class='card'><div class='metric-label'>理论安全月支取上限</div><div class='metric-value'>{feasibility['safeMonthlyWithdrawWan']:.2f} 万</div></div>", unsafe_allow_html=True)
+    with limit_col2:
+        min_principal = feasibility['minPrincipalWan']
+        min_principal_text = "超过测算上限" if min_principal is None else f"{min_principal:.1f} 万"
+        st.markdown(f"<div class='card'><div class='metric-label'>目标支取所需最低本金</div><div class='metric-value'>{min_principal_text}</div></div>", unsafe_allow_html=True)
+    with limit_col3:
         buffer_months_text = "仅加缓冲不足" if feasibility['minBufferMonths'] is None else f"{feasibility['minBufferMonths']:.1f}个月"
-        st.markdown(f"""
-        <div class='card'>
-            <div class='metric-label'>目标所需缓冲月数</div>
-            <div class='metric-value'>{buffer_months_text}</div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"<div class='card'><div class='metric-label'>目标支取所需缓冲月数</div><div class='metric-value'>{buffer_months_text}</div></div>", unsafe_allow_html=True)
 
     if min_buffer <= 0:
-        min_principal = feasibility['minPrincipalWan']
-        min_principal_text = "超过测算上限" if min_principal is None else f"{min_principal:.1f} 万元"
-        msg = f"⚠️ **缓冲池期中击穿警报**：不计卖出成长资产时，缓冲池最低水位为 ¥{min_buffer:,.0f}。建议每月支出不超过 **{feasibility['recommendedMonthlyExpenseWan']:.2f} 万元**（理论临界上限约 {feasibility['safeMonthlyWithdrawWan']:.2f} 万元，已预留 5% 安全余量）。若默认 400 万本金、12 万缓冲池、月取 2 万无法通过，原因是稳定分红/票息/现金利息不足以覆盖持续支取；解决路径是降低支取、增加本金（测算最低约 {min_principal_text}）或增加缓冲，而不是提高科技仓位。"
+        msg = f"⚠️ **缓冲池期中击穿警报**：压力口径下，按 {target_monthly:.2f} 万元/月支取会在第 **{stress_sim.get('breachedAtMonth') or weakest_month}** 个月附近断流，最低水位为 ¥{min_buffer:,.0f}。建议每月支出不超过 **{feasibility['recommendedMonthlyExpenseWan']:.2f} 万元**（理论临界上限约 {feasibility['safeMonthlyWithdrawWan']:.2f} 万元，已预留 5% 安全余量）。解决路径是降低支取、增加本金（测算最低约 {min_principal_text}）或增加缓冲，而不是提高科技仓位。"
         if rebalance_harvest and sim['minBuffer'] > 0:
-            msg += " 当前附加情景依赖卖出成长资产才能维持现金流。"
+            msg += " 当前附加情景开启后才通过，结论仍是现金流不自洽，依赖卖出资产。"
         st.error(msg)
     else:
-        st.success(f"✅ **缓冲池平滑成功**：不计卖出成长资产时，36 个月内缓冲池余额始终大于 0。建议每月支出不超过 **{feasibility['recommendedMonthlyExpenseWan']:.2f} 万元**，理论临界上限约 {feasibility['safeMonthlyWithdrawWan']:.2f} 万元。")
+        st.success(f"✅ **缓冲池平滑成功**：压力口径下，按 {target_monthly:.2f} 万元/月支取 36 个月未击穿，最低水位 ¥{min_buffer:,.0f}。建议每月支出不超过 **{feasibility['recommendedMonthlyExpenseWan']:.2f} 万元**，理论临界上限约 {feasibility['safeMonthlyWithdrawWan']:.2f} 万元。")
+    if stable_coverage < 0.6:
+        st.warning("该方案主要依赖消耗缓冲池，不是真正的现金流自洽。请先看断流、延迟、下降和最低水位，再谈收益。")
     if rebalance_harvest:
-        st.info(f"附加情景：3年卖出成长资产补流合计 ¥{tot_harvest_sum:,.0f}。该项仅表示依赖变现资产补充现金流，不视为稳定现金流。")
+        st.info(f"附加情景：3年非稳定卖出补流合计 ¥{tot_harvest_sum:,.0f}。该项仅表示依赖变现资产补充现金流，不视为稳定现金流，不改变默认安全结论。")
+
+    # 稳定现金流贡献集中度
+    st.markdown("### 🧭 稳定现金流来源集中度")
+    contributions = stress_sim.get('stableIncomeContributions', {})
+    by_asset = sorted(contributions.get('byAsset', {}).values(), key=lambda x: x.get('amount', 0.0), reverse=True)
+    total_contrib = sum(item.get('amount', 0.0) for item in by_asset)
+    concentration_msgs = []
+    if total_contrib > 0:
+        if by_asset and by_asset[0].get('amount', 0.0) / total_contrib > 0.35:
+            concentration_msgs.append("单一标的现金流贡献偏高")
+        for role, amount in contributions.get('byRole', {}).items():
+            if amount / total_contrib > 0.60:
+                concentration_msgs.append(f"现金流来源风格集中：{role}")
+        for market, amount in contributions.get('byMarket', {}).items():
+            if amount / total_contrib > 0.70:
+                concentration_msgs.append(f"现金流来源市场集中：{market}")
+        if concentration_msgs:
+            st.warning("；".join(concentration_msgs) + "。不构成投资建议，不承诺分红或收益。")
+        else:
+            st.success("压力口径下未触发现金流贡献集中度阈值。")
+        contribution_rows = [{
+            "资产代码": item.get('code'),
+            "资产名称": item.get('name'),
+            "36个月贡献": f"¥{item.get('amount', 0.0):,.0f}",
+            "贡献占比": f"{item.get('amount', 0.0) / total_contrib:.1%}"
+        } for item in by_asset[:8]]
+        st.dataframe(pd.DataFrame(contribution_rows), use_container_width=True, hide_index=True)
+    else:
+        st.warning("压力口径下 36 个月内没有收到稳定现金流，安全性完全依赖初始缓冲池与缓冲池利息。")
 
     # 可视化折线/柱状混合图表
-    timeline_months = [f"第 {t} 个月 (阴历 {((t-1)%12)+1}月)" for t in range(1, 37)]
+    timeline_months = [f"第 {t} 个月 ({((start_month-1+t-1)%12)+1}月)" for t in range(1, 37)]
     fig_buffer = go.Figure()
     fig_buffer.add_trace(go.Scatter(
         x=timeline_months,
-        y=sim['bufferHistory'],
+        y=normal_sim['bufferHistory'],
+        mode='lines',
+        name='正常口径余额 (元)',
+        line=dict(color='#10B981', width=2.5)
+    ))
+    fig_buffer.add_trace(go.Scatter(
+        x=timeline_months,
+        y=stress_sim['bufferHistory'],
         mode='lines+markers',
-        name='缓冲池水位 (元)',
-        line=dict(color='#10B981', width=3),
+        name='压力口径余额 (元)',
+        line=dict(color='#EF4444' if min_buffer <= 0 else '#3B82F6', width=3),
         marker=dict(size=6)
     ))
     fig_buffer.add_trace(go.Bar(
         x=timeline_months,
-        y=sim['dividendsHistory'],
-        name='当月分红/票息到账 (元)',
+        y=sim['dividendIncomeHistory'],
+        name='红利收入 (元)',
         marker_color='#3B82F6',
+        opacity=0.8
+    ))
+    fig_buffer.add_trace(go.Bar(
+        x=timeline_months,
+        y=sim['cashInterestIncomeHistory'],
+        name='票息/货基收入 (元)',
+        marker_color='#10B981',
         opacity=0.8
     ))
     if rebalance_harvest:
         fig_buffer.add_trace(go.Bar(
             x=timeline_months,
             y=sim['harvestHistory'],
-            name='资本超额增长变现 (元)',
+            name='非稳定卖出补流 (元)',
             marker_color='#A78BFA',
             opacity=0.8
         ))
+    if min_buffer <= 0:
+        idx = weakest_month - 1
+        fig_buffer.add_hline(y=0, line_dash="dot", line_color="#EF4444")
+        fig_buffer.add_trace(go.Scatter(
+            x=[timeline_months[idx]],
+            y=[min_buffer],
+            mode='markers+text',
+            text=['最低点'],
+            textposition='top center',
+            name='压力最低点',
+            marker=dict(color='#EF4444', size=11, symbol='diamond')
+        ))
     
     fig_buffer.update_layout(
-        title="36个月缓冲池水位与红利分配动态趋势图",
+        title="36个月缓冲池水位与稳定现金流动态趋势图",
         xaxis_title="模拟时间线",
         yaxis_title="水位/金额 (元)",
+        barmode='stack',
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
         font_color='#102033',
@@ -1085,15 +1202,17 @@ elif menu == "3. 现金缓冲池平滑模拟器":
     with st.expander("📂 查看36个月现金流流转明细表格"):
         timeline_df = pd.DataFrame({
             '模拟月份': timeline_months,
-            '当月收到分红/票息 (元)': sim['dividendsHistory'],
-            '当月利息收益 (元)': sim['interestEarnedHistory'],
-            '情景卖出资产补流 (元)': sim['harvestHistory'],
+            '红利收入 (元)': sim['dividendIncomeHistory'],
+            '票息/货基收入 (元)': sim['cashInterestIncomeHistory'],
+            '缓冲池利息 (元)': sim['bufferInterestHistory'],
+            '非稳定卖出补流 (元)': sim['harvestHistory'],
             '期末缓冲池余额 (元)': sim['bufferHistory']
         })
         st.dataframe(timeline_df.style.format({
-            '当月收到分红/票息 (元)': '¥{:,.0f}',
-            '当月利息收益 (元)': '¥{:,.2f}',
-            '情景卖出资产补流 (元)': '¥{:,.0f}',
+            '红利收入 (元)': '¥{:,.0f}',
+            '票息/货基收入 (元)': '¥{:,.0f}',
+            '缓冲池利息 (元)': '¥{:,.2f}',
+            '非稳定卖出补流 (元)': '¥{:,.0f}',
             '期末缓冲池余额 (元)': '¥{:,.0f}'
         }))
 
@@ -1102,44 +1221,98 @@ elif menu == "3. 现金缓冲池平滑模拟器":
 # ==========================================
 elif menu == "4. 估值温度计与测算工具":
     st.markdown("<h1 style='color:#102033; margin-bottom:10px;'>🌡️ 估值温度计与测算助手</h1>", unsafe_allow_html=True)
-    st.write("根据估值高低动态调整每期定投比例：低位高性价比多买，高位低性价比少买。")
+    st.write("估值温度计只用于校准定投节奏，提高纪律性与胜率，不构成买卖建议，也不承诺收益。")
 
-    # 估值指数切换
-    index_code = st.selectbox(
-        "请选择要进行定投校准的指数标的",
-        ["H30269 (中证红利低波)", "000300 (沪深300)", "000510 (中证A500)", "000905 (中证500)", "588000 (科创50)", "SPX (标普500)", "NDX (纳斯达克100)"],
-        index=0
-    )
-    index_clean = index_code.split(" ")[0]
-    if index_clean == 'H30269':
-        role_to_use = 'dividend_income'
-    elif index_clean == 'SPX':
-        role_to_use = 'overseas_broad'
-    elif index_clean == 'NDX':
-        role_to_use = 'overseas_tech'
-    elif index_clean == '588000':
-        role_to_use = 'tech_growth'
-    else:
-        role_to_use = 'domestic_beta'
-
-    # 加载估值历史
     history_file = "valuation_history.json"
     history_data = []
     if os.path.exists(history_file):
         try:
             with open(history_file, 'r', encoding='utf-8') as f:
                 history_data = json.load(f)
-        except:
+        except Exception:
             pass
 
-    # 计算定投调节因子
-    res = portfolio_engine.get_dca_adjustment(history_data, index_clean, role_to_use)
+    def default_target_index(role):
+        return {
+            'dividend_income': 'H30269',
+            'domestic_beta': '000300',
+            'tech_growth': '588000',
+            'overseas_broad': 'SPX',
+            'overseas_tech': 'NDX'
+        }.get(role)
+
+    def asset_target_index(info):
+        return info.get('target_index_code') or default_target_index(info.get('role'))
+
+    def index_role(index_code_value):
+        for asset_info in ASSETS_CONFIG.values():
+            if asset_target_index(asset_info) == index_code_value:
+                return asset_info.get('role')
+        if index_code_value == 'SPX':
+            return 'overseas_broad'
+        if index_code_value == 'NDX':
+            return 'overseas_tech'
+        if index_code_value == '588000':
+            return 'tech_growth'
+        if index_code_value == 'H30269':
+            return 'dividend_income'
+        return 'domestic_beta'
+
+    valuation_index_set = {item.get('index_code') for item in history_data if item.get('index_code')}
+    target_index_set = {asset_target_index(info) for info in ASSETS_CONFIG.values() if asset_target_index(info)}
+    missing_indexes = sorted(target_index_set - valuation_index_set)
+    covered_indexes = sorted(valuation_index_set)
+    has_any_valuation_history = len(covered_indexes) > 0
+
+    st.markdown("### 🧭 估值数据覆盖面板")
+    cover_col1, cover_col2 = st.columns(2)
+    with cover_col1:
+        st.info("valuation_history.json 已覆盖：" + ("、".join(covered_indexes) if covered_indexes else "暂无"))
+    with cover_col2:
+        st.warning("资产池缺少估值数据：" + ("、".join(missing_indexes) if missing_indexes else "无"))
+
+    index_options = [
+        "H30269 (中证红利低波)",
+        "000300 (沪深300)",
+        "000510 (中证A500)",
+        "000905 (中证500)",
+        "588000 (科创50)",
+        "SPX (标普500)",
+        "NDX (纳斯达克100)"
+    ]
+    index_code = st.selectbox("请选择要进行定投校准的指数标的", index_options, index=0)
+    index_clean = index_code.split(" ")[0]
+    role_to_use = index_role(index_clean)
+
+    default_sim = portfolio_engine.simulate_cashflow(
+        36,
+        target_monthly * 10000.0,
+        buffer_seed,
+        invest_principal,
+        weights,
+        ASSETS_CONFIG,
+        money_market_rate / 100.0,
+        False,
+        'neutral',
+        datetime.now().month,
+        0,
+        0,
+        False
+    )
+    dca_context = {
+        'dividendWeight': sum(float(weights.get(code, 0.0)) for code, info in ASSETS_CONFIG.items() if info.get('role') == 'dividend_income'),
+        'cashflowFeasible': default_sim.get('minBuffer', 0.0) > 0
+    }
+
+    res = portfolio_engine.get_dca_adjustment(history_data, index_clean, role_to_use, dca_context)
+    has_selected_valuation_history = bool(res.get('hasHistory'))
 
     st.markdown(f"### 📊 {index_code} 指数温度计指标板")
     t_col1, t_col2, t_col3, t_col4, t_col5 = st.columns(5)
+    is_dividend_role = role_to_use == 'dividend_income'
     with t_col1:
-        lbl = "最新估值股息率" if index_clean == 'H30269' else "最新市盈率 (PE)"
-        val = res['dividend_yield'] if index_clean == 'H30269' else res['pe']
+        lbl = "最新估值股息率" if is_dividend_role else "最新市盈率 (PE)"
+        val = res['dividend_yield'] if is_dividend_role else res['pe']
         st.markdown(f"""
         <div class='card'>
             <div class='metric-label'>{lbl}</div>
@@ -1147,8 +1320,8 @@ elif menu == "4. 估值温度计与测算工具":
         </div>
         """, unsafe_allow_html=True)
     with t_col2:
-        lbl = "历史股息率百分位" if index_clean == 'H30269' else "历史 PE 百分位"
-        color = "#10B981" if (res['percentile'] >= 70 if index_clean == 'H30269' else res['percentile'] <= 30) else ("#EF4444" if (res['percentile'] <= 30 if index_clean == 'H30269' else res['percentile'] >= 70) else "#F59E0B")
+        lbl = "历史股息率百分位" if is_dividend_role else "历史 PE 百分位"
+        color = "#10B981" if (res['percentile'] >= 70 if is_dividend_role else res['percentile'] <= 30) else ("#EF4444" if (res['percentile'] <= 30 if is_dividend_role else res['percentile'] >= 70) else "#F59E0B")
         st.markdown(f"""
         <div class='card'>
             <div class='metric-label'>{lbl}</div>
@@ -1179,88 +1352,132 @@ elif menu == "4. 估值温度计与测算工具":
 
     # 诊断横幅
     color_banner = "#10B981" if res['factor'] > 1.1 else ("#EF4444" if res['factor'] < 0.9 else "#3B82F6")
-    st.markdown(f"""
-    <div style='background:#FBFDFE; border:1px solid {color_banner}; border-radius:8px; padding:15px; margin-bottom:20px;'>
-        <h4 style='color:{color_banner};margin-top:0;'>🏷️ 估值评级诊断：{res['valuationZone']}</h4>
-        <p style='color:#102033;font-size:0.95rem;margin-bottom:0;'>{res['tips']}</p>
-    </div>
-    """, unsafe_allow_html=True)
+    if has_selected_valuation_history:
+        st.markdown(f"""
+        <div style='background:#FBFDFE; border:1px solid {color_banner}; border-radius:8px; padding:15px; margin-bottom:20px;'>
+            <h4 style='color:{color_banner};margin-top:0;'>🏷️ 估值校准结论：{res['valuationZone']}</h4>
+            <p style='color:#102033;font-size:0.95rem;margin-bottom:0;'>{res['tips']} 估值温度计只用于调整定投节奏，不构成买卖建议。</p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.info("该指数暂无估值历史，DCA 保持 1.0x；不生成低估/高估判断，不构成投资建议。")
 
     # 动态定投测算
     st.markdown("### 🎯 动态定投额度调节方案")
-    base_dca = st.number_input("请输入您计划的基础定投总额 (万元)", min_value=1.0, max_value=200.0, value=32.3, step=1.0)
-    adjusted_dca = base_dca * res['factor']
+    dca_col1, dca_col2 = st.columns([1.0, 1.4])
+    with dca_col1:
+        base_dca = st.number_input("基础月定投预算 (万元)", min_value=1.0, max_value=200.0, value=32.3, step=1.0)
+    with dca_col2:
+        dca_mode = st.radio(
+            "定投校准模式",
+            ["预算固定模式（默认）：总额不变，只调整分配", "估值放大/缩小模式：总额随 factor 变化"],
+            index=0,
+            horizontal=True
+        )
+    fixed_budget_mode = dca_mode.startswith("预算固定")
     
-    st.markdown(f"上方指数仅用于查看温度计。下方组合定投按每个资产自己的 `target_index_code` 和 `role` 分别计算，不再用单一指数因子套全组合。")
+    st.markdown("上方指数仅用于查看温度计。下方组合定投按每个资产自己的 `target_index_code` 和 `role` 分别计算；预算固定模式下总额不放大。")
 
-    # 配置细表
-    def default_target_index(role):
-        return {
-            'dividend_income': 'H30269',
-            'domestic_beta': '000300',
-            'tech_growth': '588000',
-            'overseas_broad': 'SPX',
-            'overseas_tech': 'NDX'
-        }.get(role)
+    timing_excluded_roles = {'cash', 'hedge', 'bond_duration'}
+    calc_rows = []
+    for code, info in ASSETS_CONFIG.items():
+        target_index = asset_target_index(info)
+        role = info.get('role')
+        original_weight = float(weights.get(code, 0.0))
+        no_timing_role = role in timing_excluded_roles or not target_index
+        if no_timing_role:
+            asset_res = {
+                'hasHistory': False,
+                'percentile': 50.0,
+                'factor': 1.0,
+                'pe': '--',
+                'pb': '--',
+                'dividend_yield': '--',
+                'valuationZone': '不做估值择时，按基础比例',
+                'tips': ''
+            }
+        else:
+            asset_res = portfolio_engine.get_dca_adjustment(history_data, target_index, role, dca_context)
+        raw_score = original_weight * float(asset_res['factor'])
+        data_status = "不做估值择时，按基础比例" if no_timing_role else ("有估值历史" if asset_res.get('hasHistory') else "数据不足，基础计划")
+        calc_rows.append({
+            'code': code,
+            'info': info,
+            'target_index': target_index,
+            'asset_res': asset_res,
+            'original_weight': original_weight,
+            'raw_score': raw_score,
+            'data_status': data_status
+        })
 
+    raw_score_sum = sum(row['raw_score'] for row in calc_rows) or 1.0
     rec_data = []
     total_adjusted_dca = 0.0
-    for code, info in ASSETS_CONFIG.items():
-        target_index = info.get('target_index_code') if info.get('target_index_code') is not None else default_target_index(info.get('role'))
-        if target_index:
-            asset_res = portfolio_engine.get_dca_adjustment(history_data, target_index, info.get('role'))
+    for row in calc_rows:
+        asset_res = row['asset_res']
+        if fixed_budget_mode:
+            adjusted_pct = row['raw_score'] / raw_score_sum
+            rec_amt = base_dca * adjusted_pct
         else:
-            asset_res = {
-                'factor': 1.0,
-                'valuationZone': '数据不足，保持基础计划'
-            }
-        rec_amt = base_dca * (weights[code] / 100.0) * asset_res['factor']
+            adjusted_pct = row['original_weight'] / 100.0
+            rec_amt = base_dca * adjusted_pct * float(asset_res['factor'])
         total_adjusted_dca += rec_amt
+        valuation_metrics = f"{asset_res.get('pe', '--')} / {asset_res.get('pb', '--')} / {asset_res.get('percentile', '--')}%" if asset_res.get('hasHistory') else "-- / -- / --"
         rec_data.append({
-            '基金代码': code,
-            '基金名称': info['name'],
-            '配置占比': f"{weights[code]:.1f}%",
-            '目标指数': target_index or '--',
+            '基金代码': row['code'],
+            '基金名称': row['info']['name'],
+            'Role / Market': f"{row['info'].get('role', '--')} / {row['info'].get('market', '--')}",
+            '目标指数': row['target_index'] or '--',
+            '数据状态': row['data_status'],
+            'PE/PB/百分位': valuation_metrics,
             '估值状态': asset_res['valuationZone'],
+            '原始权重': f"{row['original_weight']:.1f}%",
             'Factor': f"{asset_res['factor']:.1f}x",
-            '本期定投应申购买入额度 (元)': f"¥{rec_amt * 10000:,.0f}"
+            '调整后定投占比': f"{adjusted_pct * 100:.1f}%",
+            '本期买入金额': f"{rec_amt:.2f} 万"
         })
-    st.markdown(f"基于逐资产估值因子，本月组合测算实缴总额为：**{total_adjusted_dca:.2f} 万元**。")
-    st.table(pd.DataFrame(rec_data))
+    mode_note = "预算固定模式：总额未放大，只调整分配。" if fixed_budget_mode else "估值放大/缩小模式：总额会随 factor 变化，仅作主动情景测算。"
+    st.markdown(f"基础预算 **{base_dca:.2f} 万元**；调整后总买入 **{total_adjusted_dca:.2f} 万元**。{mode_note}")
+    st.dataframe(pd.DataFrame(rec_data), use_container_width=True, hide_index=True)
+    if not has_any_valuation_history:
+        st.warning("当前 valuation_history.json 暂无任何估值历史，所有 DCA factor 降级为 1.0x。")
+    if any(info.get('role', '').startswith('overseas') for info in ASSETS_CONFIG.values()):
+        st.info("海外资产估值校准需额外关注汇率、QDII 溢价与跟踪误差风险；无本地估值历史时固定 1.0x。")
 
     # 绘制估值线图
-    if res['hasHistory']:
+    if has_selected_valuation_history:
         filtered_history = [item for item in history_data if item['index_code'] == index_clean]
         dates = [item['date'] for item in filtered_history]
-        y_vals = [float(item['dividend_yield']) if index_clean == 'H30269' else float(item['pe']) for item in filtered_history]
+        y_vals = [float(item['dividend_yield']) if is_dividend_role else float(item['pe']) for item in filtered_history]
         pe_vals = [float(item['pe']) for item in filtered_history]
         pb_vals = [float(item['pb']) for item in filtered_history]
+        dy_vals = [float(item.get('dividend_yield') or 0.0) for item in filtered_history]
 
         fig_val = go.Figure()
         fig_val.add_trace(go.Scatter(
             x=dates,
             y=y_vals,
             mode='lines',
-            name='历史估值趋势',
+            name='历史股息率' if is_dividend_role else '历史 PE',
             line=dict(color='#3B82F6', width=2),
-            customdata=np.stack((pe_vals, pb_vals), axis=-1),
-            hovertemplate="日期: %{x}<br>当前估值指标: %{y:.2f}<br>PE: %{customdata[0]:.2f}<br>PB: %{customdata[1]:.2f}<extra></extra>"
+            customdata=np.stack((pe_vals, pb_vals, dy_vals), axis=-1),
+            hovertemplate="日期: %{x}<br>股息率: %{customdata[2]:.2f}%<br>PE: %{customdata[0]:.2f}<br>PB: %{customdata[1]:.2f}<extra></extra>" if is_dividend_role else "日期: %{x}<br>PE: %{customdata[0]:.2f}<br>PB: %{customdata[1]:.2f}<br>股息率: %{customdata[2]:.2f}%<extra></extra>"
         ))
         
         # 当前水平虚线
-        curr_val = float(res['dividend_yield'].replace('%','')) if index_clean == 'H30269' else float(res['pe'])
+        curr_val = float(res['dividend_yield'].replace('%','')) if is_dividend_role else float(res['pe'])
         fig_val.add_trace(go.Scatter(
             x=[dates[0], dates[-1]],
             y=[curr_val, curr_val],
             mode='lines',
-            name='当前估值位置',
+            name='当前股息率' if is_dividend_role else '当前 PE',
             line=dict(color=color_banner, dash='dash')
         ))
 
         fig_val.update_layout(
             title=f"{index_code} 指数历史走势图",
             xaxis_title="日期",
-            yaxis_title="股息率 (%)" if index_clean == 'H30269' else "市盈率 (PE)",
+            yaxis_title="股息率 (%)" if is_dividend_role else "PE (市盈率)",
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
             font_color='#102033',
@@ -1268,7 +1485,7 @@ elif menu == "4. 估值温度计与测算工具":
         )
         st.plotly_chart(fig_val, use_container_width=True)
     else:
-        st.info("该标的未找到足够历史数据，已采用常规计划。")
+        st.info("该指数暂无估值历史，图表已清空，DCA 保持 1.0x。")
 
 # ==========================================
 # 模块 5: 年度资产再平衡测算

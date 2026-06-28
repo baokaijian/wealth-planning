@@ -90,7 +90,21 @@ def _get_harvest_return(asset, harvest_scenario):
     return 0.0
 
 
-def simulate_cashflow(months_range, monthly_withdraw, buffer_seed, invest_principal, weights, assets, money_market_rate, rebalance_harvest=False, harvest_scenario='neutral'):
+def simulate_cashflow(
+    months_range,
+    monthly_withdraw,
+    buffer_seed,
+    invest_principal,
+    weights,
+    assets,
+    money_market_rate,
+    rebalance_harvest=False,
+    harvest_scenario='neutral',
+    start_month=1,
+    stable_income_drop=0.0,
+    delay_months=0,
+    pause_dividend_year=False
+):
     """
     2. 36个月缓冲池流转模拟
     """
@@ -100,16 +114,41 @@ def simulate_cashflow(months_range, monthly_withdraw, buffer_seed, invest_princi
         assets_dict = assets
 
     buffer_balance = [buffer_seed * 10000.0]  # 元
-    dividends_history = []
-    interest_earned_history = []
+    dividend_income_history = []
+    cash_interest_income_history = []
+    buffer_interest_history = []
     harvest_history = []
+    total_stable_income_history = []
+    stable_income_contributions = {
+        'byAsset': {},
+        'byRole': {},
+        'byMarket': {}
+    }
+    safe_start_month = min(max(int(start_month or 1), 1), 12)
+    safe_delay_months = min(max(int(delay_months or 0), 0), 6)
+    income_multiplier = max(0.0, 1.0 - (float(stable_income_drop or 0.0) / 100.0))
+    scheduled_stable_income = [[] for _ in range(months_range + safe_delay_months + 2)]
     breached_at_month = None
 
-    for t in range(1, months_range + 1):
-        c_month = ((t - 1) % 12) + 1
+    def add_contribution(asset, code, amount):
+        if amount <= 0:
+            return
+        if code not in stable_income_contributions['byAsset']:
+            stable_income_contributions['byAsset'][code] = {
+                'code': code,
+                'name': asset.get('name', ''),
+                'amount': 0.0
+            }
+        stable_income_contributions['byAsset'][code]['amount'] += amount
+        role = asset.get('role', 'unknown')
+        market = asset.get('market', 'unknown')
+        stable_income_contributions['byRole'][role] = stable_income_contributions['byRole'].get(role, 0.0) + amount
+        stable_income_contributions['byMarket'][market] = stable_income_contributions['byMarket'].get(market, 0.0) + amount
 
-        # 1) 计算当月常规分红流入 (仅针对 income_type 为 dividend 或 cash_interest 的资产)
-        month_dividend = 0.0
+    for t in range(1, months_range + 1):
+        c_month = ((safe_start_month - 1 + t - 1) % 12) + 1
+
+        # 1) 计算当月常规稳定收入，并按压力参数安排到账。
         for code, asset in assets_dict.items():
             weight = float(weights.get(code, 0.0))
             current_yield = asset.get('yield') if asset.get('yield') is not None else asset.get('estimated_yield', 0.0)
@@ -118,8 +157,27 @@ def simulate_cashflow(months_range, monthly_withdraw, buffer_seed, invest_princi
                 dist_months = asset.get('distribution_months', None) or asset.get('months', {})
                 month_dist_ratio = dist_months.get(str(c_month)) or dist_months.get(c_month) or 0.0
                 if month_dist_ratio > 0.0:
+                    is_dividend = asset.get('income_type') == 'dividend'
+                    is_paused_dividend = pause_dividend_year and is_dividend and 13 <= t <= 24
                     asset_value = invest_principal * (weight / 100.0) * 10000.0  # 元
-                    month_dividend += asset_value * (current_yield / 100.0) * month_dist_ratio
+                    amount = 0.0 if is_paused_dividend else asset_value * (current_yield / 100.0) * month_dist_ratio * income_multiplier
+                    arrival_month = t + safe_delay_months
+                    if amount > 0.0 and arrival_month <= months_range:
+                        scheduled_stable_income[arrival_month].append({
+                            'code': code,
+                            'asset': asset,
+                            'amount': amount,
+                            'kind': 'dividend' if is_dividend else 'cash_interest'
+                        })
+
+        month_dividend = 0.0
+        month_cash_interest = 0.0
+        for item in scheduled_stable_income[t]:
+            if item['kind'] == 'dividend':
+                month_dividend += item['amount']
+            else:
+                month_cash_interest += item['amount']
+            add_contribution(item['asset'], item['code'], item['amount'])
 
         # 2) 乐观/情景假设下卖出成长资产补充现金流。默认关闭，安全结论不依赖该项。
         month_harvest = 0.0
@@ -135,31 +193,55 @@ def simulate_cashflow(months_range, monthly_withdraw, buffer_seed, invest_princi
 
         # 3) 缓冲池利息 (月度利息)
         current_interest = buffer_balance[-1] * (money_market_rate / 12.0)
+        month_stable_income = month_dividend + month_cash_interest + current_interest
 
         # 4) 缓冲池结转
-        next_balance = buffer_balance[-1] + month_dividend + month_harvest + current_interest - monthly_withdraw
+        next_balance = buffer_balance[-1] + month_stable_income + month_harvest - monthly_withdraw
 
-        dividends_history.append(month_dividend)
-        interest_earned_history.append(current_interest)
+        dividend_income_history.append(month_dividend)
+        cash_interest_income_history.append(month_cash_interest)
+        buffer_interest_history.append(current_interest)
         harvest_history.append(month_harvest)
+        total_stable_income_history.append(month_stable_income)
         buffer_balance.append(next_balance)
 
         if next_balance < 0 and breached_at_month is None:
             breached_at_month = t
 
     buffer_history = buffer_balance[1:]
+    min_buffer = min(buffer_history) if buffer_history else 0.0
+    min_buffer_month = buffer_history.index(min_buffer) + 1 if buffer_history else None
 
     return {
         'bufferHistory': buffer_history,
-        'dividendsHistory': dividends_history,
-        'interestEarnedHistory': interest_earned_history,
+        'dividendIncomeHistory': dividend_income_history,
+        'cashInterestIncomeHistory': cash_interest_income_history,
+        'bufferInterestHistory': buffer_interest_history,
         'harvestHistory': harvest_history,
+        'totalStableIncomeHistory': total_stable_income_history,
+        'stableIncomeContributions': stable_income_contributions,
+        # Backward-compatible aliases for older call sites.
+        'dividendsHistory': total_stable_income_history,
+        'interestEarnedHistory': buffer_interest_history,
         'breachedAtMonth': breached_at_month,
-        'minBuffer': min(buffer_history) if buffer_history else 0.0
+        'minBuffer': min_buffer,
+        'minBufferMonth': min_buffer_month
     }
 
 
-def calculate_cashflow_feasibility(months_range, target_monthly_withdraw, buffer_seed, principal, weights, assets, money_market_rate):
+def calculate_cashflow_feasibility(
+    months_range,
+    target_monthly_withdraw,
+    buffer_seed,
+    principal,
+    weights,
+    assets,
+    money_market_rate,
+    start_month=1,
+    stable_income_drop=0.0,
+    delay_months=0,
+    pause_dividend_year=False
+):
     """
     现金流可行性反推。所有结论只基于分红/票息/现金利息，不纳入卖出成长资产。
     principal/buffer_seed 单位为万元；withdraw 单位为元。
@@ -175,7 +257,11 @@ def calculate_cashflow_feasibility(months_range, target_monthly_withdraw, buffer
             assets,
             money_market_rate,
             False,
-            'neutral'
+            'neutral',
+            start_month,
+            stable_income_drop,
+            delay_months,
+            pause_dividend_year
         )
         return sim['minBuffer'] > 0
 
@@ -236,26 +322,29 @@ def calculate_cashflow_feasibility(months_range, target_monthly_withdraw, buffer
     }
 
 
-def get_dca_adjustment(history_data, index_code, role):
+def get_dca_adjustment(history_data, index_code, role, context=None):
     """
     3. 估值分位温度计与 DCA 调节因子
     """
-    fallback_res = {
-        'hasHistory': False,
-        'percentile': 50.0,
-        'factor': 1.0,
-        'pe': "--",
-        'pb': "--",
-        'dividend_yield': "--",
-        'valuationZone': "数据不足，保持基础计划",
-        'tips': "由于未找到此标的的估值历史序列，系统将采用基础配置计划，不进行动态调节。"
-    }
+    def no_history_response():
+        overseas_risk_tip = "注意汇率、QDII 溢价与跟踪误差风险。" if role in ['overseas_broad', 'overseas_tech', 'overseas_beta'] else ""
+        return {
+            'hasHistory': False,
+            'percentile': 50.0,
+            'factor': 1.0,
+            'pe': "--",
+            'pb': "--",
+            'dividend_yield': "--",
+            'valuationZone': "数据不足，保持基础计划",
+            'tips': f"由于未找到此标的的估值历史序列，DCA 保持 1.0x，不生成低估/高估判断。{overseas_risk_tip}"
+        }
+
     if not history_data:
-        return fallback_res
+        return no_history_response()
 
     filtered = [item for item in history_data if item.get('index_code') == index_code]
     if not filtered:
-        return fallback_res
+        return no_history_response()
 
     # Sort by date
     def get_date(item):
@@ -290,6 +379,7 @@ def get_dca_adjustment(history_data, index_code, role):
     factor = 1.0
     valuation_zone = "合理估值区间 (估值适中)"
     tips = ""
+    context = context or {}
 
     if role == 'dividend_income':
         if dy_list:
@@ -308,6 +398,15 @@ def get_dca_adjustment(history_data, index_code, role):
             valuation_zone = "估值偏贵区间 (高估区域)"
             factor = 0.5
             tips = "提示：股息率已被估值上涨稀释，性价比偏低，定投系数下调至 0.5x 以控制建仓成本。"
+
+        dividend_weight = float(context.get('dividendWeight') or 0.0)
+        cashflow_feasible = context.get('cashflowFeasible', True) is not False
+        if factor > 1.0 and (dividend_weight > 45.0 or not cashflow_feasible):
+            factor = 1.0
+            if dividend_weight > 45.0:
+                tips += " 组合红利权重已超过 45%，即使股息率较高也不放大红利定投。"
+            else:
+                tips += " 现金缓冲池默认安全测试未通过，先补现金缓冲，不要因低估强行加仓。"
 
     elif role == 'domestic_beta':
         if pe_list:
@@ -335,8 +434,8 @@ def get_dca_adjustment(history_data, index_code, role):
 
         if percentile <= 25.0:
             valuation_zone = "超跌低估区间 (科技成长蓄势)"
-            factor = 1.1
-            tips = "提示：科技类资产估值进入历史低位，但波动较高，定投系数仅小幅调高至 1.1x。"
+            factor = 1.0
+            tips = "提示：科技类资产估值进入历史低位，但波动较高，定投系数最高不超过 1.0x。"
         elif percentile <= 75.0:
             valuation_zone = "合理估值区间 (估值中性)"
             factor = 0.8
@@ -350,7 +449,7 @@ def get_dca_adjustment(history_data, index_code, role):
         if not pe_list:
             valuation_zone = "海外估值数据不足"
             factor = 1.0
-            tips = "提示：当前缺少该海外资产的本地估值历史，保持 1.0x 基础计划。纳指100属于海外科技，并不等同于海外宽基。"
+            tips = "提示：当前缺少该海外资产的本地估值历史，保持 1.0x 基础计划，不生成低估/高估判断。注意汇率、QDII 溢价与跟踪误差风险。"
         elif role == 'overseas_tech':
             count = sum(1 for p in pe_list if p < current_pe)
             percentile = round((count / len(pe_list)) * 100, 1)
@@ -373,7 +472,7 @@ def get_dca_adjustment(history_data, index_code, role):
             if percentile <= 30.0:
                 valuation_zone = "低估配置区域 (海外宽基低估)"
                 factor = 1.0
-                tips = "提示：海外宽基估值偏低，但因汇率和数据覆盖限制，最高保持 1.0x。"
+                tips = "提示：海外宽基估值偏低，但因汇率、QDII 溢价、跟踪误差和数据覆盖限制，最高保持 1.0x。"
             elif percentile <= 70.0:
                 valuation_zone = "合理估值区间 (估值中性)"
                 factor = 1.0

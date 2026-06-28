@@ -1573,12 +1573,32 @@
                     <span class="metric-val-num" id="t2-seed-val">¥0</span>
                 </div>
                 <div class="metric-card">
-                    <span class="metric-label">缓冲池36个月最低水位</span>
+                    <span class="metric-label">当前缓冲池覆盖月数</span>
+                    <span class="metric-val-num" id="t2-coverage-months-val">0.0 月</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">正常口径最低水位</span>
+                    <span class="metric-val-num" id="t2-normal-min-buffer-val">¥0</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">压力口径最低水位</span>
                     <span class="metric-val-num" id="t2-min-buffer-val">¥0</span>
                 </div>
                 <div class="metric-card">
-                    <span class="metric-label">3年累计预计分红流入</span>
+                    <span class="metric-label">3年累计稳定现金流入</span>
                     <span class="metric-val-num" id="t2-accum-div-val">¥0</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">稳定现金流覆盖率</span>
+                    <span class="metric-val-num" id="t2-stable-coverage-val">0%</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">最脆弱月份</span>
+                    <span class="metric-val-num" id="t2-weakest-month-val">--</span>
+                </div>
+                <div class="metric-card hidden" id="t2-harvest-dependency-card">
+                    <span class="metric-label">卖出资产依赖度</span>
+                    <span class="metric-val-num" id="t2-harvest-dependency-val">0%</span>
                 </div>
                 <div class="metric-card">
                     <span class="metric-label">建议每月支出不超过</span>
@@ -1603,14 +1623,45 @@
 
             <!-- 模拟控制项 -->
             <div class="card" style="margin-bottom: 20px; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
-                <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <label for="t2-start-month" style="font-size:0.86rem;font-weight:700;">模拟起始月份</label>
+                    <select id="t2-start-month" onchange="userInputsChanged()" style="font-size: 0.82rem;">
+                        <option value="1">1月</option>
+                        <option value="2">2月</option>
+                        <option value="3">3月</option>
+                        <option value="4">4月</option>
+                        <option value="5">5月</option>
+                        <option value="6">6月</option>
+                        <option value="7">7月</option>
+                        <option value="8">8月</option>
+                        <option value="9">9月</option>
+                        <option value="10">10月</option>
+                        <option value="11">11月</option>
+                        <option value="12">12月</option>
+                    </select>
+                    <label for="t2-stress-income-drop" style="font-size:0.86rem;font-weight:700;">稳定分红/票息下降</label>
+                    <input type="number" id="t2-stress-income-drop" value="20" min="0" max="100" step="5" onchange="userInputsChanged()" style="width:76px;font-size:0.82rem;">%
+                    <label for="t2-delay-months" style="font-size:0.86rem;font-weight:700;">到账延迟</label>
+                    <select id="t2-delay-months" onchange="userInputsChanged()" style="font-size: 0.82rem;">
+                        <option value="0" selected>0个月</option>
+                        <option value="1">1个月</option>
+                        <option value="2">2个月</option>
+                        <option value="3">3个月</option>
+                        <option value="4">4个月</option>
+                        <option value="5">5个月</option>
+                        <option value="6">6个月</option>
+                    </select>
+                    <label class="checkbox-container" style="display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+                        <input type="checkbox" id="t2-pause-year-checkbox" onchange="userInputsChanged()" style="width: 16px; height: 16px; cursor: pointer;">
+                        <span style="font-size: 0.86rem; font-weight: 700; color: var(--text-primary);">模拟某一年分红暂停</span>
+                    </label>
                     <label class="checkbox-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
                         <input type="checkbox" id="t2-harvest-checkbox" onchange="userInputsChanged()" style="width: 18px; height: 18px; cursor: pointer;">
                         <span style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">乐观情景：卖出成长资产补充现金流</span>
                     </label>
                     <select id="t2-harvest-scenario" onchange="userInputsChanged()" style="font-size: 0.82rem;">
-                        <option value="conservative">保守：-20% 至 0%</option>
-                        <option value="neutral" selected>中性：0% 至 5%</option>
+                        <option value="conservative">保守：不假设可卖出获利</option>
+                        <option value="neutral" selected>中性：最多按 3%</option>
                         <option value="optimistic">乐观：按预期收益率</option>
                     </select>
                 </div>
@@ -1621,8 +1672,13 @@
 
             <!-- 图表及数据细化 -->
             <div class="card">
-                <div class="card-title-text" style="margin-bottom: 20px;">36个月缓冲池水位与红利到账图</div>
+                <div class="card-title-text" style="margin-bottom: 20px;">36个月缓冲池水位与稳定现金流到账图</div>
                 <div id="t2-plotly-mixed" style="height: 400px; width: 100%;"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-title-text" style="margin-bottom: 15px;">稳定现金流来源集中度</div>
+                <div id="t2-cashflow-quality" style="font-size:0.86rem;line-height:1.55;color:var(--text-secondary);"></div>
             </div>
 
             <div class="card">
@@ -1631,12 +1687,13 @@
                     <table>
                         <thead>
                             <tr>
-                                <th>模拟期数</th>
+                                <th>模拟月份</th>
                                 <th>历法月份</th>
                                 <th>期初余额</th>
-                                <th>当期分红流入</th>
-                                <th>情景卖出资产补流</th>
+                                <th>红利收入</th>
+                                <th>票息/货基收入</th>
                                 <th>缓冲池利息</th>
+                                <th>非稳定卖出补流</th>
                                 <th>生活费支取</th>
                                 <th>期末水位余额</th>
                             </tr>
@@ -1672,6 +1729,11 @@
                 </div>
             </div>
 
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-title-text" style="margin-bottom:10px;">估值数据覆盖面板</div>
+                <div id="t3-coverage-panel" style="font-size:0.84rem;line-height:1.55;color:var(--text-secondary);">正在读取估值覆盖范围...</div>
+            </div>
+
             <div class="grid-cards">
                 <div class="metric-card">
                     <span class="metric-label" id="t3-yield-label">当前指数股息率</span>
@@ -1705,20 +1767,33 @@
 
                 <div class="flex-col-right card">
                     <div class="card-title-text" style="margin-bottom: 15px;">本月测算额度调节生成器</div>
-                    <div class="input-group" style="margin-bottom: 20px;">
-                        <label for="base-dca-input">您的基础月定投金额 (万元)</label>
+                    <div class="input-group" style="margin-bottom: 12px;">
+                        <label for="base-dca-input">您的基础月定投预算 (万元)</label>
                         <input type="number" id="base-dca-input" value="32.3" step="1" oninput="calculateDcaAdjust()">
                     </div>
+                    <div class="input-group" style="margin-bottom: 20px;">
+                        <label for="t3-dca-mode">定投校准模式</label>
+                        <select id="t3-dca-mode" onchange="calculateDcaAdjust()" style="font-size:0.86rem;">
+                            <option value="fixed" selected>预算固定模式（推荐）</option>
+                            <option value="variable">估值放大/缩小模式</option>
+                        </select>
+                    </div>
                     <div style="font-size: 0.95rem; margin-bottom: 15px;">
-                        基于估值因子的本月测算实缴金额：<strong id="t3-adjust-dca-val" style="color: var(--accent-emerald); font-size: 1.15rem;">32.3 万元</strong>
+                        本月测算买入总额：<strong id="t3-adjust-dca-val" style="color: var(--accent-emerald); font-size: 1.15rem;">32.3 万元</strong>
+                        <div id="t3-dca-mode-note" style="font-size:0.78rem;color:var(--text-secondary);margin-top:4px;">预算固定模式：总额未放大，只调整分配。</div>
                     </div>
                     <table style="font-size: 0.88rem;">
                         <thead>
                             <tr>
                                 <th>标的名称</th>
+                                <th>Role / Market</th>
                                 <th>目标指数</th>
+                                <th>数据状态</th>
+                                <th>PE/PB/百分位</th>
                                 <th>估值状态</th>
+                                <th>原始权重</th>
                                 <th>Factor</th>
+                                <th>调整后定投占比</th>
                                 <th>本月测算买入金额</th>
                             </tr>
                         </thead>
@@ -2032,6 +2107,8 @@
             valuationCurrentYield: null,
             currentPE: null,
             currentPB: null,
+            valuationSelectedIndexCode: 'H30269',
+            valuationSelectedRole: 'dividend_income',
             fetchStatus: 'loading', // 'loading', 'success', 'fallback'
             marketDataSource: '',
             dataTimestamp: ''
@@ -2085,6 +2162,7 @@
             await loadValuationHistory();
             await loadAssetsConfig(); // 加载 assets.json 动态配置
             initStaticTableStructures(); // 仅渲染一次 DOM 框架，避免重绘失去输入框焦点
+            initBufferSimulatorControls();
             
             // 首次请求并渲染
             await fetchLiveMarketData();
@@ -2109,6 +2187,14 @@
             setInterval(updateClock, 1000);
         });
 
+        function initBufferSimulatorControls() {
+            const startMonthSelect = document.getElementById('t2-start-month');
+            if (startMonthSelect && !startMonthSelect.dataset.initialized) {
+                startMonthSelect.value = String(new Date().getMonth() + 1);
+                startMonthSelect.dataset.initialized = 'true';
+            }
+        }
+
         // 从 assets.json 加载配置
         async function loadAssetsConfig() {
             try {
@@ -2116,9 +2202,11 @@
                 if (!response.ok) throw new Error('Failed to load assets.json');
                 const list = await response.json();
                 applyAssetsConfig(list);
+                updateValuationCoveragePanel();
             } catch (e) {
                 console.error("Error loading assets config, using embedded fallback:", e);
                 applyAssetsConfig(DEFAULT_ASSETS_CONFIG);
+                updateValuationCoveragePanel();
             }
         }
 
@@ -2368,7 +2456,9 @@
 
         let rawValuationHistoryList = [];
         let valuationHistory = [];
-        let hasValuationHistory = false;
+        let hasAnyValuationHistory = false;
+        let hasSelectedValuationHistory = false;
+        let hasValuationHistory = false; // Backward-compatible alias for chart checks.
 
         function getRoleLabel(role) {
             const mapping = {
@@ -2396,6 +2486,80 @@
             return '非稳定现金流';
         }
 
+        function getRoleForIndex(indexCode) {
+            if (indexCode === 'H30269') return 'dividend_income';
+            if (indexCode === '588000') return 'tech_growth';
+            if (indexCode === 'SPX') return 'overseas_broad';
+            if (indexCode === 'NDX') return 'overseas_tech';
+            return 'domestic_beta';
+        }
+
+        function getValuationIndexSet() {
+            return new Set(rawValuationHistoryList.map(item => item.index_code).filter(Boolean));
+        }
+
+        function getAssetTargetIndex(asset) {
+            return asset.target_index_code || getDefaultTargetIndexCode(asset.role);
+        }
+
+        function getAssetValuationStatus(asset, targetIndex) {
+            if (!targetIndex || ['cash', 'hedge', 'bond_duration'].includes(asset.role)) {
+                return '不做估值择时，按基础比例';
+            }
+            return getValuationIndexSet().has(targetIndex) ? '有历史数据' : '数据不足，基础计划';
+        }
+
+        function getDcaContext() {
+            const weights = {};
+            Object.keys(state.assets).forEach(code => {
+                weights[code] = state.assets[code].weight;
+            });
+            const dividendWeight = Object.values(state.assets)
+                .filter(asset => asset.role === 'dividend_income')
+                .reduce((sum, asset) => sum + (parseFloat(asset.weight) || 0.0), 0.0);
+            const sim = portfolioEngine.simulateCashflow(
+                36,
+                state.targetMonthly * 10000,
+                state.bufferSeed,
+                Math.max(state.principal - state.bufferSeed, 0.0),
+                weights,
+                state.assets,
+                state.moneyMarketRate / 100.0,
+                false,
+                'neutral',
+                new Date().getMonth() + 1,
+                0,
+                0,
+                false
+            );
+            return {
+                dividendWeight,
+                cashflowFeasible: sim.minBuffer > 0
+            };
+        }
+
+        function updateValuationCoveragePanel() {
+            const panel = document.getElementById('t3-coverage-panel');
+            if (!panel) return;
+            const covered = Array.from(getValuationIndexSet()).sort();
+            const missingMap = {};
+            Object.entries(state.assets || {}).forEach(([code, asset]) => {
+                const targetIndex = getAssetTargetIndex(asset);
+                if (targetIndex && !getValuationIndexSet().has(targetIndex)) {
+                    missingMap[targetIndex] = missingMap[targetIndex] || [];
+                    missingMap[targetIndex].push(`${asset.name}(${code})`);
+                }
+            });
+            const missingText = Object.keys(missingMap).length
+                ? Object.entries(missingMap).map(([idx, assets]) => `${idx}: ${assets.join('、')}`).join('<br>')
+                : '当前资产池 target_index_code 均有估值历史覆盖。';
+            panel.innerHTML = `
+                <strong style="color:var(--text-primary);">valuation_history.json 已覆盖：</strong>${covered.length ? covered.join('、') : '暂无'}<br>
+                <strong style="color:var(--text-primary);">缺少估值历史的资产：</strong><br>${missingText}<br>
+                <span style="display:block;margin-top:6px;">估值温度计是纪律校准器，不是自动买入指令；缺少估值历史时一律保持 1.0x。</span>
+            `;
+        }
+
         function getVolatilityLabel(level) {
             const mapping = {
                 'low': '低波动',
@@ -2413,34 +2577,32 @@
                 const data = await response.json();
                 if (Array.isArray(data) && data.length > 0) {
                     rawValuationHistoryList = data;
+                    hasAnyValuationHistory = true;
                     hasValuationHistory = true;
+                    updateValuationCoveragePanel();
                     // 默认显示 H30269 并初始化其数据
                     filterValuationIndex('H30269');
                 } else {
+                    hasAnyValuationHistory = false;
+                    hasSelectedValuationHistory = false;
                     hasValuationHistory = false;
+                    updateValuationCoveragePanel();
                 }
             } catch (e) {
                 console.error("Error loading valuation history:", e);
+                hasAnyValuationHistory = false;
+                hasSelectedValuationHistory = false;
                 hasValuationHistory = false;
+                updateValuationCoveragePanel();
             }
         }
 
         function filterValuationIndex(indexCode) {
-            // Find asset role for this indexCode
-            let role = 'dividend_income';
-            if (indexCode === '000300') {
-                role = 'domestic_beta';
-            } else if (indexCode === '000510' || indexCode === '000905') {
-                role = 'domestic_beta';
-            } else if (indexCode === '588000') {
-                role = 'tech_growth';
-            } else if (indexCode === 'SPX') {
-                role = 'overseas_broad';
-            } else if (indexCode === 'NDX') {
-                role = 'overseas_tech';
-            }
+            const role = getRoleForIndex(indexCode);
+            state.valuationSelectedIndexCode = indexCode;
+            state.valuationSelectedRole = role;
 
-            const res = portfolioEngine.getDcaAdjustment(rawValuationHistoryList, indexCode, role);
+            const res = portfolioEngine.getDcaAdjustment(rawValuationHistoryList, indexCode, role, getDcaContext());
             
             // update state and other globals
             state.baseDca = parseFloat(document.getElementById('base-dca-input').value) || 30.0;
@@ -2449,6 +2611,7 @@
             if (filtered.length > 0) {
                 filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
                 valuationHistory = filtered;
+                hasSelectedValuationHistory = true;
                 hasValuationHistory = true;
                 
                 historyDates = valuationHistory.map(item => item.date);
@@ -2465,6 +2628,7 @@
                 state.currentPB = parseFloat(valuationHistory[valuationHistory.length - 1].pb) || 0.0;
             } else {
                 valuationHistory = [];
+                hasSelectedValuationHistory = false;
                 hasValuationHistory = false;
                 historyDates = [];
                 historyYields = [];
@@ -2475,7 +2639,7 @@
             }
 
             // Update UI metrics
-            document.getElementById('t3-idx-yield').innerText = res.dividend_yield;
+            document.getElementById('t3-idx-yield').innerText = role === 'dividend_income' ? res.dividend_yield : res.pe;
             document.getElementById('t3-idx-percentile').innerText = res.hasHistory ? (res.percentile + "%") : "--";
             document.getElementById('t3-idx-pe').innerText = res.pe;
             document.getElementById('t3-idx-pb').innerText = res.pb;
@@ -2514,11 +2678,15 @@
                 ratingAlert.style.borderColor = "#D2E3FC";
                 ratingAlert.style.color = "var(--accent-blue)";
             }
-            ratingAlert.innerHTML = `<strong>估值诊断结论：</strong> 估值处于 ${res.valuationZone}，当前定投系数为 <strong>${res.factor.toFixed(1)}x</strong>。<br>${res.tips}`;
+            const overseasNoDataTip = role.startsWith('overseas')
+                ? '<br>海外资产还需额外关注汇率、QDII 溢价与跟踪误差风险。'
+                : '';
+            ratingAlert.innerHTML = res.hasHistory
+                ? `<strong>估值校准结论：</strong> 估值处于 ${res.valuationZone}，当前定投节奏系数为 <strong>${res.factor.toFixed(1)}x</strong>。<br>${res.tips}<br><span style="display:block;margin-top:4px;">估值温度计只用于调整定投节奏，不构成买卖建议。</span>`
+                : `<strong>数据状态：</strong>该指数暂无估值历史，DCA 保持 <strong>1.0x</strong>。<br>不生成低估/高估判断，不构成买卖建议。${overseasNoDataTip}`;
 
             // Recalculate DCA amount
-            const finalDca = state.baseDca * res.factor;
-            document.getElementById('t3-adjust-dca-val').innerText = finalDca.toFixed(2) + " 万元";
+            updateValuationCoveragePanel();
         }
 
         function changeTemperatureIndex() {
@@ -2821,6 +2989,10 @@
             const monthlyWithdraw = state.targetMonthly * 10000;
             const rebalanceHarvest = document.getElementById('t2-harvest-checkbox') ? document.getElementById('t2-harvest-checkbox').checked : false;
             const harvestScenario = document.getElementById('t2-harvest-scenario') ? document.getElementById('t2-harvest-scenario').value : 'neutral';
+            const startMonth = parseInt(document.getElementById('t2-start-month')?.value || (new Date().getMonth() + 1), 10);
+            const stableIncomeDrop = parseFloat(document.getElementById('t2-stress-income-drop')?.value || '20') || 0.0;
+            const delayMonths = parseInt(document.getElementById('t2-delay-months')?.value || '0', 10);
+            const pauseDividendYear = document.getElementById('t2-pause-year-checkbox') ? document.getElementById('t2-pause-year-checkbox').checked : false;
 
             // Get weights
             const weights = {};
@@ -2828,8 +3000,8 @@
                 weights[code] = state.assets[code].weight;
             });
 
-            // 默认安全结论只基于分红/票息/现金利息
-            const baseRes = portfolioEngine.simulateCashflow(
+            // 正常口径：只基于稳定现金流，不含卖出资产补流。
+            const normalRes = portfolioEngine.simulateCashflow(
                 36, 
                 monthlyWithdraw, 
                 state.bufferSeed, 
@@ -2838,9 +3010,31 @@
                 state.assets, 
                 state.moneyMarketRate / 100.0, 
                 false,
-                'neutral'
+                'neutral',
+                startMonth,
+                0,
+                0,
+                false
             );
-            const displayRes = rebalanceHarvest ? portfolioEngine.simulateCashflow(
+
+            // 压力口径：折损、延迟、分红暂停；默认安全结论以此为准。
+            const stressRes = portfolioEngine.simulateCashflow(
+                36,
+                monthlyWithdraw,
+                state.bufferSeed,
+                investPrincipal,
+                weights,
+                state.assets,
+                state.moneyMarketRate / 100.0,
+                false,
+                'neutral',
+                startMonth,
+                stableIncomeDrop,
+                delayMonths,
+                pauseDividendYear
+            );
+
+            const harvestDisplayRes = rebalanceHarvest ? portfolioEngine.simulateCashflow(
                 36,
                 monthlyWithdraw,
                 state.bufferSeed,
@@ -2849,8 +3043,13 @@
                 state.assets,
                 state.moneyMarketRate / 100.0,
                 true,
-                harvestScenario
-            ) : baseRes;
+                harvestScenario,
+                startMonth,
+                stableIncomeDrop,
+                delayMonths,
+                pauseDividendYear
+            ) : stressRes;
+
             const feasibility = portfolioEngine.calculateCashflowFeasibility(
                 36,
                 monthlyWithdraw,
@@ -2858,42 +3057,48 @@
                 state.principal,
                 weights,
                 state.assets,
-                state.moneyMarketRate / 100.0
+                state.moneyMarketRate / 100.0,
+                startMonth,
+                stableIncomeDrop,
+                delayMonths,
+                pauseDividendYear
             );
 
-            let accumDiv = 0.0;
             let accumHarvest = 0.0;
             const simData = [];
 
             for (let t = 1; t <= 36; t++) {
-                const c_month = ((t - 1) % 12) + 1;
-                const startBalance = t === 1 ? (state.bufferSeed * 10000) : displayRes.bufferHistory[t - 2];
-                const endBalance = displayRes.bufferHistory[t - 1];
-                const dividend = displayRes.dividendsHistory[t - 1];
-                const harvest = displayRes.harvestHistory[t - 1];
-                const interest = displayRes.interestEarnedHistory[t - 1];
-
-                accumDiv += dividend;
+                const cMonth = ((startMonth - 1 + t - 1) % 12) + 1;
+                const startBalance = t === 1 ? (state.bufferSeed * 10000) : harvestDisplayRes.bufferHistory[t - 2];
+                const endBalance = harvestDisplayRes.bufferHistory[t - 1];
+                const dividend = harvestDisplayRes.dividendIncomeHistory[t - 1] || 0.0;
+                const cashInterest = harvestDisplayRes.cashInterestIncomeHistory[t - 1] || 0.0;
+                const bufferInterest = harvestDisplayRes.bufferInterestHistory[t - 1] || 0.0;
+                const harvest = harvestDisplayRes.harvestHistory[t - 1] || 0.0;
                 accumHarvest += harvest;
 
                 simData.push({
                     monthStr: `第 ${t} 个月`,
-                    calMonth: `${c_month}月`,
+                    calMonth: `${cMonth}月`,
                     start: startBalance,
                     dividend: dividend,
-                    interest: interest,
+                    cashInterest: cashInterest,
+                    bufferInterest: bufferInterest,
                     harvest: harvest,
-                    end: endBalance
+                    end: endBalance,
+                    normalEnd: normalRes.bufferHistory[t - 1],
+                    stressEnd: stressRes.bufferHistory[t - 1]
                 });
 
                 tbody.innerHTML += `
                     <tr>
                         <td>第 ${t} 个月</td>
-                        <td><span style="color:var(--text-secondary);">${c_month}月</span></td>
+                        <td><span style="color:var(--text-secondary);">${cMonth}月</span></td>
                         <td>¥${Math.round(startBalance).toLocaleString()}</td>
                         <td style="color:var(--accent-blue);font-weight:500;">¥${Math.round(dividend).toLocaleString()}</td>
+                        <td style="color:var(--accent-emerald);font-weight:500;">¥${Math.round(cashInterest).toLocaleString()}</td>
+                        <td style="color:var(--text-secondary);">¥${bufferInterest.toFixed(2)}</td>
                         <td style="color:#A78BFA;font-weight:500;">¥${Math.round(harvest).toLocaleString()}</td>
-                        <td style="color:var(--text-secondary);">¥${interest.toFixed(2)}</td>
                         <td>¥${monthlyWithdraw.toLocaleString()}</td>
                         <td style="font-weight:600;color:${endBalance > 0 ? 'var(--text-primary)' : 'var(--accent-red)'}">¥${Math.round(endBalance).toLocaleString()}</td>
                     </tr>
@@ -2901,39 +3106,124 @@
             }
 
             // 更新顶部指标卡片
+            const totalStableIncome = stressRes.totalStableIncomeHistory.reduce((sum, v) => sum + v, 0);
+            const totalWithdraw = monthlyWithdraw * 36;
+            const annualStableIncome = totalStableIncome / 3;
+            const annualWithdraw = monthlyWithdraw * 12;
+            const stableCoverage = annualWithdraw > 0 ? annualStableIncome / annualWithdraw : 0.0;
+            const bufferCoverageMonths = state.targetMonthly > 0 ? state.bufferSeed / state.targetMonthly : 0.0;
+            const weakestMonth = stressRes.minBufferMonth || 1;
+            const weakestCalMonth = ((startMonth - 1 + weakestMonth - 1) % 12) + 1;
+
             document.getElementById('t2-seed-val').innerText = `¥${(state.bufferSeed * 10000).toLocaleString()}`;
-            document.getElementById('t2-min-buffer-val').innerText = `¥${Math.round(baseRes.minBuffer).toLocaleString()}`;
-            document.getElementById('t2-accum-div-val').innerText = `¥${Math.round(baseRes.dividendsHistory.reduce((sum, v) => sum + v, 0)).toLocaleString()}`;
+            document.getElementById('t2-coverage-months-val').innerText = `${bufferCoverageMonths.toFixed(1)} 月`;
+            document.getElementById('t2-normal-min-buffer-val').innerText = `¥${Math.round(normalRes.minBuffer).toLocaleString()}`;
+            document.getElementById('t2-min-buffer-val').innerText = `¥${Math.round(stressRes.minBuffer).toLocaleString()}`;
+            document.getElementById('t2-min-buffer-val').style.color = stressRes.minBuffer > 0 ? 'var(--accent-emerald)' : 'var(--accent-red)';
+            document.getElementById('t2-accum-div-val').innerText = `¥${Math.round(totalStableIncome).toLocaleString()}`;
+            document.getElementById('t2-stable-coverage-val').innerText = `${(stableCoverage * 100).toFixed(0)}%`;
+            document.getElementById('t2-stable-coverage-val').style.color = stableCoverage >= 0.6 ? 'var(--accent-emerald)' : 'var(--accent-red)';
+            document.getElementById('t2-weakest-month-val').innerText = `第 ${weakestMonth} 月 / ${weakestCalMonth}月`;
             document.getElementById('t2-recommended-spend-val').innerText = `${feasibility.recommendedMonthlyExpenseWan.toFixed(2)} 万`;
             document.getElementById('t2-safe-withdraw-val').innerText = `${feasibility.safeMonthlyWithdrawWan.toFixed(2)} 万`;
             document.getElementById('t2-min-principal-val').innerText = feasibility.minPrincipalWan === null ? '超过测算上限' : `${feasibility.minPrincipalWan.toFixed(1)} 万`;
             document.getElementById('t2-min-buffer-months-val').innerText = feasibility.minBufferMonths === null ? '仅加缓冲不足' : `${feasibility.minBufferMonths.toFixed(1)} 个月`;
+            const dependencyCard = document.getElementById('t2-harvest-dependency-card');
+            if (dependencyCard) {
+                if (rebalanceHarvest) {
+                    dependencyCard.classList.remove('hidden');
+                    const harvestDependency = totalWithdraw > 0 ? accumHarvest / totalWithdraw : 0.0;
+                    document.getElementById('t2-harvest-dependency-val').innerText = `${(harvestDependency * 100).toFixed(1)}%`;
+                } else {
+                    dependencyCard.classList.add('hidden');
+                }
+            }
+
+            renderCashflowConcentration(stressRes.stableIncomeContributions);
 
             // 安全预警条
             const alertEl = document.getElementById('t2-status-alert');
-            if (baseRes.minBuffer <= 0) {
+            const targetText = `${state.targetMonthly.toFixed(2)} 万元/月`;
+            const lowCoverageText = stableCoverage < 0.6 ? '<br><span style="display:block;margin-top:5px;font-weight:700;color:var(--accent-red);">该方案主要依赖消耗缓冲池，不是真正的现金流自洽。</span>' : '';
+            const harvestPasses = rebalanceHarvest && harvestDisplayRes.minBuffer > 0;
+            if (stressRes.minBuffer <= 0) {
                 alertEl.className = 'alert-banner alert-warning';
-                
-                // Show custom gap advise text
                 alertEl.innerHTML = `
                     <strong>⚠️ 缓冲池水位警报：</strong> 
-                    不计卖出成长资产时，缓冲池在部分月份会出现 <strong>负水位 (¥${Math.round(baseRes.minBuffer).toLocaleString()})</strong>。默认配置下若 400 万本金、12 万缓冲池、月取 2 万无法通过，原因是稳定分红/票息/现金利息不足以覆盖持续支取。
+                    压力口径下，按 ${targetText} 支取会在第 <strong>${stressRes.breachedAtMonth || weakestMonth}</strong> 个月附近断流，最低水位 <strong>¥${Math.round(stressRes.minBuffer).toLocaleString()}</strong>。正常口径最低水位为 ¥${Math.round(normalRes.minBuffer).toLocaleString()}，仅作辅助参考。
                     <br><span style="display:block; margin-top:5px; font-weight:700;">建议每月支出不超过 <strong>${feasibility.recommendedMonthlyExpenseWan.toFixed(2)} 万元</strong>（理论临界上限约 ${feasibility.safeMonthlyWithdrawWan.toFixed(2)} 万元，已预留 5% 安全余量）。</span>
-                    <br><span style="display:block; margin-top:5px; font-weight: 500;">💡 调理建议：请提高配置本金、降低月度支取、或增加初始现金缓冲。不要机械调高高波动成长类资产的权重，以避免在熊市被迫割肉变现。</span>
-                    ${rebalanceHarvest && displayRes.minBuffer > 0 ? `<br><span style="display:block; margin-top:5px; color:#A78BFA;">附加情景提示：开启卖出成长资产后可维持正水位，说明该方案属于“依赖卖出资产才能维持现金流”。</span>` : ''}
+                    <br><span style="display:block; margin-top:5px; font-weight: 500;">风险优先顺序：先看断流、延迟、下降和最低水位，再谈收益。不要把成长资产预期收益当稳定现金流。</span>
+                    ${harvestPasses ? '<br><span style="display:block; margin-top:5px; color:#A78BFA;font-weight:700;">开启 Harvest 后才通过：结论仍是现金流不自洽，依赖卖出资产。</span>' : ''}
+                    ${lowCoverageText}
                 `;
             } else {
                 alertEl.className = 'alert-banner alert-success';
                 alertEl.innerHTML = `
                     <strong>✅ 缓冲池平滑成功：</strong>
-                    不计卖出成长资产时，36 个月最低水位为 <strong>¥${Math.round(baseRes.minBuffer).toLocaleString()}</strong>，说明该现金流方案主要由分红/票息/现金利息与缓冲池支撑。
+                    压力口径下，按 ${targetText} 支取 36 个月未击穿，最低水位为 <strong>¥${Math.round(stressRes.minBuffer).toLocaleString()}</strong>。正常口径最低水位为 ¥${Math.round(normalRes.minBuffer).toLocaleString()}。
                     <br><span style="display:block; margin-top:5px; font-weight:700;">建议每月支出不超过 <strong>${feasibility.recommendedMonthlyExpenseWan.toFixed(2)} 万元</strong>（理论临界上限约 ${feasibility.safeMonthlyWithdrawWan.toFixed(2)} 万元）。</span>
-                    ${rebalanceHarvest ? `<br><span style="display:block; margin-top:5px; color:#A78BFA;">已额外展示卖出成长资产补流情景，3年情景补流合计 ¥${Math.round(accumHarvest).toLocaleString()}，不纳入默认安全结论。</span>` : ''}
+                    ${rebalanceHarvest ? `<br><span style="display:block; margin-top:5px; color:#A78BFA;">已额外展示非稳定卖出补流情景，3年情景补流合计 ¥${Math.round(accumHarvest).toLocaleString()}，不纳入默认安全结论。</span>` : ''}
+                    ${lowCoverageText}
                 `;
             }
 
             // 保存全局数据以便图表绘制
             state.simData = simData;
+            state.tab2StressBreached = stressRes.minBuffer <= 0;
+            state.tab2StressMinMonth = weakestMonth;
+            state.tab2StressMinValue = stressRes.minBuffer;
+        }
+
+        function renderCashflowConcentration(contributions) {
+            const container = document.getElementById('t2-cashflow-quality');
+            if (!container || !contributions) return;
+
+            const assetEntries = Object.values(contributions.byAsset || {}).sort((a, b) => b.amount - a.amount);
+            const total = assetEntries.reduce((sum, item) => sum + item.amount, 0);
+            if (total <= 0) {
+                container.innerHTML = '压力口径下 36 个月内没有收到稳定现金流，安全性完全依赖初始缓冲池与缓冲池利息。';
+                return;
+            }
+
+            const alerts = [];
+            const topAsset = assetEntries[0];
+            if (topAsset && topAsset.amount / total > 0.35) alerts.push('单一标的现金流贡献偏高');
+            Object.entries(contributions.byRole || {}).forEach(([role, amount]) => {
+                if (amount / total > 0.60) alerts.push(`现金流来源风格集中：${getRoleLabel(role)}`);
+            });
+            Object.entries(contributions.byMarket || {}).forEach(([market, amount]) => {
+                if (amount / total > 0.70) alerts.push(`现金流来源市场集中：${market}`);
+            });
+
+            const topRows = assetEntries.slice(0, 5).map(item => `
+                <tr>
+                    <td>${item.name || item.code}<br><span style="font-size:0.75rem;color:var(--text-secondary);">${item.code}</span></td>
+                    <td style="text-align:right;">¥${Math.round(item.amount).toLocaleString()}</td>
+                    <td style="text-align:right;">${((item.amount / total) * 100).toFixed(1)}%</td>
+                </tr>
+            `).join('');
+            const roleText = Object.entries(contributions.byRole || {})
+                .sort((a, b) => b[1] - a[1])
+                .map(([role, amount]) => `${getRoleLabel(role)} ${((amount / total) * 100).toFixed(1)}%`)
+                .join(' / ');
+            const marketText = Object.entries(contributions.byMarket || {})
+                .sort((a, b) => b[1] - a[1])
+                .map(([market, amount]) => `${market} ${((amount / total) * 100).toFixed(1)}%`)
+                .join(' / ');
+
+            container.innerHTML = `
+                ${alerts.length ? `<div class="alert-banner alert-warning" style="margin-bottom:10px;"><strong>集中度提示：</strong>${alerts.join('；')}。不构成投资建议，不承诺分红或收益。</div>` : `<div class="alert-banner alert-success" style="margin-bottom:10px;"><strong>集中度检查：</strong>压力口径下未触发现金流贡献集中度阈值。</div>`}
+                <div style="display:grid;grid-template-columns:minmax(260px,1fr) minmax(220px,0.8fr);gap:14px;align-items:start;">
+                    <table>
+                        <thead><tr><th>稳定现金流来源</th><th style="text-align:right;">36个月贡献</th><th style="text-align:right;">占比</th></tr></thead>
+                        <tbody>${topRows}</tbody>
+                    </table>
+                    <div>
+                        <strong style="color:var(--text-primary);">按角色：</strong><br>${roleText || '--'}<br><br>
+                        <strong style="color:var(--text-primary);">按市场：</strong><br>${marketText || '--'}
+                    </div>
+                </div>
+            `;
         }
 
         // Tab 3 的定投计算器
@@ -2946,28 +3236,63 @@
             if (tbody) {
                 tbody.innerHTML = '';
                 const baseDca = parseFloat(document.getElementById('base-dca-input').value) || state.baseDca;
+                const mode = document.getElementById('t3-dca-mode') ? document.getElementById('t3-dca-mode').value : 'fixed';
+                const dcaContext = getDcaContext();
+                const rows = [];
+                let rawScoreSum = 0.0;
                 let totalAdjustedDca = 0.0;
                 Object.keys(state.assets).forEach(code => {
                     const asset = state.assets[code];
-                    const targetIndex = asset.target_index_code || getDefaultTargetIndexCode(asset.role);
-                    const dcaRes = targetIndex ? portfolioEngine.getDcaAdjustment(rawValuationHistoryList, targetIndex, asset.role) : {
+                    const targetIndex = getAssetTargetIndex(asset);
+                    const isNoTimingRole = ['cash', 'hedge', 'bond_duration'].includes(asset.role);
+                    const dcaRes = (!targetIndex || isNoTimingRole) ? {
                         factor: 1.0,
-                        valuationZone: "数据不足，保持基础计划",
-                        hasHistory: false
-                    };
-                    const amtWan = baseDca * (asset.weight / 100) * dcaRes.factor;
+                        valuationZone: "不做估值择时，按基础比例",
+                        hasHistory: false,
+                        pe: "--",
+                        pb: "--",
+                        percentile: "--"
+                    } : portfolioEngine.getDcaAdjustment(rawValuationHistoryList, targetIndex, asset.role, dcaContext);
+                    const dataStatus = getAssetValuationStatus(asset, targetIndex);
+                    const originalWeight = parseFloat(asset.weight) || 0.0;
+                    const rawScore = originalWeight * dcaRes.factor;
+                    rawScoreSum += rawScore;
+                    rows.push({ code, asset, targetIndex, dcaRes, dataStatus, originalWeight, rawScore });
+                });
+
+                rows.forEach(row => {
+                    const adjustedPct = mode === 'fixed'
+                        ? (rawScoreSum > 0 ? row.rawScore / rawScoreSum : row.originalWeight / 100)
+                        : row.originalWeight / 100;
+                    const amtWan = mode === 'fixed'
+                        ? baseDca * adjustedPct
+                        : baseDca * (row.originalWeight / 100) * row.dcaRes.factor;
                     totalAdjustedDca += amtWan;
+                    const valuationMetricText = row.dcaRes.hasHistory
+                        ? `${row.dcaRes.pe} / ${row.dcaRes.pb} / ${row.dcaRes.percentile}%`
+                        : '-- / -- / --';
                     tbody.innerHTML += `
                         <tr>
-                            <td><strong>${asset.name}</strong> (${code})</td>
-                            <td>${targetIndex || '--'}</td>
-                            <td style="font-size:0.78rem;">${dcaRes.valuationZone}</td>
-                            <td style="font-weight:600;color:${dcaRes.factor > 1 ? 'var(--accent-emerald)' : (dcaRes.factor < 1 ? 'var(--accent-orange)' : 'var(--text-primary)')}">${dcaRes.factor.toFixed(1)}x</td>
+                            <td><strong>${row.asset.name}</strong> (${row.code})</td>
+                            <td>${getRoleLabel(row.asset.role)}<br><span style="color:var(--text-secondary);font-size:0.75rem;">${row.asset.market || '--'}</span></td>
+                            <td>${row.targetIndex || '--'}</td>
+                            <td style="font-size:0.78rem;">${row.dataStatus}</td>
+                            <td style="font-size:0.78rem;">${valuationMetricText}</td>
+                            <td style="font-size:0.78rem;">${row.dcaRes.valuationZone}</td>
+                            <td>${row.originalWeight.toFixed(1)}%</td>
+                            <td style="font-weight:600;color:${row.dcaRes.factor > 1 ? 'var(--accent-emerald)' : (row.dcaRes.factor < 1 ? 'var(--accent-orange)' : 'var(--text-primary)')}">${row.dcaRes.factor.toFixed(1)}x</td>
+                            <td>${(adjustedPct * 100).toFixed(1)}%</td>
                             <td style="color:var(--accent-emerald);font-weight:600">¥${Math.round(amtWan * 10000).toLocaleString()}</td>
                         </tr>
                     `;
                 });
                 document.getElementById('t3-adjust-dca-val').innerText = totalAdjustedDca.toFixed(2) + " 万元";
+                const modeNote = document.getElementById('t3-dca-mode-note');
+                if (modeNote) {
+                    modeNote.innerText = mode === 'fixed'
+                        ? `预算固定模式：基础预算 ${baseDca.toFixed(2)} 万元，调整后总买入 ${totalAdjustedDca.toFixed(2)} 万元；总额未放大，只调整分配。`
+                        : `估值放大/缩小模式：基础预算 ${baseDca.toFixed(2)} 万元，调整后总买入 ${totalAdjustedDca.toFixed(2)} 万元；总额会随 factor 变化。`;
+                }
             }
         }
 
@@ -3193,43 +3518,80 @@
             if (!state.simData) return;
 
             const months = state.simData.map(d => d.monthStr);
-            const ends = state.simData.map(d => d.end);
+            const normalEnds = state.simData.map(d => d.normalEnd);
+            const stressEnds = state.simData.map(d => d.stressEnd);
             const divs = state.simData.map(d => d.dividend);
+            const cashInterests = state.simData.map(d => d.cashInterest);
             const harvests = state.simData.map(d => d.harvest);
 
-            const trace1 = {
+            const traceNormal = {
                 x: months,
-                y: ends,
+                y: normalEnds,
                 type: 'scatter',
-                mode: 'lines+markers',
-                name: '缓冲池余额 (元)',
-                line: { color: '#188038', width: 3 },
-                marker: { size: 6 }
+                mode: 'lines',
+                name: '正常口径余额 (元)',
+                line: { color: '#188038', width: 2.5 },
+                yaxis: 'y'
             };
 
-            const trace2 = {
+            const traceStress = {
+                x: months,
+                y: stressEnds,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: '压力口径余额 (元)',
+                line: { color: state.tab2StressBreached ? '#D93025' : '#1A73E8', width: 3 },
+                marker: { size: 6 },
+                yaxis: 'y'
+            };
+
+            const traceDividend = {
                 x: months,
                 y: divs,
                 type: 'bar',
-                name: '当月分红到账 (元)',
-                marker: { color: '#1A73E8', opacity: 0.7 }
+                name: '红利收入 (元)',
+                marker: { color: '#1A73E8', opacity: 0.75 }
             };
 
-            const data = [trace2];
+            const traceCashInterest = {
+                x: months,
+                y: cashInterests,
+                type: 'bar',
+                name: '票息/货基收入 (元)',
+                marker: { color: '#10B981', opacity: 0.75 }
+            };
+
+            const data = [traceDividend, traceCashInterest];
             if (harvests.some(v => v > 0)) {
                 data.push({
                     x: months,
                     y: harvests,
                     type: 'bar',
-                    name: '情景卖出资产补流 (元)',
+                    name: '非稳定卖出补流 (元)',
                     marker: { color: '#A142F4', opacity: 0.65 }
                 });
             }
-            data.push(trace1);
+            data.push(traceNormal, traceStress);
+
+            if (state.tab2StressBreached && state.tab2StressMinMonth) {
+                const idx = state.tab2StressMinMonth - 1;
+                data.push({
+                    x: [months[idx]],
+                    y: [state.tab2StressMinValue],
+                    type: 'scatter',
+                    mode: 'markers+text',
+                    name: '压力最低点',
+                    marker: { color: '#D93025', size: 11, symbol: 'diamond' },
+                    text: ['最低点'],
+                    textposition: 'top center',
+                    showlegend: false
+                });
+            }
 
             const layout = {
                 paper_bgcolor: 'rgba(0,0,0,0)',
                 plot_bgcolor: 'rgba(0,0,0,0)',
+                barmode: 'stack',
                 showlegend: true,
                 legend: {
                     font: { color: '#202124' },
@@ -3246,6 +3608,16 @@
                     tickfont: { color: '#5F6368' },
                     gridcolor: '#ECEFF1'
                 },
+                shapes: state.tab2StressBreached ? [{
+                    type: 'line',
+                    xref: 'paper',
+                    x0: 0,
+                    x1: 1,
+                    yref: 'y',
+                    y0: 0,
+                    y1: 0,
+                    line: { color: '#D93025', width: 2, dash: 'dot' }
+                }] : [],
                 margin: { t: 30, b: 40, l: 60, r: 20 },
                 font: { color: '#202124' },
                 hovermode: 'x unified'
@@ -3385,30 +3757,36 @@
         // 历史股息率线图
         function renderTab3HistoryChart() {
             const chartDiv = document.getElementById('t3-plotly-history');
-            if (!hasValuationHistory) {
-                chartDiv.innerHTML = `<div style="display:flex; justify-content:center; align-items:center; height:100%; color:var(--text-secondary); font-size: 0.95rem;">缺少估值历史，无法生成图表</div>`;
+            if (!hasSelectedValuationHistory || valuationHistory.length === 0) {
+                if (window.Plotly) Plotly.purge('t3-plotly-history');
+                chartDiv.innerHTML = `<div style="display:flex; justify-content:center; align-items:center; height:100%; color:var(--text-secondary); font-size: 0.95rem;">该指数暂无估值历史，DCA 保持 1.0x</div>`;
                 return;
             }
+            const isDividend = state.valuationSelectedRole === 'dividend_income';
+            const yValues = isDividend
+                ? valuationHistory.map(item => parseFloat(item.dividend_yield))
+                : valuationHistory.map(item => parseFloat(item.pe));
+            const currentLineValue = isDividend ? state.valuationCurrentYield : state.currentPE;
             const traceLine = {
                 x: historyDates,
-                y: historyYields,
-                customdata: valuationHistory.map(item => [item.pe, item.pb]),
+                y: yValues,
+                customdata: valuationHistory.map(item => [parseFloat(item.pe), parseFloat(item.pb), parseFloat(item.dividend_yield)]),
                 type: 'scatter',
                 mode: 'lines',
-                name: '历史股息率 (%)',
+                name: isDividend ? '历史股息率' : '历史 PE',
                 hovertemplate: '<b>日期</b>: %{x}<br>' +
-                              '<b>股息率</b>: %{y:.2f}%<br>' +
-                              '<b>PE (市盈率)</b>: %{customdata[0]:.2f}<br>' +
-                              '<b>PB (市净率)</b>: %{customdata[1]:.2f}<extra></extra>',
+                              (isDividend
+                                  ? '<b>股息率</b>: %{y:.2f}%<br><b>PE</b>: %{customdata[0]:.2f}<br><b>PB</b>: %{customdata[1]:.2f}<extra></extra>'
+                                  : '<b>PE</b>: %{y:.2f}<br><b>PB</b>: %{customdata[1]:.2f}<br><b>股息率</b>: %{customdata[2]:.2f}%<extra></extra>'),
                 line: { color: '#1A73E8', width: 2 }
             };
 
             const traceCurrent = {
                 x: [historyDates[0], historyDates[historyDates.length - 1]],
-                y: [state.valuationCurrentYield, state.valuationCurrentYield],
+                y: [currentLineValue, currentLineValue],
                 type: 'scatter',
                 mode: 'lines',
-                name: '当前股息率',
+                name: isDividend ? '当前股息率' : '当前 PE',
                 line: { color: 'var(--accent-orange)', width: 1.5, dash: 'dash' }
             };
 
@@ -3422,13 +3800,13 @@
                     gridcolor: '#ECEFF1'
                 },
                 yaxis: {
-                    title: { text: '股息率 (%)', font: { color: '#5F6368' } },
+                    title: { text: isDividend ? '股息率 (%)' : 'PE (市盈率)', font: { color: '#5F6368' } },
                     tickfont: { color: '#5F6368' },
                     gridcolor: '#ECEFF1'
                 },
                 margin: { t: 20, b: 40, l: 40, r: 20 },
                 font: { color: '#202124' },
-                showlegend: false
+                showlegend: true
             };
 
             Plotly.newPlot('t3-plotly-history', data, layout, { responsive: true, displayModeBar: false });

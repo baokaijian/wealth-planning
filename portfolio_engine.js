@@ -90,18 +90,59 @@ const portfolioEngine = {
     },
 
     // 2. 36个月缓冲池流转模拟
-    simulateCashflow(monthsRange, monthlyWithdraw, bufferSeed, investPrincipal, weights, assets, moneyMarketRate, rebalanceHarvest = false, harvestScenario = 'neutral') {
+    simulateCashflow(
+        monthsRange,
+        monthlyWithdraw,
+        bufferSeed,
+        investPrincipal,
+        weights,
+        assets,
+        moneyMarketRate,
+        rebalanceHarvest = false,
+        harvestScenario = 'neutral',
+        startMonth = 1,
+        stableIncomeDrop = 0.0,
+        delayMonths = 0,
+        pauseDividendYear = false
+    ) {
         const bufferBalance = [bufferSeed * 10000.0]; // 元
-        const dividendsHistory = [];
-        const interestEarnedHistory = [];
+        const dividendIncomeHistory = [];
+        const cashInterestIncomeHistory = [];
+        const bufferInterestHistory = [];
         const harvestHistory = [];
+        const totalStableIncomeHistory = [];
+        const stableIncomeContributions = {
+            byAsset: {},
+            byRole: {},
+            byMarket: {}
+        };
+        const scheduledStableIncome = Array.from(
+            { length: monthsRange + Math.max(0, delayMonths) + 2 },
+            () => []
+        );
         let breachedAtMonth = null;
+        const safeStartMonth = Math.min(Math.max(parseInt(startMonth) || 1, 1), 12);
+        const incomeMultiplier = Math.max(0.0, 1.0 - ((parseFloat(stableIncomeDrop) || 0.0) / 100.0));
+        const safeDelayMonths = Math.min(Math.max(parseInt(delayMonths) || 0, 0), 6);
+
+        const addContribution = (asset, code, amount) => {
+            if (amount <= 0) return;
+            stableIncomeContributions.byAsset[code] = stableIncomeContributions.byAsset[code] || {
+                code,
+                name: asset.name,
+                amount: 0.0
+            };
+            stableIncomeContributions.byAsset[code].amount += amount;
+            const role = asset.role || 'unknown';
+            const market = asset.market || 'unknown';
+            stableIncomeContributions.byRole[role] = (stableIncomeContributions.byRole[role] || 0.0) + amount;
+            stableIncomeContributions.byMarket[market] = (stableIncomeContributions.byMarket[market] || 0.0) + amount;
+        };
 
         for (let t = 1; t <= monthsRange; t++) {
-            const cMonth = ((t - 1) % 12) + 1;
+            const cMonth = ((safeStartMonth - 1 + t - 1) % 12) + 1;
 
-            // 1) 计算当月常规分红流入 (仅针对 income_type 为 dividend 或 cash_interest 的资产)
-            let monthDividend = 0.0;
+            // 1) 计算当月常规稳定收入，并按压力参数安排到账。
             Object.keys(assets).forEach(code => {
                 const asset = assets[code];
                 const weight = parseFloat(weights[code]) || 0.0;
@@ -111,10 +152,32 @@ const portfolioEngine = {
                     const distMonths = asset.distribution_months || asset.months || {};
                     const monthDistRatio = distMonths[cMonth.toString()] || 0.0;
                     if (monthDistRatio > 0.0) {
+                        const isDividend = asset.income_type === 'dividend';
+                        const isPausedDividend = pauseDividendYear && isDividend && t >= 13 && t <= 24;
                         const assetValue = investPrincipal * (weight / 100.0) * 10000.0; // 元
-                        monthDividend += assetValue * (currentYield / 100.0) * monthDistRatio;
+                        const amount = isPausedDividend ? 0.0 : assetValue * (currentYield / 100.0) * monthDistRatio * incomeMultiplier;
+                        const arrivalMonth = t + safeDelayMonths;
+                        if (amount > 0.0 && arrivalMonth <= monthsRange) {
+                            scheduledStableIncome[arrivalMonth].push({
+                                code,
+                                asset,
+                                amount,
+                                kind: isDividend ? 'dividend' : 'cash_interest'
+                            });
+                        }
                     }
                 }
+            });
+
+            let monthDividend = 0.0;
+            let monthCashInterest = 0.0;
+            scheduledStableIncome[t].forEach(item => {
+                if (item.kind === 'dividend') {
+                    monthDividend += item.amount;
+                } else {
+                    monthCashInterest += item.amount;
+                }
+                addContribution(item.asset, item.code, item.amount);
             });
 
             // 2) 情景假设下卖出成长资产补充现金流。默认关闭，安全结论不依赖该项。
@@ -134,13 +197,16 @@ const portfolioEngine = {
 
             // 3) 缓冲池利息 (月度利息)
             const currentInterest = bufferBalance[bufferBalance.length - 1] * (moneyMarketRate / 12.0);
+            const monthStableIncome = monthDividend + monthCashInterest + currentInterest;
 
             // 4) 缓冲池结转
-            const nextBalance = bufferBalance[bufferBalance.length - 1] + monthDividend + monthHarvest + currentInterest - monthlyWithdraw;
+            const nextBalance = bufferBalance[bufferBalance.length - 1] + monthStableIncome + monthHarvest - monthlyWithdraw;
 
-            dividendsHistory.append ? dividendsHistory.append(monthDividend) : dividendsHistory.push(monthDividend);
-            interestEarnedHistory.push(currentInterest);
+            dividendIncomeHistory.push(monthDividend);
+            cashInterestIncomeHistory.push(monthCashInterest);
+            bufferInterestHistory.push(currentInterest);
             harvestHistory.push(monthHarvest);
+            totalStableIncomeHistory.push(monthStableIncome);
             bufferBalance.push(nextBalance);
 
             if (nextBalance < 0 && breachedAtMonth === null) {
@@ -149,18 +215,39 @@ const portfolioEngine = {
         }
 
         const bufferHistory = bufferBalance.slice(1);
+        const minBuffer = Math.min(...bufferHistory);
+        const minBufferMonth = bufferHistory.indexOf(minBuffer) + 1;
 
         return {
             bufferHistory,
-            dividendsHistory,
-            interestEarnedHistory,
+            dividendIncomeHistory,
+            cashInterestIncomeHistory,
+            bufferInterestHistory,
             harvestHistory,
+            totalStableIncomeHistory,
+            stableIncomeContributions,
+            // Backward-compatible aliases for older call sites.
+            dividendsHistory: totalStableIncomeHistory,
+            interestEarnedHistory: bufferInterestHistory,
             breachedAtMonth,
-            minBuffer: Math.min(...bufferHistory)
+            minBuffer,
+            minBufferMonth
         };
     },
 
-    calculateCashflowFeasibility(monthsRange, targetMonthlyWithdraw, bufferSeed, principal, weights, assets, moneyMarketRate) {
+    calculateCashflowFeasibility(
+        monthsRange,
+        targetMonthlyWithdraw,
+        bufferSeed,
+        principal,
+        weights,
+        assets,
+        moneyMarketRate,
+        startMonth = 1,
+        stableIncomeDrop = 0.0,
+        delayMonths = 0,
+        pauseDividendYear = false
+    ) {
         const survives = (testMonthly, testPrincipal, testBufferSeed) => {
             const investPrincipal = Math.max(testPrincipal - testBufferSeed, 0.0);
             const sim = this.simulateCashflow(
@@ -172,7 +259,11 @@ const portfolioEngine = {
                 assets,
                 moneyMarketRate,
                 false,
-                'neutral'
+                'neutral',
+                startMonth,
+                stableIncomeDrop,
+                delayMonths,
+                pauseDividendYear
             );
             return sim.minBuffer > 0;
         };
@@ -236,8 +327,11 @@ const portfolioEngine = {
     },
 
     // 3. 估值分位温度计与 DCA 调节因子
-    getDcaAdjustment(historyData, indexCode, role) {
-        if (!historyData || historyData.length === 0) {
+    getDcaAdjustment(historyData, indexCode, role, context = {}) {
+        const noHistoryResponse = () => {
+            const overseasRiskTip = (role === 'overseas_broad' || role === 'overseas_tech' || role === 'overseas_beta')
+                ? "注意汇率、QDII 溢价与跟踪误差风险。"
+                : "";
             return {
                 hasHistory: false,
                 percentile: 50.0,
@@ -246,23 +340,17 @@ const portfolioEngine = {
                 pb: "--",
                 dividend_yield: "--",
                 valuationZone: "数据不足，保持基础计划",
-                tips: "由于未找到此标的的估值历史序列，系统将采用基础配置计划，不进行动态调节。"
+                tips: `由于未找到此标的的估值历史序列，DCA 保持 1.0x，不生成低估/高估判断。${overseasRiskTip}`
             };
+        };
+        if (!historyData || historyData.length === 0) {
+            return noHistoryResponse();
         }
 
         // 过滤对应的 indexCode
         const filtered = historyData.filter(item => item.index_code === indexCode);
         if (filtered.length === 0) {
-            return {
-                hasHistory: false,
-                percentile: 50.0,
-                factor: 1.0,
-                pe: "--",
-                pb: "--",
-                dividend_yield: "--",
-                valuationZone: "数据不足，保持基础计划",
-                tips: "由于未找到此标的的估值历史序列，系统将采用基础配置计划，不进行动态调节。"
-            };
+            return noHistoryResponse();
         }
 
         // 按日期升序排序
@@ -300,6 +388,15 @@ const portfolioEngine = {
                 factor = 0.5;
                 tips = "提示：股息率已被估值上涨稀释，性价比偏低，定投系数下调至 0.5x 以控制建仓成本。";
             }
+            const dividendWeight = parseFloat(context.dividendWeight || 0.0);
+            const cashflowFeasible = context.cashflowFeasible !== false;
+            if (factor > 1.0 && (dividendWeight > 45.0 || !cashflowFeasible)) {
+                factor = 1.0;
+                const capReason = dividendWeight > 45.0
+                    ? "组合红利权重已超过 45%，即使股息率较高也不放大红利定投。"
+                    : "现金缓冲池默认安全测试未通过，先补现金缓冲，不要因低估强行加仓。";
+                tips += ` ${capReason}`;
+            }
         } else if (role === 'domestic_beta') {
             // 宽基看 PE/PB 估值百分位（PE 越低代表越低估，低估时定投调高）
             const pePct = parseFloat(((peList.filter(p => p < currentPE).length / peList.length) * 100).toFixed(1));
@@ -326,8 +423,8 @@ const portfolioEngine = {
 
             if (percentile <= 25.0) {
                 valuationZone = "超跌低估区间 (科技成长蓄势)";
-                factor = 1.1;
-                tips = "提示：科技类资产估值进入历史低位，但波动较高，定投系数仅小幅调高至 1.1x。";
+                factor = 1.0;
+                tips = "提示：科技类资产估值进入历史低位，但波动较高，定投系数最高不超过 1.0x。";
             } else if (percentile <= 75.0) {
                 valuationZone = "合理估值区间 (估值中性)";
                 factor = 0.8;
@@ -341,7 +438,7 @@ const portfolioEngine = {
             if (peList.length === 0) {
                 valuationZone = "海外估值数据不足";
                 factor = 1.0;
-                tips = "提示：当前缺少该海外资产的本地估值历史，保持 1.0x 基础计划。纳指100属于海外科技，并不等同于海外宽基。";
+                tips = "提示：当前缺少该海外资产的本地估值历史，保持 1.0x 基础计划，不生成低估/高估判断。注意汇率、QDII 溢价与跟踪误差风险。";
             } else if (role === 'overseas_tech') {
                 const count = peList.filter(p => p < currentPE).length;
                 percentile = parseFloat(((count / peList.length) * 100).toFixed(1));
@@ -366,7 +463,7 @@ const portfolioEngine = {
                 if (percentile <= 30.0) {
                     valuationZone = "低估配置区域 (海外宽基低估)";
                     factor = 1.0;
-                    tips = "提示：海外宽基估值偏低，但因汇率和数据覆盖限制，最高保持 1.0x。";
+                    tips = "提示：海外宽基估值偏低，但因汇率、QDII 溢价、跟踪误差和数据覆盖限制，最高保持 1.0x。";
                 } else if (percentile <= 70.0) {
                     valuationZone = "合理估值区间 (估值中性)";
                     factor = 1.0;
