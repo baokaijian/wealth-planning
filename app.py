@@ -1244,19 +1244,46 @@ elif menu == "4. 估值温度计与测算工具":
     def asset_target_index(info):
         return info.get('target_index_code') or default_target_index(info.get('role'))
 
+    valuation_index_meta = {
+        'H30269': {'name': '中证红利低波', 'role': 'dividend_income', 'metric': '股息率'},
+        '000015': {'name': '上证红利', 'role': 'dividend_income', 'metric': '股息率'},
+        '932039': {'name': '央企股东回报', 'role': 'dividend_income', 'metric': '股息率'},
+        'HSHDY': {'name': '港股高股息低波', 'role': 'dividend_income', 'metric': '股息率'},
+        '000300': {'name': '沪深300', 'role': 'domestic_beta', 'metric': 'PE/PB'},
+        '000510': {'name': '中证A500', 'role': 'domestic_beta', 'metric': 'PE/PB'},
+        '000905': {'name': '中证500', 'role': 'domestic_beta', 'metric': 'PE/PB'},
+        '588000': {'name': '科创50', 'role': 'tech_growth', 'metric': 'PE/PB'},
+        'SPX': {'name': '标普500', 'role': 'overseas_broad', 'metric': 'PE/PB'},
+        'NDX': {'name': '纳斯达克100', 'role': 'overseas_tech', 'metric': 'PE/PB'}
+    }
+
+    def valuation_meta(index_code_value, fallback_role='domestic_beta'):
+        return valuation_index_meta.get(index_code_value, {
+            'name': index_code_value or '--',
+            'role': fallback_role,
+            'metric': '股息率' if fallback_role == 'dividend_income' else 'PE/PB'
+        })
+
     def index_role(index_code_value):
         for asset_info in ASSETS_CONFIG.values():
             if asset_target_index(asset_info) == index_code_value:
                 return asset_info.get('role')
-        if index_code_value == 'SPX':
-            return 'overseas_broad'
-        if index_code_value == 'NDX':
-            return 'overseas_tech'
-        if index_code_value == '588000':
-            return 'tech_growth'
-        if index_code_value == 'H30269':
-            return 'dividend_income'
-        return 'domestic_beta'
+        return valuation_meta(index_code_value)['role']
+
+    def valuation_data_status(info, target_index, asset_res, no_timing_role):
+        if no_timing_role:
+            return "不做估值择时，按基础比例"
+        meta = valuation_meta(target_index, info.get('role'))
+        if asset_res.get('hasHistory'):
+            return f"有历史数据：按{meta['metric']}校准"
+        role = info.get('role')
+        if role in ('overseas_broad', 'overseas_tech'):
+            return f"缺{meta['metric']}历史：1.0x，关注汇率/QDII溢价"
+        if role == 'dividend_income':
+            return f"缺{meta['metric']}历史：1.0x，不判断高股息低估"
+        if role == 'tech_growth':
+            return f"缺{meta['metric']}历史：1.0x，高波动不放大"
+        return f"缺{meta['metric']}历史：1.0x 基础计划"
 
     valuation_index_set = {item.get('index_code') for item in history_data if item.get('index_code')}
     target_index_set = {asset_target_index(info) for info in ASSETS_CONFIG.values() if asset_target_index(info)}
@@ -1269,20 +1296,32 @@ elif menu == "4. 估值温度计与测算工具":
     with cover_col1:
         st.info("valuation_history.json 已覆盖：" + ("、".join(covered_indexes) if covered_indexes else "暂无"))
     with cover_col2:
-        st.warning("资产池缺少估值数据：" + ("、".join(missing_indexes) if missing_indexes else "无"))
+        missing_detail = []
+        for idx in missing_indexes:
+            linked_assets = [
+                f"{info.get('name')}｜{info.get('role')}｜缺{valuation_meta(idx, info.get('role'))['metric']}"
+                for info in ASSETS_CONFIG.values()
+                if asset_target_index(info) == idx
+            ]
+            missing_detail.append(f"{idx}: " + "；".join(linked_assets))
+        st.warning("资产池缺少估值数据：" + ("；".join(missing_detail) if missing_detail else "无"))
 
     index_options = [
         "H30269 (中证红利低波)",
+        "000015 (上证红利) [无历史数据]",
+        "932039 (央企股东回报) [无历史数据]",
+        "HSHDY (港股高股息低波) [无历史数据]",
         "000300 (沪深300)",
-        "000510 (中证A500)",
-        "000905 (中证500)",
-        "588000 (科创50)",
-        "SPX (标普500)",
-        "NDX (纳斯达克100)"
+        "000510 (中证A500) [无历史数据]",
+        "000905 (中证500) [无历史数据]",
+        "588000 (科创50) [无历史数据]",
+        "SPX (标普500) [无历史数据]",
+        "NDX (纳斯达克100) [无历史数据]"
     ]
     index_code = st.selectbox("请选择要进行定投校准的指数标的", index_options, index=0)
     index_clean = index_code.split(" ")[0]
     role_to_use = index_role(index_clean)
+    selected_meta = valuation_meta(index_clean, role_to_use)
 
     default_sim = portfolio_engine.simulate_cashflow(
         36,
@@ -1360,7 +1399,9 @@ elif menu == "4. 估值温度计与测算工具":
         </div>
         """, unsafe_allow_html=True)
     else:
-        st.info("该指数暂无估值历史，DCA 保持 1.0x；不生成低估/高估判断，不构成投资建议。")
+        missing_metric = "股息率历史" if selected_meta['metric'] == '股息率' else "PE/PB 估值历史"
+        overseas_tip = " 海外资产还需额外关注汇率、QDII 溢价与跟踪误差风险。" if role_to_use.startswith('overseas') else ""
+        st.info(f"{selected_meta['name']}暂无{missing_metric}，DCA 保持 1.0x；不生成低估/高估判断，不构成投资建议。{overseas_tip}")
 
     # 动态定投测算
     st.markdown("### 🎯 动态定投额度调节方案")
@@ -1399,7 +1440,7 @@ elif menu == "4. 估值温度计与测算工具":
         else:
             asset_res = portfolio_engine.get_dca_adjustment(history_data, target_index, role, dca_context)
         raw_score = original_weight * float(asset_res['factor'])
-        data_status = "不做估值择时，按基础比例" if no_timing_role else ("有估值历史" if asset_res.get('hasHistory') else "数据不足，基础计划")
+        data_status = valuation_data_status(info, target_index, asset_res, no_timing_role)
         calc_rows.append({
             'code': code,
             'info': info,
@@ -1485,7 +1526,8 @@ elif menu == "4. 估值温度计与测算工具":
         )
         st.plotly_chart(fig_val, use_container_width=True)
     else:
-        st.info("该指数暂无估值历史，图表已清空，DCA 保持 1.0x。")
+        missing_metric = "股息率历史" if selected_meta['metric'] == '股息率' else "PE/PB 估值历史"
+        st.info(f"{selected_meta['name']}暂无{missing_metric}，图表已清空，DCA 保持 1.0x。")
 
 # ==========================================
 # 模块 5: 年度资产再平衡测算

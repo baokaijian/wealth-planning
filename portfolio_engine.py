@@ -327,6 +327,36 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
     3. 估值分位温度计与 DCA 调节因子
     """
     def no_history_response():
+        role_messages = {
+            'dividend_income': {
+                'zone': "红利估值数据不足",
+                'metric': "股息率历史"
+            },
+            'domestic_beta': {
+                'zone': "宽基估值数据不足",
+                'metric': "PE/PB 历史"
+            },
+            'tech_growth': {
+                'zone': "科技成长估值数据不足",
+                'metric': "PE/PB 历史"
+            },
+            'overseas_broad': {
+                'zone': "海外宽基估值数据不足",
+                'metric': "本地估值历史"
+            },
+            'overseas_tech': {
+                'zone': "海外科技估值数据不足",
+                'metric': "本地估值历史"
+            },
+            'overseas_beta': {
+                'zone': "海外权益估值数据不足",
+                'metric': "本地估值历史"
+            }
+        }
+        role_message = role_messages.get(role, {
+            'zone': "估值数据不足",
+            'metric': "估值历史"
+        })
         overseas_risk_tip = "注意汇率、QDII 溢价与跟踪误差风险。" if role in ['overseas_broad', 'overseas_tech', 'overseas_beta'] else ""
         return {
             'hasHistory': False,
@@ -335,8 +365,8 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
             'pe': "--",
             'pb': "--",
             'dividend_yield': "--",
-            'valuationZone': "数据不足，保持基础计划",
-            'tips': f"由于未找到此标的的估值历史序列，DCA 保持 1.0x，不生成低估/高估判断。{overseas_risk_tip}"
+            'valuationZone': f"{role_message['zone']}，保持基础计划",
+            'tips': f"由于未找到此标的的{role_message['metric']}，DCA 保持 1.0x，不生成低估/高估判断。{overseas_risk_tip}"
         }
 
     if not history_data:

@@ -1716,6 +1716,9 @@
                     <label for="t3-index-selector" style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary);">选择监测指数 / 资产标的：</label>
                     <select id="t3-index-selector" onchange="changeTemperatureIndex()" style="font-size: 0.85rem; width: 280px;">
                         <option value="H30269" selected>📈 中证红利低波指数 (H30269)</option>
+                        <option value="000015">📈 上证红利指数 (000015) [无历史数据]</option>
+                        <option value="932039">📈 央企股东回报指数 (932039) [无历史数据]</option>
+                        <option value="HSHDY">📈 港股高股息低波指数 (HSHDY) [无历史数据]</option>
                         <option value="000300">🇨🇳 沪深300指数 (000300)</option>
                         <option value="000510">🇨🇳 中证A500指数 (000510) [无历史数据]</option>
                         <option value="000905">🇨🇳 中证500指数 (000905) [无历史数据]</option>
@@ -2476,6 +2479,27 @@
             return mapping[role] || role;
         }
 
+        const VALUATION_INDEX_META = {
+            'H30269': { name: '中证红利低波指数', role: 'dividend_income', metric: '股息率' },
+            '000015': { name: '上证红利指数', role: 'dividend_income', metric: '股息率' },
+            '932039': { name: '央企股东回报指数', role: 'dividend_income', metric: '股息率' },
+            'HSHDY': { name: '港股高股息低波指数', role: 'dividend_income', metric: '股息率' },
+            '000300': { name: '沪深300指数', role: 'domestic_beta', metric: 'PE/PB' },
+            '000510': { name: '中证A500指数', role: 'domestic_beta', metric: 'PE/PB' },
+            '000905': { name: '中证500指数', role: 'domestic_beta', metric: 'PE/PB' },
+            '588000': { name: '科创50指数', role: 'tech_growth', metric: 'PE/PB' },
+            'SPX': { name: '标普500指数', role: 'overseas_broad', metric: 'PE/PB' },
+            'NDX': { name: '纳斯达克100指数', role: 'overseas_tech', metric: 'PE/PB' }
+        };
+
+        function getValuationIndexMeta(indexCode, fallbackRole = 'domestic_beta') {
+            return VALUATION_INDEX_META[indexCode] || {
+                name: indexCode || '--',
+                role: fallbackRole,
+                metric: fallbackRole === 'dividend_income' ? '股息率' : 'PE/PB'
+            };
+        }
+
         function isStableCashflowAsset(asset) {
             return asset.income_type === 'dividend' || asset.income_type === 'cash_interest';
         }
@@ -2487,11 +2511,7 @@
         }
 
         function getRoleForIndex(indexCode) {
-            if (indexCode === 'H30269') return 'dividend_income';
-            if (indexCode === '588000') return 'tech_growth';
-            if (indexCode === 'SPX') return 'overseas_broad';
-            if (indexCode === 'NDX') return 'overseas_tech';
-            return 'domestic_beta';
+            return getValuationIndexMeta(indexCode).role;
         }
 
         function getValuationIndexSet() {
@@ -2502,11 +2522,24 @@
             return asset.target_index_code || getDefaultTargetIndexCode(asset.role);
         }
 
-        function getAssetValuationStatus(asset, targetIndex) {
+        function getAssetValuationStatus(asset, targetIndex, dcaRes = null) {
             if (!targetIndex || ['cash', 'hedge', 'bond_duration'].includes(asset.role)) {
                 return '不做估值择时，按基础比例';
             }
-            return getValuationIndexSet().has(targetIndex) ? '有历史数据' : '数据不足，基础计划';
+            const meta = getValuationIndexMeta(targetIndex, asset.role);
+            if (dcaRes && dcaRes.hasHistory) {
+                return `有历史数据：按${meta.metric}校准`;
+            }
+            if (asset.role === 'overseas_broad' || asset.role === 'overseas_tech') {
+                return `缺${meta.metric}历史：1.0x，关注汇率/QDII溢价`;
+            }
+            if (asset.role === 'dividend_income') {
+                return `缺${meta.metric}历史：1.0x，不判断高股息低估`;
+            }
+            if (asset.role === 'tech_growth') {
+                return `缺${meta.metric}历史：1.0x，高波动不放大`;
+            }
+            return `缺${meta.metric}历史：1.0x 基础计划`;
         }
 
         function getDcaContext() {
@@ -2546,8 +2579,9 @@
             Object.entries(state.assets || {}).forEach(([code, asset]) => {
                 const targetIndex = getAssetTargetIndex(asset);
                 if (targetIndex && !getValuationIndexSet().has(targetIndex)) {
+                    const meta = getValuationIndexMeta(targetIndex, asset.role);
                     missingMap[targetIndex] = missingMap[targetIndex] || [];
-                    missingMap[targetIndex].push(`${asset.name}(${code})`);
+                    missingMap[targetIndex].push(`${asset.name}(${code})｜${getRoleLabel(asset.role)}｜缺${meta.metric}`);
                 }
             });
             const missingText = Object.keys(missingMap).length
@@ -2599,6 +2633,7 @@
 
         function filterValuationIndex(indexCode) {
             const role = getRoleForIndex(indexCode);
+            const indexMeta = getValuationIndexMeta(indexCode, role);
             state.valuationSelectedIndexCode = indexCode;
             state.valuationSelectedRole = role;
 
@@ -2653,11 +2688,15 @@
             if (role === 'dividend_income') {
                 yieldLabel.innerText = "当前指数股息率";
                 pctLabel.innerText = "历史股息率百分位";
-                chartTitle.innerText = "中证红利低波动指数历史股息率变化趋势";
+                chartTitle.innerText = res.hasHistory
+                    ? `${indexMeta.name}历史股息率变化趋势`
+                    : `${indexMeta.name}暂无股息率历史`;
             } else {
                 yieldLabel.innerText = "当前估值市盈率 (PE)";
                 pctLabel.innerText = "历史 PE 估值百分位";
-                chartTitle.innerText = indexCode === '000300' ? "沪深300指数历史 PE 估值变化趋势" : "指数历史估值变化趋势";
+                chartTitle.innerText = res.hasHistory
+                    ? `${indexMeta.name}历史 PE 估值变化趋势`
+                    : `${indexMeta.name}暂无 PE/PB 估值历史`;
             }
 
             // Update warning alerts
@@ -2681,9 +2720,10 @@
             const overseasNoDataTip = role.startsWith('overseas')
                 ? '<br>海外资产还需额外关注汇率、QDII 溢价与跟踪误差风险。'
                 : '';
+            const noHistoryMetric = indexMeta.metric === '股息率' ? '股息率历史' : 'PE/PB 估值历史';
             ratingAlert.innerHTML = res.hasHistory
                 ? `<strong>估值校准结论：</strong> 估值处于 ${res.valuationZone}，当前定投节奏系数为 <strong>${res.factor.toFixed(1)}x</strong>。<br>${res.tips}<br><span style="display:block;margin-top:4px;">估值温度计只用于调整定投节奏，不构成买卖建议。</span>`
-                : `<strong>数据状态：</strong>该指数暂无估值历史，DCA 保持 <strong>1.0x</strong>。<br>不生成低估/高估判断，不构成买卖建议。${overseasNoDataTip}`;
+                : `<strong>数据状态：</strong>${indexMeta.name}暂无${noHistoryMetric}，DCA 保持 <strong>1.0x</strong>。<br>不生成低估/高估判断，不构成买卖建议。${overseasNoDataTip}`;
 
             // Recalculate DCA amount
             updateValuationCoveragePanel();
@@ -3253,7 +3293,7 @@
                         pb: "--",
                         percentile: "--"
                     } : portfolioEngine.getDcaAdjustment(rawValuationHistoryList, targetIndex, asset.role, dcaContext);
-                    const dataStatus = getAssetValuationStatus(asset, targetIndex);
+                    const dataStatus = getAssetValuationStatus(asset, targetIndex, dcaRes);
                     const originalWeight = parseFloat(asset.weight) || 0.0;
                     const rawScore = originalWeight * dcaRes.factor;
                     rawScoreSum += rawScore;
@@ -3758,8 +3798,10 @@
         function renderTab3HistoryChart() {
             const chartDiv = document.getElementById('t3-plotly-history');
             if (!hasSelectedValuationHistory || valuationHistory.length === 0) {
+                const meta = getValuationIndexMeta(state.valuationSelectedIndexCode, state.valuationSelectedRole);
+                const missingMetric = meta.metric === '股息率' ? '股息率历史' : 'PE/PB 估值历史';
                 if (window.Plotly) Plotly.purge('t3-plotly-history');
-                chartDiv.innerHTML = `<div style="display:flex; justify-content:center; align-items:center; height:100%; color:var(--text-secondary); font-size: 0.95rem;">该指数暂无估值历史，DCA 保持 1.0x</div>`;
+                chartDiv.innerHTML = `<div style="display:flex; justify-content:center; align-items:center; height:100%; color:var(--text-secondary); font-size: 0.95rem;">${meta.name}暂无${missingMetric}，DCA 保持 1.0x</div>`;
                 return;
             }
             const isDividend = state.valuationSelectedRole === 'dividend_income';
