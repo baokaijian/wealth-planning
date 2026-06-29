@@ -131,14 +131,25 @@ except Exception as e:
 
 # 加载实时价格 live_data.json 动态配置
 live_data = {}
+live_data_timestamp = ""
+live_data_status = "fallback"
 if os.path.exists(live_data_path):
     try:
         with open(live_data_path, 'r', encoding='utf-8') as f:
             live_payload = json.load(f)
             if live_payload.get('status') == 'success':
                 live_data = live_payload.get('data', {})
+                live_data_timestamp = live_payload.get('timestamp', '')
+                live_data_status = "cache"
     except Exception as e:
         pass
+
+def data_freshness_label():
+    if live_data_status == "cache" and live_data_timestamp:
+        return f"本地缓存 · {live_data_timestamp}"
+    if live_data_status == "cache":
+        return "本地缓存"
+    return "兜底估算值"
 
 # 组装完整的资产配置参数
 ASSETS_CONFIG = {}
@@ -216,18 +227,45 @@ else:
 # ==========================================
 st.sidebar.markdown("<h2 style='color:#10B981;text-align:center;margin-bottom:20px;'>💰 功能模块导航</h2>", unsafe_allow_html=True)
 
+MENU_OPTIONS = [
+    "1. 家庭资产体检与配置建议",
+    "2. 资产配置与股息测算看板",
+    "3. 现金缓冲池平滑模拟器",
+    "4. 估值温度计与测算工具",
+    "5. 年度资产再平衡测算",
+    "6. 风险压力测试",
+    "7. 人生财富游戏"
+]
+
+if 'main_menu' not in st.session_state:
+    st.session_state.main_menu = MENU_OPTIONS[0]
+
+with st.sidebar.expander("30秒诊断", expanded=True):
+    quick_rigid = st.number_input("刚性支出 / 月 (元)", min_value=0.0, value=float(st.session_state.get('quick_rigid', 12000.0)), step=1000.0, key="quick_rigid")
+    quick_income = st.number_input("月收入 (元)", min_value=0.0, value=float(st.session_state.get('quick_income', 30000.0)), step=1000.0, key="quick_income")
+    quick_cash = st.number_input("当前现金缓冲池 (元)", min_value=0.0, value=float(st.session_state.get('quick_cash', 100000.0)), step=10000.0, key="quick_cash")
+    quick_months = quick_cash / quick_rigid if quick_rigid > 0 else 0.0
+    if quick_rigid > 0 and quick_income > 0:
+        if quick_months < 3:
+            st.warning(f"当前可覆盖 {quick_months:.1f} 个月。优先进入体检和缓冲池模拟。")
+            target_menu = "1. 家庭资产体检与配置建议"
+        elif quick_months < 6 or (quick_income - quick_rigid) / quick_income < 0.15:
+            st.info(f"当前可覆盖 {quick_months:.1f} 个月。建议确认结余率和缓冲池最低水位。")
+            target_menu = "3. 现金缓冲池平滑模拟器"
+        else:
+            st.success(f"当前可覆盖 {quick_months:.1f} 个月。可进入配置看板优化分散度。")
+            target_menu = "2. 资产配置与股息测算看板"
+        st.caption("仅本地即时计算，不构成投资建议，不承诺分红或收益。")
+        if st.button("进入建议模块", key="quick_jump_button"):
+            st.session_state.main_menu = target_menu
+            st.rerun()
+    else:
+        st.caption("填写三项后立即显示覆盖月数。")
+
 menu = st.sidebar.radio(
     "功能模块导航",
-    [
-        "1. 家庭资产体检与配置建议",
-        "2. 资产配置与股息测算看板",
-        "3. 现金缓冲池平滑模拟器",
-        "4. 估值温度计与测算工具",
-        "5. 年度资产再平衡测算",
-        "6. 风险压力测试",
-        "7. 人生财富游戏"
-    ],
-    index=0
+    MENU_OPTIONS,
+    key="main_menu"
 )
 
 # 在 session_state 中初始化基本参数以保证全局一致性
@@ -328,6 +366,123 @@ if 'family_data' not in st.session_state:
         'goal-protect': False,
         'goal-growth': False,
         'goal-retire': False
+    }
+
+def calculate_family_diagnostics(fd):
+    total_assets = (fd['ast-cash'] + fd['ast-mmf'] + fd['ast-ashare'] + fd['ast-hk'] +
+                    fd['ast-overseas'] + fd['ast-gold'] + fd['ast-house'] + fd['ast-insurance'] + fd['ast-others'])
+    total_liabilities = fd['debt-house'] + fd['debt-car'] + fd['debt-consumption'] + fd['debt-biz']
+    net_worth = total_assets - total_liabilities
+    leverage = total_liabilities / total_assets if total_assets > 0 else 0.0
+    repay_income_ratio = fd['debt-monthly-repay'] / fd['f-monthly-income'] if fd['f-monthly-income'] > 0 else 0.0
+    surplus_ratio = fd['f-surplus-income'] / fd['f-monthly-income'] if fd['f-monthly-income'] > 0 else 0.0
+    liquid_cash = fd['ast-cash'] + fd['ast-mmf']
+    monthly_essential_ex = max(fd.get('f-essential-expense', 0.0), fd['f-fixed-expense'] * 0.7, 1.0)
+    monthly_required_outflow = monthly_essential_ex + fd.get('debt-monthly-repay', 0.0)
+    cash_coverage_months = liquid_cash / monthly_required_outflow
+    investable_assets = fd['ast-cash'] + fd['ast-mmf'] + fd['ast-ashare'] + fd['ast-hk'] + fd['ast-overseas'] + fd['ast-gold'] + fd['ast-others']
+    equity_assets = fd['ast-ashare'] + fd['ast-hk'] + fd['ast-overseas']
+    equity_invest_ratio = equity_assets / investable_assets if investable_assets > 0 else 0.0
+    concentration = max(fd['ast-ashare'], fd['ast-hk'], fd['ast-overseas']) / equity_assets if equity_assets > 0 else 0.0
+
+    vulnerability = 0
+    if cash_coverage_months < 3:
+        vulnerability += 30
+    elif cash_coverage_months < 6:
+        vulnerability += 15
+    if repay_income_ratio > 0.4:
+        vulnerability += 25
+    elif repay_income_ratio > 0.25:
+        vulnerability += 12
+    if fd['f-stability'] == 'volatile':
+        vulnerability += 15
+    elif fd['f-stability'] == 'normal':
+        vulnerability += 7
+    if fd['f-income-sources'] == 1:
+        vulnerability += 15
+    if fd['debt-pressure'] == 'yes':
+        vulnerability += 15
+    if fd.get('debt-high-interest', 0.0) > 0:
+        vulnerability += 10
+    if fd.get('protect-coverage') == 'none':
+        vulnerability += 10
+    elif fd.get('protect-coverage') in ('adequate', 'strong'):
+        vulnerability -= 5
+    vulnerability = max(0, min(vulnerability, 100))
+
+    aggressiveness = min(round(min(equity_invest_ratio * 50, 50) +
+                               {'5': 5, '10': 15, '20': 35, '30': 60, '40': 85}.get(fd['inv-drawdown'], 15) * 0.4 +
+                               {'sell': 5, 'stop': 15, 'hold': 40, 'buy': 75}.get(fd['inv-drop-action'], 30) * 0.25), 100)
+
+    res = portfolio_engine.evaluate_family_profile(
+        fd, investable_assets, net_worth, total_assets,
+        leverage, repay_income_ratio, surplus_ratio, cash_coverage_months,
+        [], int(fd['inv-drawdown'])
+    )
+    return {
+        'total_assets': total_assets,
+        'total_liabilities': total_liabilities,
+        'net_worth': net_worth,
+        'leverage': leverage,
+        'repay_income_ratio': repay_income_ratio,
+        'surplus_ratio': surplus_ratio,
+        'cash_coverage_months': cash_coverage_months,
+        'investable_assets': investable_assets,
+        'equity_invest_ratio': equity_invest_ratio,
+        'concentration': concentration,
+        'vulnerability': vulnerability,
+        'aggressiveness': aggressiveness,
+        'res': res
+    }
+
+def family_rule_lines(metrics):
+    res = metrics['res']
+    fd = st.session_state.family_data
+    return [
+        f"现金覆盖月数 = (活期现金 + 货币/短债基金) / (月必要支出底线或固定支出 70% + 月供)，当前 {metrics['cash_coverage_months']:.1f} 个月；低于 6 个月会阻断积极型配置。",
+        f"月供收入比 = 月贷款还款 / 家庭税后月收入，当前 {metrics['repay_income_ratio']*100:.1f}%；超过 35% 会阻断积极型配置。",
+        f"结余率 = 月可结余 / 家庭税后月收入，当前 {metrics['surplus_ratio']*100:.1f}%；低于 15% 会阻断积极型配置。",
+        f"资产负债率 = 总负债 / 总资产，当前 {metrics['leverage']*100:.1f}%；超过 50% 会提高安全储备权重。",
+        f"高息债务余额当前 ¥{fd.get('debt-high-interest', 0.0):,.0f}；有高息债务时优先降风险。",
+        f"三桶结果：安全储备 {res['safety']}%、长期成长 {res['longterm']}%、综合对冲 {res['hedge']}%；积极型阻断：{'已触发' if res['isProhibitAggressive'] else '未触发'}。"
+    ]
+
+def collect_financial_snapshot(weights, principal, buffer_seed, target_monthly, money_market_rate):
+    fd = st.session_state.family_data
+    metrics = calculate_family_diagnostics(fd)
+    feasibility = portfolio_engine.calculate_cashflow_feasibility(
+        36,
+        target_monthly * 10000,
+        buffer_seed,
+        principal,
+        weights,
+        ASSETS_CONFIG,
+        money_market_rate / 100.0,
+        datetime.now().month,
+        20,
+        0,
+        False
+    )
+    return {
+        "version": 1,
+        "exportedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "source": "wealth-planning-local-snapshot",
+        "privacy": "local-json-only-no-upload",
+        "metrics": {
+            "healthScore": metrics['res'].get('fourMoney', {}).get('score'),
+            "safeMonthlyWithdrawWan": feasibility['safeMonthlyWithdrawWan'],
+            "recommendedMonthlyExpenseWan": feasibility['recommendedMonthlyExpenseWan'],
+            "cashCoverageMonths": metrics['cash_coverage_months'],
+            "repayIncomeRatio": metrics['repay_income_ratio'],
+            "surplusRatio": metrics['surplus_ratio']
+        },
+        "assumptions": {
+            "principalWan": principal,
+            "targetMonthlyWan": target_monthly,
+            "bufferSeedWan": buffer_seed,
+            "moneyMarketRatePct": money_market_rate,
+            "dataSource": data_freshness_label()
+        }
     }
 
 # ==========================================
@@ -439,6 +594,41 @@ if preset_option in PRESETS:
 weights = {}
 for code in ASSETS_CONFIG.keys():
     weights[code] = st.session_state[f"w_{code}"]
+
+with st.sidebar.expander("本地财务快照", expanded=False):
+    snapshot = collect_financial_snapshot(weights, principal, buffer_seed, target_monthly, money_market_rate)
+    st.download_button(
+        "导出财务快照 JSON",
+        data=json.dumps(snapshot, ensure_ascii=False, indent=2),
+        file_name=f"wealth-planning-snapshot-{snapshot['exportedAt'].replace(':', '-').replace(' ', '-')}.json",
+        mime="application/json",
+        help="导出为本地 JSON 文件，不联网、不上传。"
+    )
+    uploaded_snapshot = st.file_uploader("导入历史快照对比", type=["json"], key="snapshot_uploader")
+    if uploaded_snapshot is not None:
+        try:
+            old_snapshot = json.loads(uploaded_snapshot.getvalue().decode("utf-8"))
+            old_metrics = old_snapshot.get("metrics", {})
+            current_metrics = snapshot.get("metrics", {})
+            compare_rows = []
+            for label, key, suffix in [
+                ("健康分", "healthScore", " 分"),
+                ("安全月支取上限", "safeMonthlyWithdrawWan", " 万"),
+                ("建议月支取", "recommendedMonthlyExpenseWan", " 万"),
+                ("现金覆盖月数", "cashCoverageMonths", " 月")
+            ]:
+                old_val = old_metrics.get(key)
+                new_val = current_metrics.get(key)
+                if old_val is None or new_val is None:
+                    compare_rows.append({"指标": label, "历史": "--", "当前": "--", "变化": "数据不足"})
+                else:
+                    diff = float(new_val) - float(old_val)
+                    arrow = "↑" if diff > 0 else ("↓" if diff < 0 else "→")
+                    compare_rows.append({"指标": label, "历史": f"{float(old_val):.2f}{suffix}", "当前": f"{float(new_val):.2f}{suffix}", "变化": f"{arrow} {diff:.2f}{suffix}"})
+            st.dataframe(pd.DataFrame(compare_rows), use_container_width=True, hide_index=True)
+            st.caption("快照只在本地导入比较，不上传服务器。")
+        except Exception:
+            st.error("快照 JSON 解析失败，请确认文件来自本工具导出。")
 
 # ==========================================
 # 模块 1: 家庭资产体检与配置建议
@@ -693,6 +883,12 @@ if menu == "1. 家庭资产体检与配置建议":
             </div>
             """, unsafe_allow_html=True)
 
+        with st.expander("为什么是这个数", expanded=False):
+            explain_metrics = calculate_family_diagnostics(fd)
+            for line in family_rule_lines(explain_metrics):
+                st.write(f"- {line}")
+            st.caption("以上仅解释体检规则，不构成投资建议，不承诺分红或收益。")
+
         # 三桶可视化展示
         st.markdown(f"""
         <div class='card'>
@@ -761,6 +957,31 @@ elif menu == "2. 资产配置与股息测算看板":
     st.markdown("<h1 style='color:#102033; margin-bottom:10px;'>📊 资产配置与股息测算看板</h1>", unsafe_allow_html=True)
     st.write(f"当前可用总本金 **{principal:.1f}** 万元，其中已调拨 **{buffer_seed:.1f}** 万元进入初始缓冲池，实际进入组合配置的可投资本金为 **{invest_principal:.1f}** 万元。")
     st.info("口径与免责：本看板仅用于 ETF/指数基金/大类资产配置测算，不构成投资建议，不推荐单只股票，不承诺任何分红、票息或收益。成长资产、黄金和 REITs 备选不计入稳定现金流。")
+    current_family_metrics = calculate_family_diagnostics(st.session_state.family_data)
+    current_health_score = current_family_metrics['res'].get('fourMoney', {}).get('score')
+    previous_health_score = st.session_state.get('last_asset_health_score')
+    if current_health_score is not None:
+        if previous_health_score is None:
+            direction = "→"
+            score_color = "#587084"
+        elif current_health_score > previous_health_score:
+            direction = "↑"
+            score_color = "#10B981"
+        elif current_health_score < previous_health_score:
+            direction = "↓"
+            score_color = "#EF4444"
+        else:
+            direction = "→"
+            score_color = "#587084"
+        st.session_state.last_asset_health_score = current_health_score
+        st.markdown(f"""
+        <div class='card' style='border-left:4px solid {score_color};'>
+            <div class='metric-label'>健康分实时反馈</div>
+            <div class='metric-value' style='color:{score_color};'>{direction} {current_health_score} 分</div>
+            <div style='font-size:0.82rem;color:#587084;'>来自家庭体检“四类钱配置合理性”，用于观察配置调整后的防线状态，不构成投资建议。</div>
+        </div>
+        """, unsafe_allow_html=True)
+    st.caption(f"行情/股息率数据来源：{data_freshness_label()}")
     
     st.markdown("### 🛠️ 组合权重与股息率调整")
     
@@ -778,6 +999,7 @@ elif menu == "2. 资产配置与股息测算看板":
                 <div style='color:#587084; font-size:0.7rem; margin-bottom:5px;'>
                     代码: {code} | 角色: <span style='color:#10B981;'>{info['role']}</span>
                 </div>
+                <div style='display:inline-block;font-size:0.68rem;color:#3B82F6;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:999px;padding:2px 8px;'>{data_freshness_label()}</div>
             </div>
             """, unsafe_allow_html=True)
             
@@ -925,6 +1147,7 @@ elif menu == "2. 资产配置与股息测算看板":
             '权重 (%)': f"{d['weight']:.1f}%",
             '分配金额': f"{d['allocatedAmt']:.2f} 万元",
             '股息/预期回报': f"{d['yield']:.2f}% / {d['estimated_return']:.2f}%",
+            '数据来源': data_freshness_label(),
             '预计年分红/利息': f"¥{d['expectedAnnualDiv']:,.0f}" if d['stableCashflow'] else "不计入",
             '定位与主要风险': f"🎯 {d['strategy_note']}  ⚠️ {d['risk_note']}"
         })
@@ -949,7 +1172,7 @@ elif menu == "3. 现金缓冲池平滑模拟器":
 
     harvest_col1, harvest_col2 = st.columns([1.2, 1.0])
     with harvest_col1:
-        rebalance_harvest = st.checkbox("乐观情景：卖出成长资产补充现金流", value=False, help="仅作为附加情景，不计入默认现金流安全结论", key="buffer_rebalance_harvest_checkbox")
+        rebalance_harvest = st.checkbox("警示：乐观情景 · 卖出成长资产补充现金流", value=False, help="仅作为附加情景，不计入默认现金流安全结论", key="buffer_rebalance_harvest_checkbox")
     with harvest_col2:
         harvest_scenario = st.selectbox(
             "卖出成长资产补流情景",
@@ -958,6 +1181,7 @@ elif menu == "3. 现金缓冲池平滑模拟器":
             format_func=lambda x: {"conservative": "保守：不假设可卖出获利", "neutral": "中性：最多按 3%", "optimistic": "乐观：按预期收益率"}[x],
             disabled=not rebalance_harvest
         )
+    st.warning("固定说明：Harvest 是非稳定卖出补流，只展示依赖变现资产的附加情景，不计入默认安全结论；若只有开启 Harvest 才通过，结论仍是现金流不自洽。")
 
     # 正常口径：只基于稳定现金流，不含卖出资产补流。
     normal_sim = portfolio_engine.simulate_cashflow(
@@ -1721,6 +1945,15 @@ elif menu == "6. 风险压力测试":
     with r_col3:
         show_streamlit_breach_card("36", res['stressedBufferHistory'][:36], res['breachedAtMonth'])
 
+    with st.expander("为什么是这个数", expanded=False):
+        min_stress_buffer = res.get('minStressedBuffer', min(res['stressedBufferHistory']) if res['stressedBufferHistory'] else 0.0)
+        st.write(f"- 缓冲池覆盖月数 = 缓冲池金额 / 目标月支取，当前使用 {stress_buffer_months} 个月。")
+        st.write(f"- 压力测试按角色回撤净值：红利 {stress_drawdown_dividend}%、国内宽基 {stress_drawdown_domestic}%、科技 {stress_drawdown_tech}%、海外 {stress_drawdown_overseas}%、黄金/债券 {stress_drawdown_hedge}%。")
+        st.write(f"- 稳定现金流只统计 income_type 为 dividend 或 cash_interest 的资产，再按派息/利息折损率下调；成长资产预期收益不计入稳定现金流。")
+        st.write(f"- 击穿月 = 压力缓冲池余额首次小于 0 的月份；当前 {'第 ' + str(res['breachedAtMonth']) + ' 月击穿' if res['breachedAtMonth'] else '36 个月未击穿'}，最低水位约 ¥{min_stress_buffer:,.0f}。")
+        st.write(f"- 承受力匹配比较组合极端回撤 {res['maxNetWorthDrawdown']:.2f}% 与家庭可承受最大回撤 {float(st.session_state.family_data.get('inv-drawdown', 20.0)):.0f}%。")
+        st.caption("以上仅为压力情景解释，不构成投资建议，不承诺分红或收益。")
+
     # 本金回撤与承受度匹配核对
     st.markdown("### 🛡️ 本金最大回撤与承受力匹配")
     user_tolerance = float(st.session_state.family_data.get('inv-drawdown', 20.0))
@@ -2271,6 +2504,17 @@ elif menu == "7. 人生财富游戏":
             tips.append(f"家庭压力指数有 {high_stress_years} 年处于高位，应关注疾病、家庭意外和职业收入波动。")
         if not tips:
             tips.append("整体路径较稳健，后续重点是维持低杠杆、分散资产和医疗保障。")
+        weak_points = []
+        if min_emergency < 6 or negative_years > 0:
+            weak_points.append("多次现金垫不足或年度现金流为负，真实家庭应先补足 6-12 个月刚性支出缓冲池，避免被迫借消费贷。")
+        if high_stress_years > 0:
+            weak_points.append("高压力年份较多，建议优先做家庭资产体检，核对保障缺口、收入中断和大额自费支出承受力。")
+        if max_debt_ratio > 0.6 or game["debts"].get("consumer_loan", 0) + game["debts"].get("credit_card", 0) > 0:
+            weak_points.append("消费贷/信用卡或高负债暴露较明显，真实家庭应先降杠杆，再考虑提高成长资产仓位。")
+        if passive_coverage < 1:
+            weak_points.append("退休时稳定现金流覆盖不足，建议进入配置看板检查红利、票息、现金和海外宽基的分散度。")
+        if not weak_points:
+            weak_points.append("本局主要短板不突出，真实财务可优先复核现金缓冲池和资产分散度，维持风险优先。")
         return {
             "conclusion": conclusion,
             "min_emergency": min_emergency,
@@ -2280,7 +2524,8 @@ elif menu == "7. 人生财富游戏":
             "passive_coverage": passive_coverage,
             "notable_events": "、".join(notable_events) if notable_events else "重大事件较少",
             "debt_text": debt_text,
-            "tips": tips
+            "tips": tips,
+            "weak_points": weak_points
         }
 
     if "wealth_game_state" not in st.session_state:
@@ -2382,8 +2627,19 @@ elif menu == "7. 人生财富游戏":
             f"**过程回顾：**最低应急金 {retirement_report['min_emergency']:.1f} 个月；最高负债率 {retirement_report['max_debt_ratio']*100:.1f}%；"
             f"负现金流年份 {retirement_report['negative_years']} 年；主要事件：{retirement_report['notable_events']}。\n\n"
             f"**退休债务结构：**{retirement_report['debt_text']}。\n\n"
-            f"**风险点评：**{' '.join(retirement_report['tips'])}"
+            f"**风险点评：**{' '.join(retirement_report['tips'])}\n\n"
+            f"**如果是你的真实财务，建议优先做什么：**{' '.join(retirement_report['weak_points'])}"
         )
+        nav_a, nav_b, nav_c = st.columns(3)
+        if nav_a.button("去做家庭体检", key="game_to_family"):
+            st.session_state.main_menu = "1. 家庭资产体检与配置建议"
+            st.rerun()
+        if nav_b.button("检查资产配置", key="game_to_alloc"):
+            st.session_state.main_menu = "2. 资产配置与股息测算看板"
+            st.rerun()
+        if nav_c.button("模拟现金缓冲池", key="game_to_buffer"):
+            st.session_state.main_menu = "3. 现金缓冲池平滑模拟器"
+            st.rerun()
 
     left, right = st.columns(2)
     with left:

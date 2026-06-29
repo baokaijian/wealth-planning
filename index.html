@@ -1014,6 +1014,33 @@
             </div>
         </details>
 
+        <div class="card" id="quick-diagnosis-card" style="margin-bottom:20px;">
+            <div class="card-header-bar" style="margin-bottom:12px;">
+                <span class="card-title-text">30秒诊断</span>
+                <span style="font-size:0.78rem;color:var(--text-secondary);">仅本地计算：刚性支出、月收入、现金缓冲池</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(160px,1fr));gap:12px;margin-bottom:12px;">
+                <div class="input-group" style="margin-bottom:0;">
+                    <label for="quick-rigid-expense">刚性支出 / 月 (元)</label>
+                    <input type="number" id="quick-rigid-expense" min="0" placeholder="例如: 12000" oninput="runQuickDiagnosis()">
+                </div>
+                <div class="input-group" style="margin-bottom:0;">
+                    <label for="quick-monthly-income">月收入 (元)</label>
+                    <input type="number" id="quick-monthly-income" min="0" placeholder="例如: 30000" oninput="runQuickDiagnosis()">
+                </div>
+                <div class="input-group" style="margin-bottom:0;">
+                    <label for="quick-cash-buffer">当前现金缓冲池 (元)</label>
+                    <input type="number" id="quick-cash-buffer" min="0" placeholder="例如: 100000" oninput="runQuickDiagnosis()">
+                </div>
+            </div>
+            <div id="quick-diagnosis-result" class="alert-banner alert-info" style="margin-bottom:12px;">填写三项后，将立即显示当前现金可覆盖月数。</div>
+            <div class="btn-row" style="margin-bottom:0;">
+                <button class="action-btn secondary" onclick="jumpToModule('tab-family')">进入体检</button>
+                <button class="action-btn secondary" onclick="jumpToModule('tab1')">进入配置</button>
+                <button class="action-btn secondary" onclick="jumpToModule('tab2')">进入缓冲池模拟</button>
+            </div>
+        </div>
+
         <!-- ==========================================
            TAB FAMILY: FAMILY FINANCIAL PROFILE
            ========================================== -->
@@ -1337,6 +1364,12 @@
                             <button class="action-btn secondary" onclick="exportFamilyJSON()">📥 导出配置 JSON</button>
                             <button class="action-btn secondary" onclick="copyFamilyMarkdown()">📋 复制 Markdown 报告</button>
                         </div>
+                        <div class="btn-row">
+                            <button class="action-btn secondary" onclick="exportFinancialSnapshot()">导出财务快照</button>
+                            <label class="action-btn secondary" for="snapshot-import-input" style="display:inline-flex;align-items:center;justify-content:center;cursor:pointer;">导入历史快照</label>
+                            <input type="file" id="snapshot-import-input" accept="application/json" onchange="importFinancialSnapshot(event)" style="display:none;">
+                        </div>
+                        <div id="snapshot-compare-box" style="display:none;font-size:0.82rem;line-height:1.5;background:var(--surface-hover);border:1px dashed var(--card-border);border-radius:6px;padding:10px 12px;margin-top:10px;"></div>
                     </div>
 
                     <!-- 1. 画像与诊言 -->
@@ -1402,6 +1435,10 @@
                             <strong id="four-money-overall" style="color: var(--text-secondary);">等待输入</strong>
                             <span id="four-money-summary" style="color: var(--text-secondary); margin-left: 8px;">请先输入家庭资产、负债与现金流明细。</span>
                         </div>
+                        <details id="family-explain-box" style="margin-top:12px;font-size:0.82rem;color:var(--text-secondary);line-height:1.5;">
+                            <summary style="cursor:pointer;font-weight:700;color:var(--text-primary);">为什么是这个数</summary>
+                            <div id="family-explain-content" style="margin-top:8px;background:var(--surface-hover);border:1px dashed var(--card-border);border-radius:6px;padding:10px 12px;">等待输入家庭财务明细数据。</div>
+                        </details>
                         <div class="four-money-grid" id="four-money-grid">
                             <!-- 四类钱结构化渲染 -->
                         </div>
@@ -1516,6 +1553,9 @@
 
             <div class="alert-banner alert-info">
                 <strong>口径与免责：</strong>本看板仅用于 ETF/指数基金/大类资产配置测算，不构成投资建议，不推荐单只股票，不承诺任何分红、票息或收益。成长资产、黄金和 REITs 备选不计入稳定现金流。
+            </div>
+            <div id="t1-health-feedback" class="alert-banner alert-info" style="margin-bottom:20px;">
+                健康分反馈：请先完成家庭资产体检，配置参数调整后会在这里显示分数变化方向。
             </div>
 
             <div class="tab1-stacked-layout">
@@ -1657,7 +1697,7 @@
                     </label>
                     <label class="checkbox-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
                         <input type="checkbox" id="t2-harvest-checkbox" onchange="userInputsChanged()" style="width: 18px; height: 18px; cursor: pointer;">
-                        <span style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">乐观情景：卖出成长资产补充现金流</span>
+                        <span style="font-size: 0.9rem; font-weight: 800; color: #7C3AED; background:#F3E8FF; border:1px solid #E9D5FF; border-radius:999px; padding:4px 10px;">警示：乐观情景 · 卖出成长资产补流</span>
                     </label>
                     <select id="t2-harvest-scenario" onchange="userInputsChanged()" style="font-size: 0.82rem;">
                         <option value="conservative">保守：不假设可卖出获利</option>
@@ -1666,7 +1706,7 @@
                     </select>
                 </div>
                 <div style="font-size: 0.8rem; color: var(--text-secondary); max-width: 500px; line-height: 1.4;">
-                    💡 <strong>口径说明：</strong> 现金流安全结论默认只基于分红、票息和现金利息；开启后仅作为“依赖卖出资产才能维持现金流”的附加情景，不计入默认安全结论。
+                    <strong style="color:#7C3AED;">固定说明：</strong> 乐观情景中的“非稳定卖出补流”只展示变现资产的附加可能性，不计入默认安全结论；若只有开启 Harvest 才通过，结论仍是现金流不自洽。
                 </div>
             </div>
 
@@ -1971,6 +2011,10 @@
                     </div>
 
                     <div id="stress-test-summary-alert" class="alert-banner" style="margin-top: 20px; font-size: 0.9rem; margin-bottom: 0;"></div>
+                    <details id="stress-explain-box" style="margin-top:12px;font-size:0.82rem;color:var(--text-secondary);line-height:1.5;">
+                        <summary style="cursor:pointer;font-weight:700;color:var(--text-primary);">为什么是这个数</summary>
+                        <div id="stress-explain-content" style="margin-top:8px;background:var(--surface-hover);border:1px dashed var(--card-border);border-radius:6px;padding:10px 12px;">等待压力测试参数。</div>
+                    </details>
                 </div>
             </div>
 
@@ -2114,7 +2158,9 @@
             valuationSelectedRole: 'dividend_income',
             fetchStatus: 'loading', // 'loading', 'success', 'fallback'
             marketDataSource: '',
-            dataTimestamp: ''
+            dataTimestamp: '',
+            lastAssetHealthScore: null,
+            latestFinancialSnapshot: null
         };
 
         // ETF基准参数 (基准价格, 基准股息率)，用于根据最新价格反算实时股息率
@@ -2522,6 +2568,53 @@
             return '非稳定现金流';
         }
 
+        function getDataFreshnessMeta() {
+            if (state.fetchStatus === 'success' && state.marketDataSource === 'live') {
+                return { label: '实时行情', detail: state.dataTimestamp || formatLocalDateTime(), color: 'var(--accent-emerald)', bg: 'var(--green-container)', border: '#CEEAD6' };
+            }
+            if (state.fetchStatus === 'success' && state.marketDataSource === 'cache') {
+                return { label: '本地缓存', detail: state.dataTimestamp || '--', color: 'var(--accent-blue)', bg: 'var(--blue-container)', border: '#D2E3FC' };
+            }
+            return { label: '兜底估算值', detail: state.dataTimestamp || formatLocalDateTime(), color: 'var(--accent-orange)', bg: 'var(--yellow-container)', border: '#FEEFC3' };
+        }
+
+        function renderDataFreshnessBadge() {
+            const meta = getDataFreshnessMeta();
+            return `<span style="display:inline-flex;align-items:center;gap:4px;border:1px solid ${meta.border};background:${meta.bg};color:${meta.color};border-radius:999px;padding:2px 8px;font-size:0.72rem;font-weight:700;white-space:nowrap;">${meta.label}${meta.detail ? ` · ${meta.detail}` : ''}</span>`;
+        }
+
+        function runQuickDiagnosis() {
+            const rigid = parseFloat(document.getElementById('quick-rigid-expense')?.value) || 0.0;
+            const income = parseFloat(document.getElementById('quick-monthly-income')?.value) || 0.0;
+            const cash = parseFloat(document.getElementById('quick-cash-buffer')?.value) || 0.0;
+            const result = document.getElementById('quick-diagnosis-result');
+            if (!result) return;
+            if (rigid <= 0 || income <= 0) {
+                result.className = 'alert-banner alert-info';
+                result.innerHTML = '填写三项后，将立即显示当前现金可覆盖月数。';
+                return;
+            }
+            const months = cash / rigid;
+            const surplusRatio = income > 0 ? (income - rigid) / income : 0.0;
+            let cls = 'alert-success';
+            let guide = '现金垫初步够用，可进入资产配置看板优化分散度。';
+            if (months < 3) {
+                cls = 'alert-warning';
+                guide = '现金垫偏薄，优先进入家庭体检与现金缓冲池模拟。';
+            } else if (months < 6 || surplusRatio < 0.15) {
+                cls = 'alert-info';
+                guide = '建议先确认刚性支出、结余率和缓冲池最低水位。';
+            }
+            result.className = `alert-banner ${cls}`;
+            result.innerHTML = `<strong>当前可覆盖 ${months.toFixed(1)} 个月。</strong> ${guide}<br><span style="font-size:0.78rem;">仅用于本地快速诊断，不构成投资建议，不承诺分红或收益。</span>`;
+        }
+
+        function jumpToModule(tabId) {
+            switchTab(tabId);
+            const target = tabId === 'tab-family' ? document.getElementById('family-step-income') : document.getElementById(`${tabId}-view`);
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
         function getRoleForIndex(indexCode) {
             return getValuationIndexMeta(indexCode).role;
         }
@@ -2760,7 +2853,8 @@
                     <tr>
                         <td>
                             <strong>${asset.name}</strong><br>
-                            <span style="color:var(--text-secondary);font-size:0.75rem">${code} | 单价: <span id="t1_price_${code}">获取中...</span></span>
+                            <span style="color:var(--text-secondary);font-size:0.75rem">${code} | 单价: <span id="t1_price_${code}">获取中...</span></span><br>
+                            <span id="t1_data_badge_${code}">${renderDataFreshnessBadge()}</span>
                         </td>
                         <td><span class="role-badge badge-${asset.role}">${getRoleLabel(asset.role)}</span></td>
                         <td><span style="font-size:0.85rem">${asset.market} / ${getVolatilityLabel(asset.volatility_level)}</span></td>
@@ -2771,6 +2865,7 @@
                         <td id="t1_invest_${code}" style="font-weight: 500;">0.00 万元</td>
                         <td style="color:var(--accent-blue);font-weight: 500; white-space: nowrap;">
                             <input class="weight-input-field" type="number" id="y_val_${code}" step="0.1" min="0" max="20" value="${asset.yield > 0 ? asset.yield.toFixed(2) : ''}" placeholder="获取中..." style="color:var(--accent-blue)" disabled readonly>%
+                            <div id="t1_yield_badge_${code}" style="margin-top:4px;">${renderDataFreshnessBadge()}</div>
                         </td>
                         <td id="t1_div_${code}" style="font-weight: 500;">¥0</td>
                         <td>
@@ -2969,6 +3064,11 @@
                 if (priceSpan) {
                     priceSpan.innerText = asset.price > 0 ? `¥${asset.price.toFixed(2)}` : '获取中...';
                 }
+                const dataBadge = renderDataFreshnessBadge();
+                const priceBadge = document.getElementById(`t1_data_badge_${code}`);
+                if (priceBadge) priceBadge.innerHTML = dataBadge;
+                const yieldBadge = document.getElementById(`t1_yield_badge_${code}`);
+                if (yieldBadge) yieldBadge.innerHTML = dataBadge;
 
                 // 2) 如果股息率输入框当前没有聚焦，将实时算出的股息率更新进去
                 const yInput = document.getElementById(`y_val_${code}`);
@@ -3001,6 +3101,7 @@
                 warningEl.classList.add('hidden');
             }
             renderConcentrationAlerts(res.assetDetails);
+            updateAssetHealthFeedback();
 
             // 输出指标卡片
             document.getElementById('t1-blended-yield').innerText = `${(res.blendedCashYield).toFixed(2)}%`;
@@ -3801,6 +3902,21 @@
                 summaryAlert.innerHTML = `<strong>✅ 压力测试通过：</strong> 在预设极端市场压力下，现金缓冲池在 36 个月内始终保持 <strong>正水位</strong>。资产配置方案具备极高的现金流抗震防线！`;
             }
 
+            const explain = document.getElementById('stress-explain-content');
+            if (explain) {
+                const minBalance = res.minStressedBuffer !== undefined ? res.minStressedBuffer : Math.min(...stressBufferHistory);
+                explain.innerHTML = `
+                    <ul style="margin:0;padding-left:18px;">
+                        <li>缓冲池覆盖月数 = 缓冲池金额 / 目标月支取，当前使用 ${bufferMonths.toFixed(1)} 个月。</li>
+                        <li>压力测试先按角色回撤资产净值：红利 ${stressParams.drawdown.dividend_income}%、国内宽基 ${stressParams.drawdown.domestic_beta}%、科技 ${stressParams.drawdown.tech_growth}%、海外 ${stressParams.drawdown.overseas_broad}%、黄金/债券 ${stressParams.drawdown.hedge}%。</li>
+                        <li>稳定现金流只统计 income_type 为 dividend 或 cash_interest 的资产，再按角色分红/利息折损率下调；成长资产预期收益不计入稳定现金流。</li>
+                        <li>击穿月 = 压力缓冲池余额首次小于 0 的月份；当前${breachedMonth !== null ? `第 ${breachedMonth} 月击穿` : `36 个月未击穿`}，最低水位约 ¥${Math.round(minBalance).toLocaleString()}。</li>
+                        <li>承受力匹配比较组合极端回撤 ${res.maxNetWorthDrawdown.toFixed(2)}% 与家庭可承受最大回撤 ${maxDrawdownLimit}%。</li>
+                    </ul>
+                    <div style="margin-top:8px;">以上仅为压力情景解释，不构成投资建议，不承诺分红或收益。</div>
+                `;
+            }
+
             // Redraw chart if tab5 is active
             if (state.currentTab === 'tab5') {
                 renderTab5StressChart();
@@ -4216,6 +4332,8 @@
                     document.getElementById('lbl-recom-reason').innerText = "等待输入家庭财务明细数据以生成具体的配置原因。";
                 }
                 renderFamilyFourMoneyAnalysis(null, false);
+                const explainContent = document.getElementById('family-explain-content');
+                if (explainContent) explainContent.innerText = "等待输入家庭财务明细数据。";
                 return;
             }
 
@@ -4261,6 +4379,159 @@
 
             // 保存积极策略阻断状态
             state.isProhibitAggressive = res.isProhibitAggressive;
+            updateFamilyExplainPanel(res);
+            updateAssetHealthFeedback();
+        }
+
+        function buildFamilyRuleLines(res = null) {
+            const m = globalFamilyMetrics || {};
+            const fd = m.fd || {};
+            const lines = [];
+            lines.push(`刚性现金覆盖月数 = (活期现金 + 货币/短债基金) / (月必要支出底线或固定支出的 70% + 月供)，当前 ${Number(m.cashCoverageMonths || 0).toFixed(1)} 个月；低于 6 个月会阻断积极型配置，低于 3 个月属于高优先级修复项。`);
+            lines.push(`月供收入比 = 月贷款还款 / 家庭税后月收入，当前 ${((m.repayIncomeRatio || 0) * 100).toFixed(1)}%；超过 35% 会触发积极型配置阻断。`);
+            lines.push(`结余率 = 月可结余 / 家庭税后月收入，当前 ${((m.surplusRatio || 0) * 100).toFixed(1)}%；低于 15% 会触发积极型配置阻断。`);
+            lines.push(`资产负债率 = 总负债 / 总资产，当前 ${((m.leverage || 0) * 100).toFixed(1)}%；超过 50% 会提高安全储备权重。`);
+            if (fd['debt-high-interest'] > 0) lines.push(`存在高息债务余额 ¥${Math.round(fd['debt-high-interest']).toLocaleString()}，体检会优先提示处理高息负债。`);
+            if (res) {
+                lines.push(`三桶结果来自体检画像：安全储备 ${res.safety}%、长期成长 ${res.longterm}%、综合对冲 ${res.hedge}%。`);
+                lines.push(`积极型配置阻断：${res.isProhibitAggressive ? '已触发' : '未触发'}。触发条件只包括现金覆盖 < 6 个月、结余率 < 15%、月供收入比 > 35%、资产负债率 > 50% 或高息债务压力。`);
+            }
+            return lines;
+        }
+
+        function updateFamilyExplainPanel(res) {
+            const content = document.getElementById('family-explain-content');
+            if (!content) return;
+            content.innerHTML = `<ul style="margin:0;padding-left:18px;">${buildFamilyRuleLines(res).map(line => `<li>${line}</li>`).join('')}</ul><div style="margin-top:8px;color:var(--text-secondary);">以上为体检规则解释，不构成投资建议，不承诺分红或收益。</div>`;
+        }
+
+        function getCurrentHealthScore() {
+            return globalFamilyMetrics && globalFamilyMetrics.fourMoney ? Number(globalFamilyMetrics.fourMoney.score) : null;
+        }
+
+        function updateAssetHealthFeedback() {
+            const el = document.getElementById('t1-health-feedback');
+            if (!el) return;
+            const score = getCurrentHealthScore();
+            if (score === null || !Number.isFinite(score)) {
+                el.className = 'alert-banner alert-info';
+                el.innerHTML = '健康分反馈：请先完成家庭资产体检，配置参数调整后会在这里显示分数变化方向。';
+                return;
+            }
+            const prev = state.lastAssetHealthScore;
+            let direction = '→';
+            let color = 'var(--text-secondary)';
+            if (prev !== null && Number.isFinite(prev)) {
+                if (score > prev) {
+                    direction = '↑';
+                    color = 'var(--accent-emerald)';
+                } else if (score < prev) {
+                    direction = '↓';
+                    color = 'var(--accent-red)';
+                }
+            }
+            state.lastAssetHealthScore = score;
+            el.className = 'alert-banner alert-info';
+            el.innerHTML = `<strong>健康分实时反馈：</strong><span style="font-weight:800;color:${color};margin-left:6px;">${direction} ${score} 分</span>。本分数来自家庭体检“四类钱配置合理性”，用于观察调整后的防线状态，不构成投资建议。`;
+        }
+
+        function collectFinancialSnapshot() {
+            const weights = {};
+            Object.keys(state.assets).forEach(code => {
+                weights[code] = state.assets[code].weight;
+            });
+            const feasibility = portfolioEngine.calculateCashflowFeasibility(
+                36,
+                state.targetMonthly * 10000,
+                state.bufferSeed,
+                state.principal,
+                weights,
+                state.assets,
+                state.moneyMarketRate / 100.0,
+                new Date().getMonth() + 1,
+                20,
+                0,
+                false
+            );
+            const score = getCurrentHealthScore();
+            return {
+                version: 1,
+                exportedAt: formatLocalDateTime(),
+                source: 'wealth-planning-local-snapshot',
+                privacy: 'local-json-only-no-upload',
+                metrics: {
+                    healthScore: score,
+                    safeMonthlyWithdrawWan: feasibility.safeMonthlyWithdrawWan,
+                    recommendedMonthlyExpenseWan: feasibility.recommendedMonthlyExpenseWan,
+                    cashCoverageMonths: globalFamilyMetrics.cashCoverageMonths || null,
+                    repayIncomeRatio: globalFamilyMetrics.repayIncomeRatio || null,
+                    surplusRatio: globalFamilyMetrics.surplusRatio || null,
+                    stressBreached: state.tab2StressBreached === true,
+                    stressMinBuffer: state.tab2StressMinValue || null
+                },
+                assumptions: {
+                    principalWan: state.principal,
+                    targetMonthlyWan: state.targetMonthly,
+                    bufferSeedWan: state.bufferSeed,
+                    moneyMarketRatePct: state.moneyMarketRate,
+                    dataSource: getDataFreshnessMeta().label,
+                    dataTimestamp: state.dataTimestamp
+                }
+            };
+        }
+
+        function exportFinancialSnapshot() {
+            const snapshot = collectFinancialSnapshot();
+            const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `wealth-planning-snapshot-${snapshot.exportedAt.replace(/[: ]/g, '-')}.json`;
+            document.body.appendChild(link);
+            link.click();
+            URL.revokeObjectURL(link.href);
+            link.remove();
+        }
+
+        function importFinancialSnapshot(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    const imported = JSON.parse(reader.result);
+                    state.latestFinancialSnapshot = imported;
+                    renderSnapshotComparison(imported);
+                } catch (err) {
+                    alert('快照 JSON 解析失败，请确认文件来自本工具导出的财务快照。');
+                } finally {
+                    event.target.value = '';
+                }
+            };
+            reader.readAsText(file, 'utf-8');
+        }
+
+        function renderSnapshotComparison(imported) {
+            const box = document.getElementById('snapshot-compare-box');
+            if (!box) return;
+            const current = collectFinancialSnapshot();
+            const oldMetrics = imported.metrics || {};
+            const newMetrics = current.metrics || {};
+            const fmtDiff = (label, oldVal, newVal, suffix = '') => {
+                if (oldVal === null || oldVal === undefined || newVal === null || newVal === undefined) return `<div>${label}: 历史或当前数据不足</div>`;
+                const diff = Number(newVal) - Number(oldVal);
+                const arrow = diff > 0 ? '↑' : (diff < 0 ? '↓' : '→');
+                const color = diff > 0 ? 'var(--accent-emerald)' : (diff < 0 ? 'var(--accent-red)' : 'var(--text-secondary)');
+                return `<div>${label}: 历史 ${Number(oldVal).toFixed(2)}${suffix} → 当前 ${Number(newVal).toFixed(2)}${suffix} <strong style="color:${color};">${arrow} ${diff.toFixed(2)}${suffix}</strong></div>`;
+            };
+            box.style.display = 'block';
+            box.innerHTML = `
+                <strong style="color:var(--text-primary);">已导入历史快照：</strong>${imported.exportedAt || '--'}<br>
+                ${fmtDiff('健康分', oldMetrics.healthScore, newMetrics.healthScore, ' 分')}
+                ${fmtDiff('安全月支取上限', oldMetrics.safeMonthlyWithdrawWan, newMetrics.safeMonthlyWithdrawWan, ' 万')}
+                ${fmtDiff('建议月支取', oldMetrics.recommendedMonthlyExpenseWan, newMetrics.recommendedMonthlyExpenseWan, ' 万')}
+                ${fmtDiff('现金覆盖月数', oldMetrics.cashCoverageMonths, newMetrics.cashCoverageMonths, ' 月')}
+                <div style="margin-top:6px;color:var(--text-secondary);">快照文件只在本地导入比较，不上传服务器。</div>
+            `;
         }
 
         // 设置三桶 UI
@@ -5193,6 +5464,22 @@ ${avoidList}
             if (passiveCoverage < 1) riskTips.push('退休时被动现金流尚未覆盖必要支出，不宜把成长资产浮盈当作稳定收入。');
             if (highStressYears > 0) riskTips.push(`家庭压力指数有 ${highStressYears} 年处于高位，应关注疾病、家庭意外和职业收入波动。`);
             if (riskTips.length === 0) riskTips.push('整体路径较稳健，后续重点是维持低杠杆、分散资产和医疗保障。');
+            const weakPoints = [];
+            if (minEmergency < 6 || negativeYears > 0) {
+                weakPoints.push('多次现金垫不足或年度现金流为负，真实家庭应先补足 6-12 个月刚性支出缓冲池，避免被迫借消费贷。');
+            }
+            if (highStressYears > 0) {
+                weakPoints.push('高压力年份较多，建议优先做家庭资产体检，核对保障缺口、收入中断和大额自费支出承受力。');
+            }
+            if (maxDebtRatio > 0.6 || (game.debts.consumerLoan || 0) + (game.debts.creditCard || 0) > 0) {
+                weakPoints.push('消费贷/信用卡或高负债暴露较明显，真实家庭应先降杠杆，再考虑提高成长资产仓位。');
+            }
+            if (passiveCoverage < 1) {
+                weakPoints.push('退休时稳定现金流覆盖不足，建议进入配置看板检查红利、票息、现金和海外宽基的分散度。');
+            }
+            if (weakPoints.length === 0) {
+                weakPoints.push('本局主要短板不突出，真实财务可优先复核现金缓冲池和资产分散度，维持风险优先。');
+            }
 
             return `
                 <strong>60 岁人生财富分析报告</strong><br>
@@ -5201,6 +5488,12 @@ ${avoidList}
                 <span style="display:block;margin-top:6px;">过程回顾：最低应急金 ${minEmergency.toFixed(1)} 个月；最高负债率 ${(maxDebtRatio * 100).toFixed(1)}%；负现金流年份 ${negativeYears} 年；主要事件：${notableEvents}。</span>
                 <span style="display:block;margin-top:6px;">退休债务结构：${debtText}。</span>
                 <span style="display:block;margin-top:8px;"><strong>风险点评：</strong>${riskTips.map(tip => ` ${tip}`).join('')}</span>
+                <span style="display:block;margin-top:10px;"><strong>如果是你的真实财务，建议优先做什么：</strong>${weakPoints.map(tip => ` ${tip}`).join('')}</span>
+                <span style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+                    <button class="action-btn secondary" onclick="jumpToModule('tab-family')">去做家庭体检</button>
+                    <button class="action-btn secondary" onclick="jumpToModule('tab1')">检查资产配置</button>
+                    <button class="action-btn secondary" onclick="jumpToModule('tab2')">模拟现金缓冲池</button>
+                </span>
             `;
         }
 
