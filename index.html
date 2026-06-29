@@ -1716,14 +1716,14 @@
                     <label for="t3-index-selector" style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary);">选择监测指数 / 资产标的：</label>
                     <select id="t3-index-selector" onchange="changeTemperatureIndex()" style="font-size: 0.85rem; width: 280px;">
                         <option value="H30269" selected>📈 中证红利低波指数 (H30269)</option>
-                        <option value="000015">📈 上证红利指数 (000015) [无历史数据]</option>
-                        <option value="932039">📈 央企股东回报指数 (932039) [无历史数据]</option>
-                        <option value="HSHDY">📈 港股高股息低波指数 (HSHDY) [无历史数据]</option>
+                        <option value="000015">📈 上证红利指数 (000015)</option>
+                        <option value="932039">📈 央企股东回报指数 (932039)</option>
+                        <option value="HSHDY">📈 港股高股息低波指数 (HSHDY)</option>
                         <option value="000300">🇨🇳 沪深300指数 (000300)</option>
-                        <option value="000510">🇨🇳 中证A500指数 (000510) [无历史数据]</option>
-                        <option value="000905">🇨🇳 中证500指数 (000905) [无历史数据]</option>
-                        <option value="588000">💻 科创50指数 (588000) [无历史数据]</option>
-                        <option value="SPX">🌐 标普500指数 (SPX) [无历史数据]</option>
+                        <option value="000510">🇨🇳 中证A500指数 (000510)</option>
+                        <option value="000905">🇨🇳 中证500指数 (000905)</option>
+                        <option value="588000">💻 科创50指数 (588000)</option>
+                        <option value="SPX">🌐 标普500指数 (SPX)</option>
                         <option value="NDX">🌐 纳斯达克100指数 (NDX) [无历史数据]</option>
                     </select>
                 </div>
@@ -2480,24 +2480,36 @@
         }
 
         const VALUATION_INDEX_META = {
-            'H30269': { name: '中证红利低波指数', role: 'dividend_income', metric: '股息率' },
-            '000015': { name: '上证红利指数', role: 'dividend_income', metric: '股息率' },
-            '932039': { name: '央企股东回报指数', role: 'dividend_income', metric: '股息率' },
-            'HSHDY': { name: '港股高股息低波指数', role: 'dividend_income', metric: '股息率' },
-            '000300': { name: '沪深300指数', role: 'domestic_beta', metric: 'PE/PB' },
-            '000510': { name: '中证A500指数', role: 'domestic_beta', metric: 'PE/PB' },
-            '000905': { name: '中证500指数', role: 'domestic_beta', metric: 'PE/PB' },
-            '588000': { name: '科创50指数', role: 'tech_growth', metric: 'PE/PB' },
-            'SPX': { name: '标普500指数', role: 'overseas_broad', metric: 'PE/PB' },
-            'NDX': { name: '纳斯达克100指数', role: 'overseas_tech', metric: 'PE/PB' }
+            'H30269': { name: '中证红利低波指数', role: 'dividend_income', metric: '股息率', icon: '📈' },
+            '000015': { name: '上证红利指数', role: 'dividend_income', metric: '股息率', icon: '📈' },
+            '932039': { name: '央企股东回报指数', role: 'dividend_income', metric: '股息率', icon: '📈' },
+            'HSHDY': { name: '港股高股息低波指数', role: 'dividend_income', metric: '股息率', icon: '📈' },
+            '000300': { name: '沪深300指数', role: 'domestic_beta', metric: 'PE/PB', icon: '🇨🇳' },
+            '000510': { name: '中证A500指数', role: 'domestic_beta', metric: 'PE/PB', icon: '🇨🇳' },
+            '000905': { name: '中证500指数', role: 'domestic_beta', metric: 'PE/PB', icon: '🇨🇳' },
+            '588000': { name: '科创50指数', role: 'tech_growth', metric: 'PE/PB', icon: '💻' },
+            'SPX': { name: '标普500指数', role: 'overseas_broad', metric: 'PE/PB', icon: '🌐' },
+            'NDX': { name: '纳斯达克100指数', role: 'overseas_tech', metric: 'PE/PB', icon: '🌐' }
         };
 
         function getValuationIndexMeta(indexCode, fallbackRole = 'domestic_beta') {
             return VALUATION_INDEX_META[indexCode] || {
                 name: indexCode || '--',
                 role: fallbackRole,
-                metric: fallbackRole === 'dividend_income' ? '股息率' : 'PE/PB'
+                metric: fallbackRole === 'dividend_income' ? '股息率' : 'PE/PB',
+                icon: '📊'
             };
+        }
+
+        function updateValuationIndexOptions() {
+            const selector = document.getElementById('t3-index-selector');
+            if (!selector) return;
+            const covered = getValuationIndexSet();
+            Array.from(selector.options).forEach(option => {
+                const meta = getValuationIndexMeta(option.value);
+                const suffix = covered.has(option.value) ? '' : ' [无历史数据]';
+                option.text = `${meta.icon || '📊'} ${meta.name} (${option.value})${suffix}`;
+            });
         }
 
         function isStableCashflowAsset(asset) {
@@ -2573,6 +2585,7 @@
 
         function updateValuationCoveragePanel() {
             const panel = document.getElementById('t3-coverage-panel');
+            updateValuationIndexOptions();
             if (!panel) return;
             const covered = Array.from(getValuationIndexSet()).sort();
             const missingMap = {};

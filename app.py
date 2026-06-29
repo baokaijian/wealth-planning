@@ -1306,17 +1306,10 @@ elif menu == "4. 估值温度计与测算工具":
             missing_detail.append(f"{idx}: " + "；".join(linked_assets))
         st.warning("资产池缺少估值数据：" + ("；".join(missing_detail) if missing_detail else "无"))
 
+    index_order = ["H30269", "000015", "932039", "HSHDY", "000300", "000510", "000905", "588000", "SPX", "NDX"]
     index_options = [
-        "H30269 (中证红利低波)",
-        "000015 (上证红利) [无历史数据]",
-        "932039 (央企股东回报) [无历史数据]",
-        "HSHDY (港股高股息低波) [无历史数据]",
-        "000300 (沪深300)",
-        "000510 (中证A500) [无历史数据]",
-        "000905 (中证500) [无历史数据]",
-        "588000 (科创50) [无历史数据]",
-        "SPX (标普500) [无历史数据]",
-        "NDX (纳斯达克100) [无历史数据]"
+        f"{code} ({valuation_meta(code)['name']})" + ("" if code in valuation_index_set else " [无历史数据]")
+        for code in index_order
     ]
     index_code = st.selectbox("请选择要进行定投校准的指数标的", index_options, index=0)
     index_clean = index_code.split(" ")[0]
