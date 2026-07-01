@@ -1,86 +1,86 @@
 {
     "status": "success",
-    "timestamp": "2026-06-30 11:40:24",
+    "timestamp": "2026-07-01 11:54:43",
     "data": {
         "511880": {
             "name": "银华日利ETF",
-            "price": 100.559,
+            "price": 100.57,
             "yield": 1.79
         },
         "511360": {
             "name": "短融ETF海富通",
-            "price": 113.61,
+            "price": 113.615,
             "yield": 2.7
         },
         "512890": {
             "name": "红利低波ETF华泰柏瑞",
-            "price": 1.067,
-            "yield": 4.93
+            "price": 1.079,
+            "yield": 4.88
         },
         "510880": {
             "name": "红利ETF华泰柏瑞",
-            "price": 2.916,
-            "yield": 4.39
+            "price": 2.963,
+            "yield": 4.32
         },
         "561960": {
             "name": "央企回报ETF招商",
-            "price": 1.172,
-            "yield": 3.76
+            "price": 1.177,
+            "yield": 3.75
         },
         "513530": {
             "name": "港股通红利ETF华泰柏瑞",
-            "price": 1.422,
-            "yield": 5.43
+            "price": 1.426,
+            "yield": 5.42
         },
         "510300": {
             "name": "沪深300ETF华泰柏瑞",
-            "price": 5.019,
+            "price": 4.998,
             "yield": 1.05
         },
         "563360": {
             "name": "A500ETF华泰柏瑞",
-            "price": 1.421,
-            "yield": 0.84
+            "price": 1.414,
+            "yield": 0.85
         },
         "510500": {
             "name": "中证500ETF南方",
-            "price": 9.194,
+            "price": 9.18,
             "yield": 0.52
         },
         "588000": {
             "name": "科创50ETF华夏",
-            "price": 2.344,
+            "price": 2.29,
             "yield": 0.07
         },
         "513500": {
             "name": "标普500ETF博时",
-            "price": 2.483,
+            "price": 2.491,
             "yield": 1.06
         },
         "513100": {
             "name": "纳指ETF国泰",
-            "price": 2.204,
+            "price": 2.209,
             "yield": 0.29
         },
         "518880": {
             "name": "黄金ETF华安",
-            "price": 8.378,
+            "price": 8.271,
             "yield": 0.0
         },
         "511520": {
             "name": "政金债ETF富国",
-            "price": 117.959,
-            "yield": 2.42
+            "price": 117.758,
+            "yield": 2.43
         },
         "511010": {
             "name": "国债ETF国泰",
-            "price": 140.792,
+            "price": 140.637,
             "yield": 2.04
         },
         "508099": {
             "name": "建信中关村REIT",
-            "price": 1.182,
-            "yield": 11.42
+            "price": 1.194,
+            "yield": 11.31
         }
     }
 }
