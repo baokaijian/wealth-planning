@@ -1620,8 +1620,52 @@ elif menu == "4. 估值温度计与测算工具":
         overseas_tip = " 海外资产还需额外关注汇率、QDII 溢价与跟踪误差风险。" if role_to_use.startswith('overseas') else ""
         st.info(f"{selected_meta['name']}暂无{missing_metric}，DCA 保持 1.0x；不生成低估/高估判断，不构成投资建议。{overseas_tip}")
 
-    # 动态定投测算
-    st.markdown("### 🎯 动态定投额度调节方案")
+    # 绘制估值线图
+    if has_selected_valuation_history:
+        filtered_history = [item for item in history_data if item['index_code'] == index_clean]
+        dates = [item['date'] for item in filtered_history]
+        y_vals = [float(item['dividend_yield']) if is_dividend_role else float(item['pe']) for item in filtered_history]
+        pe_vals = [float(item['pe']) for item in filtered_history]
+        pb_vals = [float(item['pb']) for item in filtered_history]
+        dy_vals = [float(item.get('dividend_yield') or 0.0) for item in filtered_history]
+
+        fig_val = go.Figure()
+        fig_val.add_trace(go.Scatter(
+            x=dates,
+            y=y_vals,
+            mode='lines',
+            name='历史股息率' if is_dividend_role else '历史 PE',
+            line=dict(color='#3B82F6', width=2),
+            customdata=np.stack((pe_vals, pb_vals, dy_vals), axis=-1),
+            hovertemplate="日期: %{x}<br>股息率: %{customdata[2]:.2f}%<br>PE: %{customdata[0]:.2f}<br>PB: %{customdata[1]:.2f}<extra></extra>" if is_dividend_role else "日期: %{x}<br>PE: %{customdata[0]:.2f}<br>PB: %{customdata[1]:.2f}<br>股息率: %{customdata[2]:.2f}%<extra></extra>"
+        ))
+
+        # 当前水平虚线
+        curr_val = float(res['dividend_yield'].replace('%','')) if is_dividend_role else float(res['pe'])
+        fig_val.add_trace(go.Scatter(
+            x=[dates[0], dates[-1]],
+            y=[curr_val, curr_val],
+            mode='lines',
+            name='当前股息率' if is_dividend_role else '当前 PE',
+            line=dict(color=color_banner, dash='dash')
+        ))
+
+        fig_val.update_layout(
+            title=f"{index_code} 指数历史走势图",
+            xaxis_title="日期",
+            yaxis_title="股息率 (%)" if is_dividend_role else "PE (市盈率)",
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font_color='#102033',
+            height=300
+        )
+        st.plotly_chart(fig_val, use_container_width=True)
+    else:
+        missing_metric = "股息率历史" if selected_meta['metric'] == '股息率' else "PE/PB 估值历史"
+        st.info(f"{selected_meta['name']}暂无{missing_metric}，图表已清空，DCA 保持 1.0x。")
+
+    # 动态定投测算：放在历史走势图下方，保证明细表有完整横向空间。
+    st.markdown("### 🎯 本月测算额度调节生成器")
     dca_col1, dca_col2 = st.columns([1.0, 1.4])
     with dca_col1:
         base_dca = st.number_input("基础月定投预算 (万元)", min_value=1.0, max_value=200.0, value=32.3, step=1.0)
@@ -1633,7 +1677,7 @@ elif menu == "4. 估值温度计与测算工具":
             horizontal=True
         )
     fixed_budget_mode = dca_mode.startswith("预算固定")
-    
+
     st.markdown("上方指数仅用于查看温度计。下方组合定投按每个资产自己的 `target_index_code` 和 `role` 分别计算；预算固定模式下总额不放大。")
 
     timing_excluded_roles = {'cash', 'hedge', 'bond_duration'}
@@ -1701,50 +1745,6 @@ elif menu == "4. 估值温度计与测算工具":
         st.warning("当前 valuation_history.json 暂无任何估值历史，所有 DCA factor 降级为 1.0x。")
     if any(info.get('role', '').startswith('overseas') for info in ASSETS_CONFIG.values()):
         st.info("海外资产估值校准需额外关注汇率、QDII 溢价与跟踪误差风险；无本地估值历史时固定 1.0x。")
-
-    # 绘制估值线图
-    if has_selected_valuation_history:
-        filtered_history = [item for item in history_data if item['index_code'] == index_clean]
-        dates = [item['date'] for item in filtered_history]
-        y_vals = [float(item['dividend_yield']) if is_dividend_role else float(item['pe']) for item in filtered_history]
-        pe_vals = [float(item['pe']) for item in filtered_history]
-        pb_vals = [float(item['pb']) for item in filtered_history]
-        dy_vals = [float(item.get('dividend_yield') or 0.0) for item in filtered_history]
-
-        fig_val = go.Figure()
-        fig_val.add_trace(go.Scatter(
-            x=dates,
-            y=y_vals,
-            mode='lines',
-            name='历史股息率' if is_dividend_role else '历史 PE',
-            line=dict(color='#3B82F6', width=2),
-            customdata=np.stack((pe_vals, pb_vals, dy_vals), axis=-1),
-            hovertemplate="日期: %{x}<br>股息率: %{customdata[2]:.2f}%<br>PE: %{customdata[0]:.2f}<br>PB: %{customdata[1]:.2f}<extra></extra>" if is_dividend_role else "日期: %{x}<br>PE: %{customdata[0]:.2f}<br>PB: %{customdata[1]:.2f}<br>股息率: %{customdata[2]:.2f}%<extra></extra>"
-        ))
-        
-        # 当前水平虚线
-        curr_val = float(res['dividend_yield'].replace('%','')) if is_dividend_role else float(res['pe'])
-        fig_val.add_trace(go.Scatter(
-            x=[dates[0], dates[-1]],
-            y=[curr_val, curr_val],
-            mode='lines',
-            name='当前股息率' if is_dividend_role else '当前 PE',
-            line=dict(color=color_banner, dash='dash')
-        ))
-
-        fig_val.update_layout(
-            title=f"{index_code} 指数历史走势图",
-            xaxis_title="日期",
-            yaxis_title="股息率 (%)" if is_dividend_role else "PE (市盈率)",
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            font_color='#102033',
-            height=300
-        )
-        st.plotly_chart(fig_val, use_container_width=True)
-    else:
-        missing_metric = "股息率历史" if selected_meta['metric'] == '股息率' else "PE/PB 估值历史"
-        st.info(f"{selected_meta['name']}暂无{missing_metric}，图表已清空，DCA 保持 1.0x。")
 
 # ==========================================
 # 模块 5: 年度资产再平衡测算

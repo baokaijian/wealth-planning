@@ -1802,30 +1802,32 @@
 
             <div id="t3-rating-alert" class="alert-banner"></div>
 
-            <div class="flex-row-layouts">
-                <div class="flex-col-left card">
-                    <div class="card-title-text" style="margin-bottom: 20px;" id="t3-chart-title-container"><span id="t3-chart-title">中证红利低波动指数历史股息率变化趋势</span> (过去4年)</div>
-                    <div id="t3-plotly-history" style="height: 380px; width: 100%;"></div>
-                </div>
+            <div class="card">
+                <div class="card-title-text" style="margin-bottom: 20px;" id="t3-chart-title-container"><span id="t3-chart-title">中证红利低波动指数历史股息率变化趋势</span> (过去4年)</div>
+                <div id="t3-plotly-history" style="height: 380px; width: 100%;"></div>
+            </div>
 
-                <div class="flex-col-right card">
-                    <div class="card-title-text" style="margin-bottom: 15px;">本月测算额度调节生成器</div>
-                    <div class="input-group" style="margin-bottom: 12px;">
+            <div class="card">
+                <div class="card-title-text" style="margin-bottom: 15px;">本月测算额度调节生成器</div>
+                <div style="display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:16px;align-items:end;margin-bottom:15px;">
+                    <div class="input-group" style="margin-bottom:0;">
                         <label for="base-dca-input">您的基础月定投预算 (万元)</label>
                         <input type="number" id="base-dca-input" value="32.3" step="1" oninput="calculateDcaAdjust()">
                     </div>
-                    <div class="input-group" style="margin-bottom: 20px;">
+                    <div class="input-group" style="margin-bottom:0;">
                         <label for="t3-dca-mode">定投校准模式</label>
                         <select id="t3-dca-mode" onchange="calculateDcaAdjust()" style="font-size:0.86rem;">
                             <option value="fixed" selected>预算固定模式（推荐）</option>
                             <option value="variable">估值放大/缩小模式</option>
                         </select>
                     </div>
-                    <div style="font-size: 0.95rem; margin-bottom: 15px;">
-                        本月测算买入总额：<strong id="t3-adjust-dca-val" style="color: var(--accent-emerald); font-size: 1.15rem;">32.3 万元</strong>
-                        <div id="t3-dca-mode-note" style="font-size:0.78rem;color:var(--text-secondary);margin-top:4px;">预算固定模式：总额未放大，只调整分配。</div>
-                    </div>
-                    <table style="font-size: 0.88rem;">
+                </div>
+                <div style="font-size: 0.95rem; margin-bottom: 15px;">
+                    本月测算买入总额：<strong id="t3-adjust-dca-val" style="color: var(--accent-emerald); font-size: 1.15rem;">32.3 万元</strong>
+                    <div id="t3-dca-mode-note" style="font-size:0.78rem;color:var(--text-secondary);margin-top:4px;">预算固定模式：总额未放大，只调整分配。</div>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table style="font-size: 0.88rem; min-width: 980px;">
                         <thead>
                             <tr>
                                 <th>标的名称</th>
