@@ -1,8 +1,56 @@
 import datetime
+import json
+from pathlib import Path
+
+
+DEFAULT_RULES = {
+    'family_risk': {'min_cash_coverage_months': 6.0, 'min_surplus_ratio': 0.15, 'max_repay_income_ratio': 0.35, 'max_leverage_ratio': 0.5},
+    'concentration': {'max_single_role': 45.0, 'max_single_market': 70.0, 'max_tech_roles': 25.0, 'max_dividend_role': 45.0, 'blocked_family_max_tech': 10.0}
+}
+try:
+    RULES = json.loads(Path(__file__).with_name('planning_rules.json').read_text(encoding='utf-8'))
+except (OSError, ValueError):
+    RULES = DEFAULT_RULES
 
 
 def is_stable_cashflow_asset(asset):
     return asset.get('income_type') in ['dividend', 'cash_interest']
+
+
+def evaluate_portfolio_fit(weights, assets, is_prohibit_aggressive=False):
+    """使用既有集中度和家庭风险边界，解释组合是否与家庭防线匹配。"""
+    assets_dict = {item['code']: item for item in assets} if isinstance(assets, list) else assets
+    role_weights = {}
+    market_weights = {}
+    for code, asset in assets_dict.items():
+        weight = float(weights.get(code, 0.0) or 0.0)
+        role = asset.get('role', 'unknown')
+        market = asset.get('market', 'unknown')
+        role_weights[role] = role_weights.get(role, 0.0) + weight
+        market_weights[market] = market_weights.get(market, 0.0) + weight
+
+    tech_weight = role_weights.get('tech_growth', 0.0) + role_weights.get('overseas_tech', 0.0)
+    dividend_weight = role_weights.get('dividend_income', 0.0)
+    messages = []
+    limits = RULES['concentration']
+    messages.extend(f'单一角色 {role} 为 {weight:.1f}%，超过 {limits["max_single_role"]:g}%。' for role, weight in role_weights.items() if weight > limits['max_single_role'])
+    messages.extend(f'单一市场 {market} 为 {weight:.1f}%，超过 {limits["max_single_market"]:g}%。' for market, weight in market_weights.items() if weight > limits['max_single_market'])
+    if tech_weight > limits['max_tech_roles']:
+        messages.append(f'科技相关资产为 {tech_weight:.1f}%，超过 25%。')
+    if dividend_weight > limits['max_dividend_role']:
+        messages.append(f'红利类资产为 {dividend_weight:.1f}%，现金流底盘过厚，增长弹性不足。')
+    if is_prohibit_aggressive and tech_weight > limits['blocked_family_max_tech']:
+        messages.append('家庭体检已阻断积极型配置，科技相关资产应保持低权重。')
+
+    return {
+        'isMatched': not messages,
+        'status': '与家庭防线匹配' if not messages else '需要降低集中度或风险暴露',
+        'messages': messages,
+        'roleWeights': role_weights,
+        'marketWeights': market_weights,
+        'techWeight': tech_weight,
+        'dividendWeight': dividend_weight
+    }
 
 
 def calculate_portfolio(weights, assets, principal, buffer_seed, money_market_rate):
@@ -655,7 +703,8 @@ def calculate_four_money_analysis(fd, total_assets, net_worth, leverage, repay_i
     except (TypeError, ValueError):
         tolerance = 0.0
 
-    if cash_coverage_months < 6 or repay_income_ratio > 0.35 or surplus_ratio < 0.15 or high_interest_debt > 0:
+    family_limits = RULES['family_risk']
+    if cash_coverage_months < family_limits['min_cash_coverage_months'] or repay_income_ratio > family_limits['max_repay_income_ratio'] or surplus_ratio < family_limits['min_surplus_ratio'] or high_interest_debt > 0:
         earn_min_pct = 10
         earn_max_pct = 30
     elif cash_coverage_months >= 12 and surplus_ratio >= 0.25 and tolerance >= 30:
@@ -790,11 +839,12 @@ def evaluate_family_profile(fd, investable_assets, net_worth, total_assets, leve
         fd.get('expense-biz') or fd.get('expense-city') or fd.get('expense-other')
     )
 
-    is_low_cash = cash_coverage_months < 6
+    family_limits = RULES['family_risk']
+    is_low_cash = cash_coverage_months < family_limits['min_cash_coverage_months']
     high_interest_debt = float(fd.get('debt-high-interest', 0) or 0)
     monthly_income = float(fd.get('f-monthly-income', 0) or 0)
-    is_high_debt = leverage > 0.5 or repay_income_ratio > 0.35 or (monthly_income > 0 and high_interest_debt > monthly_income)
-    is_low_surplus = surplus_ratio < 0.15
+    is_high_debt = leverage > family_limits['max_leverage_ratio'] or repay_income_ratio > family_limits['max_repay_income_ratio'] or (monthly_income > 0 and high_interest_debt > monthly_income)
+    is_low_surplus = surplus_ratio < family_limits['min_surplus_ratio']
 
     is_prohibit_aggressive = is_low_cash or is_high_debt or is_low_surplus
 

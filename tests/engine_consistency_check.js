@@ -5,7 +5,26 @@ const engine = require('../portfolio_engine.js');
 const repoRoot = path.resolve(__dirname, '..');
 const casesPath = process.argv[2] || path.join(__dirname, 'engine_consistency_cases.json');
 const assetsList = JSON.parse(fs.readFileSync(path.join(repoRoot, 'assets.json'), 'utf8'));
-const cases = JSON.parse(fs.readFileSync(casesPath, 'utf8'));
+const sourceCases = JSON.parse(fs.readFileSync(casesPath, 'utf8'));
+
+function expandCases(cases) {
+  if (!cases.length) return [];
+  const variants = [
+    ['zero_buffer', { bufferSeed: 0.0, targetMonthlyWan: 0.0 }],
+    ['max_delay_pause', { startMonth: 12, delayMonths: 6, pauseDividendYear: true, stableIncomeDrop: 40.0 }],
+    ['thin_cash_aggressive_block', { familyData: { 'ast-cash': 0.0, 'ast-mmf': 10000.0, 'f-surplus-income': 2000.0 } }],
+  ];
+  return cases.concat(variants.map(([name, overrides]) => {
+    const result = JSON.parse(JSON.stringify(cases[0]));
+    const familyOverrides = overrides.familyData;
+    const caseOverrides = { ...overrides };
+    delete caseOverrides.familyData;
+    Object.assign(result, caseOverrides, { name });
+    if (familyOverrides) Object.assign(result.familyData, familyOverrides);
+    return result;
+  }));
+}
+const cases = expandCases(sourceCases);
 
 function buildAssets() {
   const assets = {};
@@ -80,12 +99,28 @@ function runCase(testCase) {
     [],
     parseFloat(testCase.familyData['inv-drawdown']) || 10
   );
+  const portfolio = engine.calculatePortfolio(weights, assets, testCase.principal, testCase.bufferSeed, moneyRate);
+  const harvest = engine.simulateCashflow(
+    36, withdraw, testCase.bufferSeed, Math.max(testCase.principal - testCase.bufferSeed, 0.0),
+    weights, assets, moneyRate, true, 'neutral', testCase.startMonth,
+    testCase.stableIncomeDrop, testCase.delayMonths, testCase.pauseDividendYear
+  );
+  const dcaMissing = engine.getDcaAdjustment([], 'NO_DATA', 'overseas_tech');
+  const fit = engine.evaluatePortfolioFit(weights, assets, family.isProhibitAggressive);
   return {
     name: testCase.name,
     safeMonthlyWithdrawWan: feasibility.safeMonthlyWithdrawWan,
     healthScore: family.fourMoney.score,
     breachedAtMonth: stress.breachedAtMonth,
     minStressedBuffer: stress.minStressedBuffer,
+    expectedAnnualDividend: portfolio.expectedAnnualDividend,
+    blendedGrowthReturn: portfolio.blendedGrowthReturn,
+    harvestTotal: harvest.harvestHistory.reduce((sum, value) => sum + value, 0),
+    stableIncomeTotal: harvest.totalStableIncomeHistory.reduce((sum, value) => sum + value, 0),
+    missingDcaFactor: dcaMissing.factor,
+    missingDcaHasHistory: dcaMissing.hasHistory,
+    portfolioFitStatus: fit.status,
+    profileKey: family.profileKey,
   };
 }
 

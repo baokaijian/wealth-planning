@@ -2,6 +2,7 @@ import urllib.request
 import json
 import time
 import os
+import sys
 from datetime import datetime
 
 # 加载 assets.json 动态提取代码
@@ -11,7 +12,7 @@ assets_path = os.path.join(script_dir, 'assets.json')
 try:
     with open(assets_path, 'r', encoding='utf-8') as f:
         assets_data = json.load(f)
-    SEC_IDS = [f"sh{item['code']}" for item in assets_data]
+    SEC_IDS = [f"{'sh' if str(item['code']).startswith(('5', '6')) else 'sz'}{item['code']}" for item in assets_data]
 except Exception as e:
     print("Error loading assets.json, fallback to hardcoded list:", e)
     SEC_IDS = [
@@ -81,7 +82,9 @@ def fetch_live_data():
             result[code] = {
                 'name': name,
                 'price': price,
-                'yield': dividend_yield
+                'yield': dividend_yield,
+                'price_source': 'tencent_realtime_quote',
+                'yield_source': 'base_distribution_price_adjusted_estimate'
             }
             
         output = {
@@ -99,6 +102,8 @@ def fetch_live_data():
         
     except Exception as e:
         print("Error fetching live data:", e)
+        return False
+    return True
 
 if __name__ == '__main__':
-    fetch_live_data()
+    raise SystemExit(0 if fetch_live_data() else 1)

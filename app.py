@@ -128,6 +128,9 @@ try:
         assets_list = json.load(f)
 except Exception as e:
     assets_list = []
+    assets_load_error = f"assets.json 加载失败：{e}"
+else:
+    assets_load_error = ""
 
 # 加载实时价格 live_data.json 动态配置
 live_data = {}
@@ -142,7 +145,11 @@ if os.path.exists(live_data_path):
                 live_data_timestamp = live_payload.get('timestamp', '')
                 live_data_status = "cache"
     except Exception as e:
-        pass
+        live_data_error = f"live_data.json 加载失败：{e}"
+    else:
+        live_data_error = ""
+else:
+    live_data_error = "live_data.json 不存在"
 
 def data_freshness_label():
     if live_data_status == "cache" and live_data_timestamp:
@@ -150,6 +157,12 @@ def data_freshness_label():
     if live_data_status == "cache":
         return "本地缓存"
     return "兜底估算值"
+
+def price_freshness_label():
+    return data_freshness_label() if live_data_status == "cache" else "兜底估算值"
+
+def yield_freshness_label():
+    return f"本地缓存估算收益率 · {live_data_timestamp}" if live_data_status == "cache" and live_data_timestamp else "配置兜底估算值"
 
 # 组装完整的资产配置参数
 ASSETS_CONFIG = {}
@@ -226,6 +239,10 @@ else:
 # 侧边栏：核心交互设置
 # ==========================================
 st.sidebar.markdown("<h2 style='color:#10B981;text-align:center;margin-bottom:20px;'>💰 功能模块导航</h2>", unsafe_allow_html=True)
+if assets_load_error:
+    st.sidebar.error(f"{assets_load_error}；当前使用内置兜底资产配置。")
+if live_data_error:
+    st.sidebar.warning(f"{live_data_error}；行情/收益率使用兜底估算值。")
 
 MENU_OPTIONS = [
     "1. 家庭资产体检与配置建议",
@@ -959,26 +976,12 @@ elif menu == "2. 资产配置与股息测算看板":
     st.info("口径与免责：本看板仅用于 ETF/指数基金/大类资产配置测算，不构成投资建议，不推荐单只股票，不承诺任何分红、票息或收益。成长资产、黄金和 REITs 备选不计入稳定现金流。")
     current_family_metrics = calculate_family_diagnostics(st.session_state.family_data)
     current_health_score = current_family_metrics['res'].get('fourMoney', {}).get('score')
-    previous_health_score = st.session_state.get('last_asset_health_score')
     if current_health_score is not None:
-        if previous_health_score is None:
-            direction = "→"
-            score_color = "#587084"
-        elif current_health_score > previous_health_score:
-            direction = "↑"
-            score_color = "#10B981"
-        elif current_health_score < previous_health_score:
-            direction = "↓"
-            score_color = "#EF4444"
-        else:
-            direction = "→"
-            score_color = "#587084"
-        st.session_state.last_asset_health_score = current_health_score
         st.markdown(f"""
-        <div class='card' style='border-left:4px solid {score_color};'>
-            <div class='metric-label'>健康分实时反馈</div>
-            <div class='metric-value' style='color:{score_color};'>{direction} {current_health_score} 分</div>
-            <div style='font-size:0.82rem;color:#587084;'>来自家庭体检“四类钱配置合理性”，用于观察配置调整后的防线状态，不构成投资建议。</div>
+        <div class='card' style='border-left:4px solid #587084;'>
+            <div class='metric-label'>家庭基础健康分</div>
+            <div class='metric-value' style='color:#587084;'>{current_health_score} 分</div>
+            <div style='font-size:0.82rem;color:#587084;'>仅随家庭收支、资产负债与保障信息变化；ETF 权重调整不会改写该分数。</div>
         </div>
         """, unsafe_allow_html=True)
     st.caption(f"行情/股息率数据来源：{data_freshness_label()}")
@@ -999,7 +1002,7 @@ elif menu == "2. 资产配置与股息测算看板":
                 <div style='color:#587084; font-size:0.7rem; margin-bottom:5px;'>
                     代码: {code} | 角色: <span style='color:#10B981;'>{info['role']}</span>
                 </div>
-                <div style='display:inline-block;font-size:0.68rem;color:#3B82F6;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:999px;padding:2px 8px;'>{data_freshness_label()}</div>
+                <div style='display:inline-block;font-size:0.68rem;color:#3B82F6;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:999px;padding:2px 8px;'>价格：{price_freshness_label()}</div>
             </div>
             """, unsafe_allow_html=True)
             
@@ -1017,7 +1020,8 @@ elif menu == "2. 资产配置与股息测算看板":
             st.session_state[f"w_{code}"] = weight
             
             # 股息率只读，在线抓取展示
-            st.write(f"当前最新在线股息率: **{info['yield']:.2f}%**")
+            st.write(f"当前测算收益率: **{info['yield']:.2f}%**")
+            st.caption(f"收益率口径：{yield_freshness_label()}；不承诺分红或收益。")
             
             weights[code] = weight
             yields[code] = info['yield']
@@ -1031,6 +1035,13 @@ elif menu == "2. 资产配置与股息测算看板":
         buffer_seed,
         money_market_rate
     )
+    fit = portfolio_engine.evaluate_portfolio_fit(
+        weights, ASSETS_CONFIG, current_family_metrics['res'].get('isProhibitAggressive', False)
+    )
+    if fit['isMatched']:
+        st.success("组合适配反馈：当前权重未触发现有集中度或家庭风险阻断规则。")
+    else:
+        st.warning("组合适配反馈：" + "；".join(fit['messages']))
 
     # 验证权重是否满100%
     total_weight = res['totalWeight']
@@ -1147,7 +1158,8 @@ elif menu == "2. 资产配置与股息测算看板":
             '权重 (%)': f"{d['weight']:.1f}%",
             '分配金额': f"{d['allocatedAmt']:.2f} 万元",
             '股息/预期回报': f"{d['yield']:.2f}% / {d['estimated_return']:.2f}%",
-            '数据来源': data_freshness_label(),
+            '价格来源': price_freshness_label(),
+            '收益率口径': yield_freshness_label(),
             '预计年分红/利息': f"¥{d['expectedAnnualDiv']:,.0f}" if d['stableCashflow'] else "不计入",
             '定位与主要风险': f"🎯 {d['strategy_note']}  ⚠️ {d['risk_note']}"
         })

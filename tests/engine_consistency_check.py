@@ -11,6 +11,27 @@ sys.path.insert(0, str(REPO_ROOT))
 import portfolio_engine  # noqa: E402
 
 
+def expand_cases(cases):
+    expanded = list(cases)
+    if not cases:
+        return expanded
+    base = cases[0]
+    variants = [
+        ("zero_buffer", {"bufferSeed": 0.0, "targetMonthlyWan": 0.0}),
+        ("max_delay_pause", {"startMonth": 12, "delayMonths": 6, "pauseDividendYear": True, "stableIncomeDrop": 40.0}),
+        ("thin_cash_aggressive_block", {"familyData": {"ast-cash": 0.0, "ast-mmf": 10000.0, "f-surplus-income": 2000.0}}),
+    ]
+    for name, overrides in variants:
+        case = json.loads(json.dumps(base))
+        family_overrides = overrides.pop("familyData", None)
+        case.update(overrides)
+        if family_overrides:
+            case["familyData"].update(family_overrides)
+        case["name"] = name
+        expanded.append(case)
+    return expanded
+
+
 def load_assets():
     assets_list = json.loads((REPO_ROOT / "assets.json").read_text(encoding="utf-8"))
     assets = {}
@@ -82,12 +103,28 @@ def run_python_case(case):
         [],
         int(fd["inv-drawdown"]),
     )
+    portfolio = portfolio_engine.calculate_portfolio(weights, assets, case["principal"], case["bufferSeed"], money_rate)
+    harvest = portfolio_engine.simulate_cashflow(
+        36, withdraw, case["bufferSeed"], max(case["principal"] - case["bufferSeed"], 0.0),
+        weights, assets, money_rate, True, "neutral", case["startMonth"],
+        case["stableIncomeDrop"], case["delayMonths"], case["pauseDividendYear"]
+    )
+    dca_missing = portfolio_engine.get_dca_adjustment([], "NO_DATA", "overseas_tech")
+    fit = portfolio_engine.evaluate_portfolio_fit(weights, assets, family["isProhibitAggressive"])
     return {
         "name": case["name"],
         "safeMonthlyWithdrawWan": feasibility["safeMonthlyWithdrawWan"],
         "healthScore": family["fourMoney"]["score"],
         "breachedAtMonth": stress["breachedAtMonth"],
         "minStressedBuffer": stress["minStressedBuffer"],
+        "expectedAnnualDividend": portfolio["expectedAnnualDividend"],
+        "blendedGrowthReturn": portfolio["blendedGrowthReturn"],
+        "harvestTotal": sum(harvest["harvestHistory"]),
+        "stableIncomeTotal": sum(harvest["totalStableIncomeHistory"]),
+        "missingDcaFactor": dca_missing["factor"],
+        "missingDcaHasHistory": dca_missing["hasHistory"],
+        "portfolioFitStatus": fit["status"],
+        "profileKey": family["profileKey"],
     }
 
 
@@ -100,7 +137,7 @@ def compare_value(key, py_val, js_val, tolerance=1e-6):
 
 
 def main():
-    cases = json.loads(CASES_PATH.read_text(encoding="utf-8"))
+    cases = expand_cases(json.loads(CASES_PATH.read_text(encoding="utf-8")))
     node_output = subprocess.check_output(
         ["node", str(Path(__file__).with_name("engine_consistency_check.js")), str(CASES_PATH)],
         cwd=REPO_ROOT,
@@ -110,7 +147,11 @@ def main():
     py_results = {case["name"]: run_python_case(case) for case in cases}
 
     diffs = []
-    keys = ["safeMonthlyWithdrawWan", "healthScore", "breachedAtMonth", "minStressedBuffer"]
+    keys = [
+        "safeMonthlyWithdrawWan", "healthScore", "breachedAtMonth", "minStressedBuffer",
+        "expectedAnnualDividend", "blendedGrowthReturn", "harvestTotal", "stableIncomeTotal",
+        "missingDcaFactor", "missingDcaHasHistory", "portfolioFitStatus", "profileKey"
+    ]
     for name, py_result in py_results.items():
         js_result = js_results.get(name)
         if not js_result:

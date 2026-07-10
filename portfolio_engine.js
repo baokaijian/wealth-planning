@@ -4,9 +4,55 @@
  * valuation adjustments, stress testing, and family diagnostics.
  */
 
+const DEFAULT_RULES = {
+    family_risk: { min_cash_coverage_months: 6.0, min_surplus_ratio: 0.15, max_repay_income_ratio: 0.35, max_leverage_ratio: 0.5 },
+    concentration: { max_single_role: 45.0, max_single_market: 70.0, max_tech_roles: 25.0, max_dividend_role: 45.0, blocked_family_max_tech: 10.0 }
+};
+let planningRules = DEFAULT_RULES;
+if (typeof module !== 'undefined' && module.exports) {
+    try { planningRules = require('./planning_rules.json'); } catch (error) { planningRules = DEFAULT_RULES; }
+}
+
 const portfolioEngine = {
+    setRules(rules) {
+        planningRules = rules || DEFAULT_RULES;
+    },
     isStableCashflowAsset(asset) {
         return asset.income_type === 'dividend' || asset.income_type === 'cash_interest';
+    },
+
+    evaluatePortfolioFit(weights, assets, isProhibitAggressive = false) {
+        const roleWeights = {};
+        const marketWeights = {};
+        Object.entries(assets).forEach(([code, asset]) => {
+            const weight = parseFloat(weights[code]) || 0.0;
+            const role = asset.role || 'unknown';
+            const market = asset.market || 'unknown';
+            roleWeights[role] = (roleWeights[role] || 0.0) + weight;
+            marketWeights[market] = (marketWeights[market] || 0.0) + weight;
+        });
+        const techWeight = (roleWeights.tech_growth || 0.0) + (roleWeights.overseas_tech || 0.0);
+        const dividendWeight = roleWeights.dividend_income || 0.0;
+        const messages = [];
+        const limits = planningRules.concentration;
+        Object.entries(roleWeights).forEach(([role, weight]) => {
+            if (weight > limits.max_single_role) messages.push(`单一角色 ${role} 为 ${weight.toFixed(1)}%，超过 ${limits.max_single_role}%。`);
+        });
+        Object.entries(marketWeights).forEach(([market, weight]) => {
+            if (weight > limits.max_single_market) messages.push(`单一市场 ${market} 为 ${weight.toFixed(1)}%，超过 ${limits.max_single_market}%。`);
+        });
+        if (techWeight > limits.max_tech_roles) messages.push(`科技相关资产为 ${techWeight.toFixed(1)}%，超过 ${limits.max_tech_roles}%。`);
+        if (dividendWeight > limits.max_dividend_role) messages.push(`红利类资产为 ${dividendWeight.toFixed(1)}%，现金流底盘过厚，增长弹性不足。`);
+        if (isProhibitAggressive && techWeight > limits.blocked_family_max_tech) messages.push('家庭体检已阻断积极型配置，科技相关资产应保持低权重。');
+        return {
+            isMatched: messages.length === 0,
+            status: messages.length === 0 ? '与家庭防线匹配' : '需要降低集中度或风险暴露',
+            messages,
+            roleWeights,
+            marketWeights,
+            techWeight,
+            dividendWeight
+        };
     },
 
     // 1. 组合收益测算
@@ -642,7 +688,8 @@ const portfolioEngine = {
 
         let earnMinPct = 25;
         let earnMaxPct = 55;
-        if (cashCoverageMonths < 6 || repayIncomeRatio > 0.35 || surplusRatio < 0.15 || highInterestDebt > 0) {
+        const familyLimits = planningRules.family_risk;
+        if (cashCoverageMonths < familyLimits.min_cash_coverage_months || repayIncomeRatio > familyLimits.max_repay_income_ratio || surplusRatio < familyLimits.min_surplus_ratio || highInterestDebt > 0) {
             earnMinPct = 10;
             earnMaxPct = 30;
         } else if (cashCoverageMonths >= 12 && surplusRatio >= 0.25 && Number(riskToleranceCode) >= 30) {
@@ -777,11 +824,12 @@ const portfolioEngine = {
         const hasShortTermLargeExpense = fd['expense-buyhouse'] || fd['expense-edu'] || fd['expense-med'] || fd['expense-biz'] || fd['expense-city'] || fd['expense-other'];
 
         // 核心财务健康判定
-        const isLowCash = cashCoverageMonths < 6;
+        const familyLimits = planningRules.family_risk;
+        const isLowCash = cashCoverageMonths < familyLimits.min_cash_coverage_months;
         const highInterestDebt = Number(fd['debt-high-interest']) || 0;
         const monthlyIncome = Number(fd['f-monthly-income']) || 0;
-        const isHighDebt = leverage > 0.5 || repayIncomeRatio > 0.35 || (monthlyIncome > 0 && highInterestDebt > monthlyIncome);
-        const isLowSurplus = surplusRatio < 0.15;
+        const isHighDebt = leverage > familyLimits.max_leverage_ratio || repayIncomeRatio > familyLimits.max_repay_income_ratio || (monthlyIncome > 0 && highInterestDebt > monthlyIncome);
+        const isLowSurplus = surplusRatio < familyLimits.min_surplus_ratio;
 
         // 积极成长型阻断校验
         const isProhibitAggressive = isLowCash || isHighDebt || isLowSurplus;

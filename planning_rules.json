@@ -1,0 +1,15 @@
+{
+  "family_risk": {
+    "min_cash_coverage_months": 6.0,
+    "min_surplus_ratio": 0.15,
+    "max_repay_income_ratio": 0.35,
+    "max_leverage_ratio": 0.5
+  },
+  "concentration": {
+    "max_single_role": 45.0,
+    "max_single_market": 70.0,
+    "max_tech_roles": 25.0,
+    "max_dividend_role": 45.0,
+    "blocked_family_max_tech": 10.0
+  }
+}

@@ -995,7 +995,10 @@
         <header>
             <h1 id="main-header-title">家庭资产体检与配置建议</h1>
             <p id="main-header-desc">基于个人资产负债表与现金流量表，进行全方位的家庭财务健康体检，定制三桶资产防线配置比例。</p>
-            <div class="data-status-badge" id="live-data-badge">⏳ 正在连接实时行情源...</div>
+            <div class="data-status-badge" id="live-data-badge">⏳ 正在载入本地行情缓存...</div>
+            <label style="display:inline-flex;align-items:center;gap:8px;margin-top:8px;font-size:0.78rem;color:var(--text-secondary);">
+                <input type="checkbox" id="allow-live-quotes" onchange="toggleLiveQuotes(this.checked)"> 允许联网刷新实时价格（不发送家庭财务数据）
+            </label>
         </header>
 
         <!-- ==========================================
@@ -1004,10 +1007,10 @@
         <details class="instruction-box" id="calculation-instruction-panel" open style="display:none;">
             <summary>📖 测算页面使用说明 (点击展开/折叠)</summary>
             <div class="instruction-content">
-                <p>欢迎使用红利低波现金流配置系统，本工具基于<strong>腾讯财经提供的真实实时市场价格</strong>进行高频更新，为您进行多维度测算，帮助您搭建长期可执行的月均 <span id="instruction-target-monthly">2.0</span> 万元现金流闭环。以下是系统的使用步骤：</p>
+                <p>欢迎使用家庭资产配置与现金流规划工具。默认读取<strong>本地行情缓存</strong>；只有主动开启联网刷新后才请求实时价格。收益率可能来自本地缓存或基准反推估算，不构成投资建议，不承诺分红或收益。</p>
                 <ol>
                     <li><strong>第一步：设定可用资金</strong>。在左侧“策略控制台”调节您的总本金（默认 400 万）、期望月流出额度、缓冲池备用金等，系统将自动核算出用于购买红利资产的实际额度。</li>
-                    <li><strong>第二步：精调组合权重</strong>。在“资产配置看板”中利用输入框调节候选基金的比重，确保重量之和正好为 100%。系统将使用**实时的最新市场成交单价**，动态计算组合的加权股息率及月均现金流。</li>
+                    <li><strong>第二步：精调组合权重</strong>。在“资产配置看板”中调节候选基金比重，确保权重之和正好为 100%。价格按当前数据来源展示，收益率按本地缓存或估算口径参与测算。</li>
                     <li><strong>第三步：现金流体检</strong>。切换到“缓冲池与现金流模拟”页面。由于分红通常集中在特定月份（如6-7月），系统会模拟 36 个月的“红利流入-生活费支取”过程，您需确保<strong>缓冲池最低水位大于 0</strong>，如遇预警，请增加侧边栏“缓冲池初始资金”以平滑淡季支出。</li>
                     <li><strong>第四步：低买高息测算与定期平衡</strong>。查看“估值温度计”确定当前市场百分位以调节月度定投测算额度；年底或定期在“再平衡提示”中录入持仓市值，获取再平衡提示。</li>
                 </ol>
@@ -1555,7 +1558,7 @@
                 <strong>口径与免责：</strong>本看板仅用于 ETF/指数基金/大类资产配置测算，不构成投资建议，不推荐单只股票，不承诺任何分红、票息或收益。成长资产、黄金和 REITs 备选不计入稳定现金流。
             </div>
             <div id="t1-health-feedback" class="alert-banner alert-info" style="margin-bottom:20px;">
-                健康分反馈：请先完成家庭资产体检，配置参数调整后会在这里显示分数变化方向。
+                家庭基础健康分来自收支与资产负债；组合权重调整会在这里单独显示适配反馈。
             </div>
 
             <div class="tab1-stacked-layout">
@@ -2162,7 +2165,9 @@
             marketDataSource: '',
             dataTimestamp: '',
             lastAssetHealthScore: null,
-            latestFinancialSnapshot: null
+            latestFinancialSnapshot: null,
+            allowLiveQuotes: false,
+            calculationTimer: null
         };
 
         // ETF基准参数 (基准价格, 基准股息率)，用于根据最新价格反算实时股息率
@@ -2210,13 +2215,19 @@
 
         // 页面初始化
         window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const rulesResponse = await fetch('planning_rules.json');
+                if (rulesResponse.ok) portfolioEngine.setRules(await rulesResponse.json());
+            } catch (error) {
+                console.warn('共享规则配置不可用，使用计算引擎内置同值兜底。', error);
+            }
             await loadValuationHistory();
             await loadAssetsConfig(); // 加载 assets.json 动态配置
             initStaticTableStructures(); // 仅渲染一次 DOM 框架，避免重绘失去输入框焦点
             initBufferSimulatorControls();
             
             // 首次请求并渲染
-            await fetchLiveMarketData();
+            await loadPreferredMarketData();
             
             // 运行首次压力测试以显示结果
             runStressTest();
@@ -2230,9 +2241,10 @@
             initWealthGame();
             updateContextPanels(state.currentTab);
 
-            // 启动定时刷新回路
-            // 1. 每 60 秒自动拉取最新实时行情缓存
-            setInterval(fetchLiveMarketData, 60000);
+            // 仅在用户主动允许联网时每 60 秒刷新价格。
+            setInterval(() => {
+                if (state.allowLiveQuotes) fetchLiveMarketData();
+            }, 60000);
             
             // 2. 每 1 秒刷新顶置的时钟时间
             setInterval(updateClock, 1000);
@@ -2465,7 +2477,7 @@
             state.dataTimestamp = result.timestamp || formatLocalDateTime();
             state.marketDataSource = source;
             state.fetchStatus = 'success';
-            silentUpdateCalculations();
+            scheduleCalculationUpdate();
             updateClock();
         }
 
@@ -2503,6 +2515,24 @@
                     applyEstimatedMarketData();
                 }
             }
+        }
+
+        async function loadPreferredMarketData() {
+            state.fetchStatus = 'loading';
+            updateClock();
+            try {
+                const cachedResult = await fetchCachedMarketData();
+                applyMarketData(cachedResult, 'cache');
+            } catch (cacheErr) {
+                console.error('本地行情缓存不可用，进入估算测算状态：', cacheErr);
+                applyEstimatedMarketData();
+            }
+        }
+
+        function toggleLiveQuotes(enabled) {
+            state.allowLiveQuotes = Boolean(enabled);
+            if (state.allowLiveQuotes) fetchLiveMarketData();
+            else loadPreferredMarketData();
         }
 
         let rawValuationHistoryList = [];
@@ -2570,7 +2600,13 @@
             return '非稳定现金流';
         }
 
-        function getDataFreshnessMeta() {
+        function getDataFreshnessMeta(kind = 'price') {
+            if (kind === 'yield' && state.marketDataSource === 'live') {
+                return { label: '基准分红反推估算', detail: state.dataTimestamp || formatLocalDateTime(), color: 'var(--accent-orange)', bg: 'var(--yellow-container)', border: '#FEEFC3' };
+            }
+            if (kind === 'yield' && state.fetchStatus === 'success' && state.marketDataSource === 'cache') {
+                return { label: '本地缓存估算收益率', detail: state.dataTimestamp || '--', color: 'var(--accent-orange)', bg: 'var(--yellow-container)', border: '#FEEFC3' };
+            }
             if (state.fetchStatus === 'success' && state.marketDataSource === 'live') {
                 return { label: '实时行情', detail: state.dataTimestamp || formatLocalDateTime(), color: 'var(--accent-emerald)', bg: 'var(--green-container)', border: '#CEEAD6' };
             }
@@ -2580,8 +2616,8 @@
             return { label: '兜底估算值', detail: state.dataTimestamp || formatLocalDateTime(), color: 'var(--accent-orange)', bg: 'var(--yellow-container)', border: '#FEEFC3' };
         }
 
-        function renderDataFreshnessBadge() {
-            const meta = getDataFreshnessMeta();
+        function renderDataFreshnessBadge(kind = 'price') {
+            const meta = getDataFreshnessMeta(kind);
             return `<span style="display:inline-flex;align-items:center;gap:4px;border:1px solid ${meta.border};background:${meta.bg};color:${meta.color};border-radius:999px;padding:2px 8px;font-size:0.72rem;font-weight:700;white-space:nowrap;">${meta.label}${meta.detail ? ` · ${meta.detail}` : ''}</span>`;
         }
 
@@ -2856,7 +2892,7 @@
                         <td>
                             <strong>${asset.name}</strong><br>
                             <span style="color:var(--text-secondary);font-size:0.75rem">${code} | 单价: <span id="t1_price_${code}">获取中...</span></span><br>
-                            <span id="t1_data_badge_${code}">${renderDataFreshnessBadge()}</span>
+                            <span id="t1_data_badge_${code}">${renderDataFreshnessBadge('price')}</span>
                         </td>
                         <td><span class="role-badge badge-${asset.role}">${getRoleLabel(asset.role)}</span></td>
                         <td><span style="font-size:0.85rem">${asset.market} / ${getVolatilityLabel(asset.volatility_level)}</span></td>
@@ -2867,7 +2903,7 @@
                         <td id="t1_invest_${code}" style="font-weight: 500;">0.00 万元</td>
                         <td style="color:var(--accent-blue);font-weight: 500; white-space: nowrap;">
                             <input class="weight-input-field" type="number" id="y_val_${code}" step="0.1" min="0" max="20" value="${asset.yield > 0 ? asset.yield.toFixed(2) : ''}" placeholder="获取中..." style="color:var(--accent-blue)" disabled readonly>%
-                            <div id="t1_yield_badge_${code}" style="margin-top:4px;">${renderDataFreshnessBadge()}</div>
+                            <div id="t1_yield_badge_${code}" style="margin-top:4px;">${renderDataFreshnessBadge('yield')}</div>
                         </td>
                         <td id="t1_div_${code}" style="font-weight: 500;">¥0</td>
                         <td>
@@ -2919,7 +2955,7 @@
                 presetSelect.value = 'custom';
             }
 
-            silentUpdateCalculations();
+            scheduleCalculationUpdate();
         }
 
         // 应用策略预设
@@ -3034,7 +3070,15 @@
                 targetMonthlySpan.innerText = state.targetMonthly.toFixed(1);
             }
 
-            silentUpdateCalculations();
+            scheduleCalculationUpdate();
+        }
+
+        function scheduleCalculationUpdate(delay = 120) {
+            if (state.calculationTimer) clearTimeout(state.calculationTimer);
+            state.calculationTimer = setTimeout(() => {
+                state.calculationTimer = null;
+                silentUpdateCalculations();
+            }, delay);
         }
 
         // 静默更新计算器的数据 (仅修改 TextNode，不重建 Input 元素，保证良好的打字焦点)
@@ -3066,11 +3110,12 @@
                 if (priceSpan) {
                     priceSpan.innerText = asset.price > 0 ? `¥${asset.price.toFixed(2)}` : '获取中...';
                 }
-                const dataBadge = renderDataFreshnessBadge();
+                const priceDataBadge = renderDataFreshnessBadge('price');
+                const yieldDataBadge = renderDataFreshnessBadge('yield');
                 const priceBadge = document.getElementById(`t1_data_badge_${code}`);
-                if (priceBadge) priceBadge.innerHTML = dataBadge;
+                if (priceBadge) priceBadge.innerHTML = priceDataBadge;
                 const yieldBadge = document.getElementById(`t1_yield_badge_${code}`);
-                if (yieldBadge) yieldBadge.innerHTML = dataBadge;
+                if (yieldBadge) yieldBadge.innerHTML = yieldDataBadge;
 
                 // 2) 如果股息率输入框当前没有聚焦，将实时算出的股息率更新进去
                 const yInput = document.getElementById(`y_val_${code}`);
@@ -4344,6 +4389,7 @@
                 m.leverage, m.repayIncomeRatio, m.surplusRatio, m.cashCoverageMonths,
                 [], parseFloat(fd['inv-drawdown']) || 10
             );
+            globalFamilyMetrics.isProhibitAggressive = res.isProhibitAggressive;
 
             // 更新 UI 画像
             const pBox = document.getElementById('profile-container-box');
@@ -4417,24 +4463,20 @@
             const score = getCurrentHealthScore();
             if (score === null || !Number.isFinite(score)) {
                 el.className = 'alert-banner alert-info';
-                el.innerHTML = '健康分反馈：请先完成家庭资产体检，配置参数调整后会在这里显示分数变化方向。';
+                el.innerHTML = '请先完成家庭资产体检；之后这里会分别显示家庭基础健康分与组合适配反馈。';
                 return;
             }
-            const prev = state.lastAssetHealthScore;
-            let direction = '→';
-            let color = 'var(--text-secondary)';
-            if (prev !== null && Number.isFinite(prev)) {
-                if (score > prev) {
-                    direction = '↑';
-                    color = 'var(--accent-emerald)';
-                } else if (score < prev) {
-                    direction = '↓';
-                    color = 'var(--accent-red)';
-                }
-            }
-            state.lastAssetHealthScore = score;
-            el.className = 'alert-banner alert-info';
-            el.innerHTML = `<strong>健康分实时反馈：</strong><span style="font-weight:800;color:${color};margin-left:6px;">${direction} ${score} 分</span>。本分数来自家庭体检“四类钱配置合理性”，用于观察调整后的防线状态，不构成投资建议。`;
+            const weights = {};
+            Object.keys(state.assets).forEach(code => { weights[code] = state.assets[code].weight; });
+            const fit = portfolioEngine.evaluatePortfolioFit(
+                weights,
+                state.assets,
+                Boolean(globalFamilyMetrics && globalFamilyMetrics.isProhibitAggressive)
+            );
+            const color = fit.isMatched ? 'var(--accent-emerald)' : 'var(--accent-orange)';
+            el.className = `alert-banner ${fit.isMatched ? 'alert-success' : 'alert-warning'}`;
+            const detail = fit.isMatched ? '当前权重未触发现有集中度或家庭风险阻断规则。' : fit.messages.join(' ');
+            el.innerHTML = `<strong>家庭基础健康分：</strong><span style="font-weight:800;color:var(--text-secondary);margin-left:6px;">${score} 分</span>（仅随家庭数据变化）。<br><strong style="color:${color};">组合适配反馈：${fit.status}</strong> ${detail}<br><span style="font-size:0.78rem;">调整权重会实时更新组合适配反馈，不会改写家庭基础健康分；不构成投资建议。</span>`;
         }
 
         function collectFinancialSnapshot() {
