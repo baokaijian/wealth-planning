@@ -65,14 +65,22 @@ const portfolioEngine = {
 
         const assetDetails = [];
 
+        const errors = [];
+        const dataErrors = [];
         Object.keys(assets).forEach(code => {
             const asset = assets[code];
-            const weight = parseFloat(weights[code]) || 0.0;
+            const distributionValidation = this.validateDistributionMonths(asset);
+            distributionValidation.errors.forEach(error => dataErrors.push(`${code}: ${error}`));
+            const rawWeight = weights[code] === '' || weights[code] === null ? 0 : Number(weights[code]);
+            const weight = Number.isFinite(rawWeight) ? rawWeight : 0.0;
+            if (!Number.isFinite(rawWeight)) errors.push(`${code} 的权重不是有限数字。`);
+            if (rawWeight < 0) errors.push(`${code} 的权重不能为负数。`);
+            if (rawWeight > 100) errors.push(`${code} 的单一权重不能超过 100%。`);
             totalWeight += weight;
 
             // 价格与当前股息率
             const currentPrice = asset.price || 0.0;
-            const currentYield = asset.yield !== undefined ? asset.yield : asset.estimated_yield;
+            const currentYield = asset.impliedYield !== undefined ? asset.impliedYield : (asset.yield !== undefined ? asset.yield : asset.estimated_yield);
             const estReturn = asset.estimated_return !== undefined ? asset.estimated_return : currentYield;
 
             // 分配金额与预计年化/月化分红
@@ -111,11 +119,18 @@ const portfolioEngine = {
             blendedTotalReturn += (weight / 100.0) * estReturn;
         });
 
+        if (Math.abs(totalWeight - 100) > 0.01) {
+            errors.push(`权重合计为 ${totalWeight.toFixed(2)}%，必须为 100%。`);
+        }
+
         const expectedAnnualDividend = investPrincipal * (blendedCashYield / 100.0) * 10000; // 元
         const expectedMonthlyDividend = expectedAnnualDividend / 12.0; // 元
         const expectedMonthlyGrowth = investPrincipal * (blendedGrowthReturn / 100.0) * 10000 / 12.0; // 元
 
         return {
+            valid: errors.length === 0,
+            errors,
+            dataErrors,
             investPrincipal,
             totalWeight,
             blendedCashYield,
@@ -192,7 +207,7 @@ const portfolioEngine = {
             Object.keys(assets).forEach(code => {
                 const asset = assets[code];
                 const weight = parseFloat(weights[code]) || 0.0;
-                const currentYield = asset.yield !== undefined ? asset.yield : asset.estimated_yield;
+                const currentYield = asset.impliedYield !== undefined ? asset.impliedYield : (asset.yield !== undefined ? asset.yield : asset.estimated_yield);
 
                 if (this.isStableCashflowAsset(asset)) {
                     const distMonths = asset.distribution_months || asset.months || {};
@@ -315,7 +330,14 @@ const portfolioEngine = {
         };
 
         let low = 0.0;
-        let high = Math.max(targetMonthlyWithdraw * 3.0, 1.0);
+        let high = Math.max(targetMonthlyWithdraw, 1.0);
+        const maxSearchMonthly = 1e9;
+        let searchCapped = false;
+        while (survives(high, principal, bufferSeed) && high < maxSearchMonthly) {
+            low = high;
+            high = Math.min(high * 2, maxSearchMonthly);
+        }
+        if (high >= maxSearchMonthly && survives(high, principal, bufferSeed)) searchCapped = true;
         for (let i = 0; i < 40; i++) {
             const mid = (low + high) / 2.0;
             if (survives(mid, principal, bufferSeed)) low = mid;
@@ -342,22 +364,32 @@ const portfolioEngine = {
             }
         }
 
+        // 追加缓冲资金不挤占既有投资本金。逐月扫描避免依赖未证明的单调性。
         let minBufferMonths = 0.0;
+        let minAdditionalBufferWan = 0.0;
         if (targetMonthlyWithdraw > 0) {
-            if (survives(targetMonthlyWithdraw, principal, 0.0)) {
+            const fixedInvestPrincipal = Math.max(principal - bufferSeed, 0.0);
+            const survivesWithAdditionalBuffer = additionalWan => {
+                const sim = this.simulateCashflow(
+                    monthsRange, targetMonthlyWithdraw, bufferSeed + additionalWan,
+                    fixedInvestPrincipal, weights, assets, moneyMarketRate, false, 'neutral',
+                    startMonth, stableIncomeDrop, delayMonths, pauseDividendYear
+                );
+                return sim.minBuffer > 0;
+            };
+            if (survivesWithAdditionalBuffer(0)) {
                 minBufferMonths = 0.0;
-            } else if (survives(targetMonthlyWithdraw, principal, 60.0 * targetMonthlyWithdraw / 10000.0)) {
-                let lowM = 0.0;
-                let highM = 60.0;
-                for (let i = 0; i < 40; i++) {
-                    const midM = (lowM + highM) / 2.0;
-                    const testBuffer = midM * targetMonthlyWithdraw / 10000.0;
-                    if (survives(targetMonthlyWithdraw, principal, testBuffer)) highM = midM;
-                    else lowM = midM;
-                }
-                minBufferMonths = highM;
             } else {
                 minBufferMonths = null;
+                minAdditionalBufferWan = null;
+                for (let month = 1; month <= 120; month++) {
+                    const extra = month * targetMonthlyWithdraw / 10000.0;
+                    if (survivesWithAdditionalBuffer(extra)) {
+                        minBufferMonths = month;
+                        minAdditionalBufferWan = extra;
+                        break;
+                    }
+                }
             }
         }
 
@@ -368,6 +400,8 @@ const portfolioEngine = {
             recommendedMonthlyExpenseWan: low * 0.95 / 10000.0,
             minPrincipalWan: minPrincipal,
             minBufferMonths,
+            minAdditionalBufferWan,
+            searchCapped,
             isTargetFeasibleWithoutHarvest: targetMonthlyWithdraw > 0 ? survives(targetMonthlyWithdraw, principal, bufferSeed) : true
         };
     },
@@ -589,7 +623,9 @@ const portfolioEngine = {
         });
 
         // 组合最大总回撤计算
-        const maxNetWorthDrawdown = ((initialPortfolioVal - stressedPortfolioVal) / initialPortfolioVal) * 100.0;
+        const portfolioDrawdown = initialPortfolioVal > 0
+            ? ((initialPortfolioVal - stressedPortfolioVal) / initialPortfolioVal) * 100.0
+            : 0.0;
 
         // 模拟压力下的缓冲池流转
         for (let t = 1; t <= monthsRange; t++) {
@@ -600,7 +636,7 @@ const portfolioEngine = {
             Object.keys(assets).forEach(code => {
                 const asset = assets[code];
                 const weight = parseFloat(weights[code]) || 0.0;
-                const currentYield = asset.yield !== undefined ? asset.yield : asset.estimated_yield;
+                const currentYield = asset.impliedYield !== undefined ? asset.impliedYield : (asset.yield !== undefined ? asset.yield : asset.estimated_yield);
 
                 if (this.isStableCashflowAsset(asset)) {
                     const distMonths = asset.distribution_months || asset.months || {};
@@ -608,16 +644,18 @@ const portfolioEngine = {
                     if (monthDistRatio > 0.0) {
                         const assetVal = investPrincipal * (weight / 100.0) * 10000.0; // 元
                         
-                        // 资产回撤后的价值
+                        // 现金分配以压力前持有份额和年度分配额为基数，市场回撤不重复折损现金流。
                         const role = asset.role;
-                        const assetDrawdown = stressParams.drawdown[role] !== undefined ? stressParams.drawdown[role] : 30.0;
-                        const stressedAssetVal = assetVal * (1.0 - assetDrawdown / 100.0);
-
-                        // 分红率下降折损
-                        const divDrop = stressParams.dividendDrop[role] !== undefined ? stressParams.dividendDrop[role] : 20.0;
+                        const cashflowDrops = stressParams.cashflowDrop || stressParams.dividendDrop || {};
+                        const typeDrop = asset.income_type === 'cash_interest'
+                            ? (asset.role === 'cash' ? cashflowDrops.moneyMarket : cashflowDrops.bondCoupon)
+                            : cashflowDrops.equityDividend;
+                        const divDrop = cashflowDrops[role] !== undefined
+                            ? cashflowDrops[role]
+                            : (typeDrop !== undefined ? typeDrop : 20.0);
                         const stressedYield = currentYield * (1.0 - divDrop / 100.0);
 
-                        monthDividend += stressedAssetVal * (stressedYield / 100.0) * monthDistRatio;
+                        monthDividend += assetVal * (stressedYield / 100.0) * monthDistRatio;
                     }
                 }
             });
@@ -644,10 +682,93 @@ const portfolioEngine = {
             stressDividendsHistory,
             interestEarnedHistory,
             breachedAtMonth,
-            maxNetWorthDrawdown,
+            portfolioDrawdown,
+            maxNetWorthDrawdown: portfolioDrawdown,
             isBreached: breachedAtMonth !== null,
             minStressedBuffer: Math.min(...stressedBufferHistory)
         };
+    },
+
+    validateDistributionMonths(asset) {
+        const errors = [];
+        const months = asset.distribution_months || asset.months || {};
+        let total = 0;
+        Object.entries(months).forEach(([month, ratio]) => {
+            const value = Number(ratio);
+            if (!/^(?:[1-9]|1[0-2])$/.test(String(month))) errors.push(`无效分红月份：${month}`);
+            if (!Number.isFinite(value) || value < 0 || value > 1) errors.push(`${month} 月分配比例无效。`);
+            else total += value;
+        });
+        if (this.isStableCashflowAsset(asset) && Math.abs(total - 1) > 0.01) {
+            errors.push(`分红月份比例合计为 ${total.toFixed(3)}，应为 1。`);
+        }
+        return { valid: errors.length === 0, errors, total };
+    },
+
+    calculateRebalancePlan({ holdings, targetWeights, rebalanceBands = {}, newCash = 0, incrementalMode = true }) {
+        const codes = Array.from(new Set([...Object.keys(holdings || {}), ...Object.keys(targetWeights || {})]));
+        const safeCash = Math.max(Number(newCash) || 0, 0);
+        const currentTotal = codes.reduce((sum, code) => sum + Math.max(Number(holdings[code]) || 0, 0), 0);
+        const postContributionTotal = currentTotal + safeCash;
+        const rows = codes.map(code => {
+            const holding = Math.max(Number(holdings[code]) || 0, 0);
+            const targetPct = Number(targetWeights[code]) || 0;
+            const targetValue = postContributionTotal * targetPct / 100;
+            return { code, holding, targetPct, targetValue, gap: targetValue - holding, band: Number(rebalanceBands[code]) || 0, buyAmount: 0 };
+        });
+        // 资金不足时按缺口从大到小补足，结果直观且不会产生碎片化小额交易。
+        let remaining = incrementalMode ? safeCash : 0;
+        rows.filter(row => row.gap > 0).sort((a, b) => b.gap - a.gap).forEach(row => {
+            row.buyAmount = Math.min(row.gap, remaining);
+            remaining -= row.buyAmount;
+        });
+        const allocatedCash = safeCash - remaining;
+        return {
+            currentTotal, postContributionTotal, allocatedCash, unallocatedCash: remaining,
+            rows: rows.map(row => {
+                const postValue = row.holding + row.buyAmount;
+                const beforePct = currentTotal > 0 ? row.holding / currentTotal * 100 : 0;
+                const afterPct = postContributionTotal > 0 ? postValue / postContributionTotal * 100 : 0;
+                const deviationPct = afterPct - row.targetPct;
+                const outsideBand = Math.abs(deviationPct) > row.band;
+                const sellAmount = outsideBand && deviationPct > 0 ? Math.max(postValue - row.targetValue, 0) : 0;
+                return { ...row, beforePct, afterPct, deviationPct, outsideBand, sellAmount, suggestedAmount: row.buyAmount > 0 ? row.buyAmount : -sellAmount };
+            })
+        };
+    },
+
+    validateAndMigrateSnapshot(input) {
+        const errors = [];
+        if (!input || typeof input !== 'object' || Array.isArray(input)) return { valid: false, errors: ['快照必须是 JSON 对象。'] };
+        const allowedTopLevel = ['version','schema','exportedAt','source','privacy','metrics','assumptions'];
+        Object.keys(input).forEach(key => {
+            if (!allowedTopLevel.includes(key)) errors.push(`未知顶层字段：${key}`);
+        });
+        if (![1, 2].includes(input.version)) errors.push('仅支持 version 1 或 2 快照。');
+        if (input.version === 2 && input.schema !== 'wealth-planning-financial-plan') errors.push('快照 schema 不匹配。');
+        if (typeof input.exportedAt !== 'string' || input.exportedAt.length > 100) errors.push('exportedAt 类型或长度无效。');
+        if (!input.metrics || typeof input.metrics !== 'object' || Array.isArray(input.metrics)) errors.push('metrics 必须是对象。');
+        const allowedMetrics = ['healthScore','safeMonthlyWithdrawWan','recommendedMonthlyExpenseWan','cashCoverageMonths','repayIncomeRatio','surplusRatio','stressBreached','stressMinBuffer'];
+        Object.entries(input.metrics || {}).forEach(([key, value]) => {
+            if (!allowedMetrics.includes(key)) errors.push(`未知 metrics 字段：${key}`);
+            if (key !== 'stressBreached' && value !== null && (!Number.isFinite(Number(value)) || Math.abs(Number(value)) > 1e12)) errors.push(`${key} 数值无效。`);
+            if (key === 'stressBreached' && typeof value !== 'boolean') errors.push('stressBreached 必须为布尔值。');
+        });
+        const allowedAssumptions = ['principalWan','targetMonthlyWan','bufferSeedWan','moneyMarketRatePct','dataSource','dataTimestamp'];
+        if (input.assumptions !== undefined && (!input.assumptions || typeof input.assumptions !== 'object' || Array.isArray(input.assumptions))) {
+            errors.push('assumptions 必须是对象。');
+        }
+        Object.entries(input.assumptions || {}).forEach(([key, value]) => {
+            if (!allowedAssumptions.includes(key)) errors.push(`未知 assumptions 字段：${key}`);
+            if (['principalWan','targetMonthlyWan','bufferSeedWan','moneyMarketRatePct'].includes(key)
+                && (!Number.isFinite(Number(value)) || Number(value) < 0 || Number(value) > 1e9)) errors.push(`${key} 数值范围无效。`);
+            if (['dataSource','dataTimestamp'].includes(key) && typeof value !== 'string') errors.push(`${key} 必须是字符串。`);
+        });
+        if (errors.length) return { valid: false, errors };
+        const migrated = input.version === 1
+            ? { ...input, version: 2, schema: 'wealth-planning-financial-plan', migratedFromVersion: 1, readOnlySource: true }
+            : { ...input };
+        return { valid: true, errors: [], snapshot: migrated };
     },
 
     // 5. 家庭财务画像体检
@@ -675,13 +796,16 @@ const portfolioEngine = {
         const liquidAfterSpend = Math.max(0, liquidCash - spendAmount);
 
         const coverageCreditMonths = { none: 0, basic: 3, adequate: 6, strong: 9 }[coverageLevel] ?? 3;
-        const protectionCredit = monthlyRequiredOutflow * coverageCreditMonths;
+        const protectionAdequacyMonths = coverageCreditMonths;
         const lifeMin = monthlyRequiredOutflow * lifeMinMonths;
         const lifeMax = monthlyRequiredOutflow * lifeMaxMonths;
         const lifeReserve = Math.min(liquidAfterSpend, lifeMax);
         const stableLiquidRemainder = Math.max(0, liquidAfterSpend - lifeReserve);
 
-        const lifeAmount = lifeReserve + num(fd['ast-insurance']) + protectionCredit;
+        const insuranceCashValue = num(fd['ast-insurance']);
+        const insuranceLiquidityDiscount = 0.7;
+        const discountedInsuranceCashValue = insuranceCashValue * insuranceLiquidityDiscount;
+        const lifeAmount = lifeReserve + discountedInsuranceCashValue;
         const earnAmount = num(fd['ast-ashare']) + num(fd['ast-hk']) + num(fd['ast-overseas']) + num(fd['ast-others']);
         const preserveAmount = num(fd['ast-house']) + num(fd['ast-gold']) + stableLiquidRemainder;
         const baseAssets = Math.max(num(totalAssets), 1);
@@ -721,7 +845,7 @@ const portfolioEngine = {
             '日常开销、月供和未来三年开销预留基本匹配。'
         );
         const lifeStatus = classifyAmount(
-            lifeAmount, lifeMin, lifeMax + num(fd['ast-insurance']) + protectionCredit,
+            lifeAmount, lifeMin, lifeMax + discountedInsuranceCashValue,
             '失业、医疗或家庭意外缓冲不足，优先补齐应急金、基础保障和高息债务处理。',
             '保命资金占用偏多，确认保障充足后可分批转入保值或生钱资产。',
             '风险兜底资金覆盖度较好，家庭抗冲击能力较稳。'
@@ -757,7 +881,7 @@ const portfolioEngine = {
                 amount: lifeAmount,
                 ratio: lifeAmount / baseAssets,
                 targetText: `${lifeMinMonths}-${lifeMaxMonths} 个月刚性支出 + 基础保障`,
-                components: '应急现金、货币/短债、养老金/保险现金价值、保障覆盖等效额度',
+                components: '应急现金、货币/短债、按流动性折扣计入的养老金/保险现金价值',
                 ...lifeStatus
             },
             {
@@ -799,6 +923,10 @@ const portfolioEngine = {
         }
 
         return {
+            protectionAdequacyMonths,
+            protectionGapMonths: Math.max(lifeMinMonths - protectionAdequacyMonths, 0),
+            insuranceCashValue,
+            insuranceLiquidityDiscount,
             overallStatus,
             overallColor,
             score,

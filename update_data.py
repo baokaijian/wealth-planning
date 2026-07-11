@@ -21,7 +21,7 @@ except Exception as e:
         'sh518880', 'sh511520', 'sh511010', 'sh508099'
     ]
 
-# ETF基准参数 (基准价格, 基准股息率)，用于根据最新价格反算实时股息率
+# ETF基准参数（参考价格、参考分配收益率），用于反推估算收益率，并非实时分红数据
 ETF_BASE = {
     '511880': {'base_price': 100.0, 'base_yield': 1.8},
     '511360': {'base_price': 113.6, 'base_yield': 2.7},
@@ -82,9 +82,11 @@ def fetch_live_data():
             result[code] = {
                 'name': name,
                 'price': price,
-                'yield': dividend_yield,
+                'impliedYield': dividend_yield,
                 'price_source': 'tencent_realtime_quote',
-                'yield_source': 'base_distribution_price_adjusted_estimate'
+                'yield_method': 'implied_from_reference_distribution',
+                'distribution_as_of': '',
+                'price_as_of': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             }
             
         output = {
