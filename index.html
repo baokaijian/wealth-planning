@@ -1656,7 +1656,7 @@
                     <span class="metric-val-num" id="t2-min-principal-val">--</span>
                 </div>
                 <div class="metric-card">
-                    <span class="metric-label">目标支取所需缓冲月数</span>
+                    <span class="metric-label">额外所需缓冲资金/月数</span>
                     <span class="metric-val-num" id="t2-min-buffer-months-val">--</span>
                 </div>
             </div>
@@ -1668,7 +1668,7 @@
             <div class="card" style="margin-bottom: 20px; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
                 <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                     <label for="t2-start-month" style="font-size:0.86rem;font-weight:700;">模拟起始月份</label>
-                    <select id="t2-start-month" onchange="userInputsChanged()" style="font-size: 0.82rem;">
+                    <select id="t2-start-month" onchange="onScenarioChanged()" style="font-size: 0.82rem;">
                         <option value="1">1月</option>
                         <option value="2">2月</option>
                         <option value="3">3月</option>
@@ -1683,9 +1683,9 @@
                         <option value="12">12月</option>
                     </select>
                     <label for="t2-stress-income-drop" style="font-size:0.86rem;font-weight:700;">稳定分红/票息下降</label>
-                    <input type="number" id="t2-stress-income-drop" value="20" min="0" max="100" step="5" onchange="userInputsChanged()" style="width:76px;font-size:0.82rem;">%
+                    <input type="number" id="t2-stress-income-drop" value="20" min="0" max="100" step="5" onchange="onScenarioChanged()" style="width:76px;font-size:0.82rem;">%
                     <label for="t2-delay-months" style="font-size:0.86rem;font-weight:700;">到账延迟</label>
-                    <select id="t2-delay-months" onchange="userInputsChanged()" style="font-size: 0.82rem;">
+                    <select id="t2-delay-months" onchange="onScenarioChanged()" style="font-size: 0.82rem;">
                         <option value="0" selected>0个月</option>
                         <option value="1">1个月</option>
                         <option value="2">2个月</option>
@@ -1695,14 +1695,14 @@
                         <option value="6">6个月</option>
                     </select>
                     <label class="checkbox-container" style="display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
-                        <input type="checkbox" id="t2-pause-year-checkbox" onchange="userInputsChanged()" style="width: 16px; height: 16px; cursor: pointer;">
+                        <input type="checkbox" id="t2-pause-year-checkbox" onchange="onScenarioChanged()" style="width: 16px; height: 16px; cursor: pointer;">
                         <span style="font-size: 0.86rem; font-weight: 700; color: var(--text-primary);">模拟某一年分红暂停</span>
                     </label>
                     <label class="checkbox-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
-                        <input type="checkbox" id="t2-harvest-checkbox" onchange="userInputsChanged()" style="width: 18px; height: 18px; cursor: pointer;">
+                        <input type="checkbox" id="t2-harvest-checkbox" onchange="onScenarioChanged()" style="width: 18px; height: 18px; cursor: pointer;">
                         <span style="font-size: 0.9rem; font-weight: 800; color: #7C3AED; background:#F3E8FF; border:1px solid #E9D5FF; border-radius:999px; padding:4px 10px;">警示：乐观情景 · 卖出成长资产补流</span>
                     </label>
-                    <select id="t2-harvest-scenario" onchange="userInputsChanged()" style="font-size: 0.82rem;">
+                    <select id="t2-harvest-scenario" onchange="onScenarioChanged()" style="font-size: 0.82rem;">
                         <option value="conservative">保守：不假设可卖出获利</option>
                         <option value="neutral" selected>中性：最多按 3%</option>
                         <option value="optimistic">乐观：按预期收益率</option>
@@ -1889,10 +1889,10 @@
                     </div>
                     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom: 15px;">
                         <label class="checkbox-container" style="display:flex; align-items:center; gap:8px;">
-                            <input type="checkbox" id="t4-incremental-mode" checked onchange="userInputsChanged()" style="width:18px;height:18px;">
+                            <input type="checkbox" id="t4-incremental-mode" checked onchange="onScenarioChanged()" style="width:18px;height:18px;">
                             <span style="font-size:0.86rem;">增量资金再平衡优先</span>
                         </label>
-                        <input type="number" id="t4-new-cash-input" value="10" min="0" step="1" oninput="userInputsChanged()" style="width:110px;" title="新增资金，单位万元">
+                        <input type="number" id="t4-new-cash-input" value="10" min="0" step="1" oninput="onScenarioChanged()" style="width:110px;" title="新增资金，单位万元">
                         <span style="font-size:0.8rem; color:var(--text-secondary);">万元新增资金</span>
                     </div>
                     <table style="font-size: 0.88rem;">
@@ -2170,7 +2170,7 @@
             calculationTimer: null
         };
 
-        // ETF基准参数 (基准价格, 基准股息率)，用于根据最新价格反算实时股息率
+        // ETF参考参数，用于按参考分配额和当前价格反推估算收益率
         const ETF_BASE = {
             '511880': { base_price: 100.0, base_yield: 1.8 },
             '511360': { base_price: 113.6, base_yield: 2.7 },
@@ -2467,7 +2467,11 @@
             Object.keys(state.assets).forEach(code => {
                 if (result.data[code]) {
                     state.assets[code].price = result.data[code].price;
-                    state.assets[code].yield = result.data[code].yield;
+                    state.assets[code].impliedYield = result.data[code].impliedYield ?? result.data[code].yield;
+                    state.assets[code].yield = state.assets[code].impliedYield;
+                    state.assets[code].yield_method = result.data[code].yield_method || 'implied_from_reference_distribution';
+                    state.assets[code].distribution_as_of = result.data[code].distribution_as_of || '';
+                    state.assets[code].price_as_of = result.data[code].price_as_of || result.timestamp || '';
                 } else {
                     state.assets[code].price = 0.0;
                     state.assets[code].yield = state.assets[code].estimated_yield || 0.0;
@@ -2602,7 +2606,7 @@
 
         function getDataFreshnessMeta(kind = 'price') {
             if (kind === 'yield' && state.marketDataSource === 'live') {
-                return { label: '基准分红反推估算', detail: state.dataTimestamp || formatLocalDateTime(), color: 'var(--accent-orange)', bg: 'var(--yellow-container)', border: '#FEEFC3' };
+                return { label: '参考分红反推收益率', detail: state.dataTimestamp || formatLocalDateTime(), color: 'var(--accent-orange)', bg: 'var(--yellow-container)', border: '#FEEFC3' };
             }
             if (kind === 'yield' && state.fetchStatus === 'success' && state.marketDataSource === 'cache') {
                 return { label: '本地缓存估算收益率', detail: state.dataTimestamp || '--', color: 'var(--accent-orange)', bg: 'var(--yellow-container)', border: '#FEEFC3' };
@@ -2898,11 +2902,12 @@
                         <td><span style="font-size:0.85rem">${asset.market} / ${getVolatilityLabel(asset.volatility_level)}</span></td>
                         <td><span id="t1_cashflow_${code}" style="font-size:0.82rem;font-weight:600;">${getCashflowAttribute(asset)}</span></td>
                         <td>
-                            <input class="weight-input-field" type="number" id="w_val_${code}" step="0.5" min="0" max="100" value="${asset.weight}" oninput="userInputsChanged()">
+                            <input class="weight-input-field" type="number" id="w_val_${code}" step="0.5" min="0" max="100" value="${asset.weight}" oninput="onWeightChanged()">
                         </td>
                         <td id="t1_invest_${code}" style="font-weight: 500;">0.00 万元</td>
                         <td style="color:var(--accent-blue);font-weight: 500; white-space: nowrap;">
-                            <input class="weight-input-field" type="number" id="y_val_${code}" step="0.1" min="0" max="20" value="${asset.yield > 0 ? asset.yield.toFixed(2) : ''}" placeholder="获取中..." style="color:var(--accent-blue)" disabled readonly>%
+                            <input class="weight-input-field" aria-label="参考分红反推收益率" title="计算方法：参考年度分配收益率 × 参考价格 ÷ 当前价格；不代表实时或承诺收益" type="number" id="y_val_${code}" step="0.1" min="0" max="20" value="${asset.yield > 0 ? asset.yield.toFixed(2) : ''}" placeholder="获取中..." style="color:var(--accent-blue)" disabled readonly>%
+                            <div style="font-size:0.7rem;color:var(--text-secondary);">参考分红反推收益率 · ${asset.distribution_as_of || '分配日期未提供'} / 价格 ${asset.price_as_of || state.dataTimestamp || '日期未提供'}</div>
                             <div id="t1_yield_badge_${code}" style="margin-top:4px;">${renderDataFreshnessBadge('yield')}</div>
                         </td>
                         <td id="t1_div_${code}" style="font-weight: 500;">¥0</td>
@@ -2925,7 +2930,7 @@
                     <tr>
                         <td><strong>${asset.name}</strong><br><span style="color:var(--text-secondary);font-size:0.75rem">${code}</span></td>
                         <td>
-                            <input class="weight-input-field" type="number" id="hold_input_${code}" step="1" min="0" value="${state.holdings[code].toFixed(1)}" oninput="userInputsChanged()">
+                            <input class="weight-input-field" type="number" id="hold_input_${code}" step="1" min="0" value="${state.holdings[code].toFixed(1)}" oninput="onHoldingChanged()">
                         </td>
                         <td>${asset.weight.toFixed(1)}%</td>
                         <td id="t4_actual_pct_${code}">0.0%</td>
@@ -2937,26 +2942,28 @@
         }
 
         // 当用户手动修改滑块、本金、目标或输入框时触发更新
-        function userInputsChanged() {
-            // 将 Input 中的权重、股息率、持仓实时读取并写回 state 保持同步
+        function syncAssetInputs() {
             Object.keys(state.assets).forEach(code => {
-                const wInput = parseFloat(document.getElementById(`w_val_${code}`).value);
-                const yInput = parseFloat(document.getElementById(`y_val_${code}`).value);
+                const wInput = parseFloat(document.getElementById(`w_val_${code}`)?.value);
+                const yInput = parseFloat(document.getElementById(`y_val_${code}`)?.value);
                 if (!isNaN(wInput)) state.assets[code].weight = wInput;
                 if (!isNaN(yInput)) state.assets[code].yield = yInput;
-
-                const holdInput = parseFloat(document.getElementById(`hold_input_${code}`).value);
+                const holdInput = parseFloat(document.getElementById(`hold_input_${code}`)?.value);
                 if (!isNaN(holdInput)) state.holdings[code] = holdInput;
             });
+        }
 
-            // 当手动微调权重时，重置策略预设选择器为“自定义”
+        function onWeightChanged() {
+            syncAssetInputs();
             const presetSelect = document.getElementById('strategy-preset');
-            if (presetSelect) {
-                presetSelect.value = 'custom';
-            }
-
+            if (presetSelect) presetSelect.value = 'custom';
             scheduleCalculationUpdate();
         }
+
+        function onHoldingChanged() { syncAssetInputs(); scheduleCalculationUpdate(); }
+        function onScenarioChanged() { scheduleCalculationUpdate(); }
+        function onCoreAssumptionChanged() { syncAssetInputs(); scheduleCalculationUpdate(); }
+        function userInputsChanged() { onCoreAssumptionChanged(); } // 旧内联调用兼容别名
 
         // 应用策略预设
         function applyStrategyPreset() {
@@ -3097,6 +3104,8 @@
                 state.bufferSeed, 
                 state.moneyMarketRate / 100.0
             );
+            state.portfolioValid = res.valid;
+            state.portfolioErrors = res.errors;
 
             const investPrincipal = res.investPrincipal;
             document.getElementById('t1-invest-principal-hint').innerText = `实际配置本金: ${investPrincipal.toFixed(2)} 万元`;
@@ -3141,8 +3150,9 @@
 
             // 验证权重报警
             const warningEl = document.getElementById('t1-weight-warning');
-            if (Math.abs(res.totalWeight - 100.0) > 0.01) {
+            if (!res.valid || res.dataErrors.length) {
                 document.getElementById('t1-weight-sum').innerText = `${res.totalWeight.toFixed(1)}%`;
+                warningEl.textContent = [res.valid ? '' : `权重输入无效：${res.errors.join(' ')}`, res.dataErrors.length ? `资产分配数据错误：${res.dataErrors.join(' ')}` : ''].filter(Boolean).join(' ');
                 warningEl.classList.remove('hidden');
             } else {
                 warningEl.classList.add('hidden');
@@ -3328,7 +3338,7 @@
             document.getElementById('t2-recommended-spend-val').innerText = `${feasibility.recommendedMonthlyExpenseWan.toFixed(2)} 万`;
             document.getElementById('t2-safe-withdraw-val').innerText = `${feasibility.safeMonthlyWithdrawWan.toFixed(2)} 万`;
             document.getElementById('t2-min-principal-val').innerText = feasibility.minPrincipalWan === null ? '超过测算上限' : `${feasibility.minPrincipalWan.toFixed(1)} 万`;
-            document.getElementById('t2-min-buffer-months-val').innerText = feasibility.minBufferMonths === null ? '仅加缓冲不足' : `${feasibility.minBufferMonths.toFixed(1)} 个月`;
+            document.getElementById('t2-min-buffer-months-val').innerText = feasibility.minBufferMonths === null ? '120个月内不足' : `${feasibility.minAdditionalBufferWan.toFixed(1)} 万 / ${feasibility.minBufferMonths.toFixed(0)} 个月`;
             const dependencyCard = document.getElementById('t2-harvest-dependency-card');
             if (dependencyCard) {
                 if (rebalanceHarvest) {
@@ -3373,6 +3383,10 @@
             state.tab2StressBreached = stressRes.minBuffer <= 0;
             state.tab2StressMinMonth = weakestMonth;
             state.tab2StressMinValue = stressRes.minBuffer;
+            if (!state.portfolioValid) {
+                alertEl.className = 'alert-banner alert-warning';
+                alertEl.textContent = `当前仅显示预览，权重无效时不输出现金流安全结论：${(state.portfolioErrors || []).join(' ')}`;
+            }
         }
 
         function renderCashflowConcentration(contributions) {
@@ -3511,58 +3525,38 @@
             const actionsTbody = document.getElementById('t4-rebalance-actions-body');
             actionsTbody.innerHTML = '';
             const incrementalMode = document.getElementById('t4-incremental-mode') ? document.getElementById('t4-incremental-mode').checked : true;
-            let remainingNewCash = document.getElementById('t4-new-cash-input') ? (parseFloat(document.getElementById('t4-new-cash-input').value) || 0.0) : 0.0;
-            const rebalancePlan = [];
-
+            const newCash = document.getElementById('t4-new-cash-input') ? (parseFloat(document.getElementById('t4-new-cash-input').value) || 0.0) : 0.0;
+            const targetWeights = {};
+            const rebalanceBands = {};
             Object.keys(state.assets).forEach(code => {
-                const asset = state.assets[code];
-                const actualVal = state.holdings[code];
-                const actualPct = totalHoldValue > 0 ? (actualVal / totalHoldValue) * 100 : 0.0;
-                const targetPct = asset.weight;
-                const diffPct = actualPct - targetPct;
-                const band = parseFloat(asset.rebalance_band) || getDefaultRebalanceBand(asset.role);
+                targetWeights[code] = state.assets[code].weight;
+                rebalanceBands[code] = parseFloat(state.assets[code].rebalance_band) || getDefaultRebalanceBand(state.assets[code].role);
+            });
+            const plan = portfolioEngine.calculateRebalancePlan({ holdings: state.holdings, targetWeights, rebalanceBands, newCash, incrementalMode });
 
-                const isOverThreshold = Math.abs(diffPct) > band;
+            plan.rows.forEach(item => {
+                const asset = state.assets[item.code];
+                const { code, beforePct, afterPct, targetPct, deviationPct, band, outsideBand, buyAmount, sellAmount } = item;
 
                 // 更新表格中的占比文字单元格
-                document.getElementById(`t4_actual_pct_${code}`).innerText = `${actualPct.toFixed(1)}%`;
+                document.getElementById(`t4_actual_pct_${code}`).innerText = `${beforePct.toFixed(1)}% → ${afterPct.toFixed(1)}%`;
                 
                 const diffCell = document.getElementById(`t4_diff_pct_${code}`);
-                diffCell.innerText = `${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}%`;
-                diffCell.style.color = diffPct >= 0 ? 'var(--accent-emerald)' : 'var(--accent-red)';
+                diffCell.innerText = `目标 ${targetPct.toFixed(1)}% / ${deviationPct >= 0 ? '+' : ''}${deviationPct.toFixed(1)}%`;
+                diffCell.style.color = deviationPct >= 0 ? 'var(--accent-orange)' : 'var(--accent-red)';
 
                 const statusCell = document.getElementById(`t4_status_${code}`);
-                statusCell.innerText = isOverThreshold ? `⚠️ 超过 ±${band}%` : `✅ ±${band}% 内`;
-                statusCell.style.color = isOverThreshold ? 'var(--accent-red)' : 'var(--text-secondary)';
-                statusCell.style.fontWeight = isOverThreshold ? '700' : 'normal';
-
-                // 计算再平衡提示说明
-                const targetValue = totalHoldValue * (targetPct / 100);
-                const diffVal = targetValue - actualVal;
-                rebalancePlan.push({ code, asset, diffVal, diffPct, band, isOverThreshold });
-            });
-
-            rebalancePlan
-                .filter(item => item.diffVal > 0.5 && item.isOverThreshold)
-                .sort((a, b) => b.diffVal - a.diffVal)
-                .forEach(item => {
-                    item.incrementalBuy = incrementalMode ? Math.min(item.diffVal, remainingNewCash) : 0.0;
-                    remainingNewCash -= item.incrementalBuy || 0.0;
-                });
-
-            rebalancePlan.forEach(item => {
-                const { asset, diffVal, isOverThreshold } = item;
+                statusCell.innerText = outsideBand ? `⚠️ 超过 ±${band}%` : `✅ ±${band}% 内`;
+                statusCell.style.color = outsideBand ? 'var(--accent-red)' : 'var(--text-secondary)';
+                statusCell.style.fontWeight = outsideBand ? '700' : 'normal';
 
                 let actionText = '<span style="color:var(--text-secondary)">持平</span>';
-                if (!isOverThreshold) {
+                if (!outsideBand) {
                     actionText = '<span style="color:var(--text-secondary)">阈值内观察</span>';
-                } else if ((item.incrementalBuy || 0) > 0) {
-                    const residual = diffVal - item.incrementalBuy;
-                    actionText = `<span style="color:var(--accent-emerald); font-weight:600">🟢 新增资金买入 ${item.incrementalBuy.toFixed(2)} 万元</span>${residual > 0.5 ? `<br><span style="color:var(--text-secondary);font-size:0.78rem;">仍低配 ${residual.toFixed(2)} 万元，后续增量继续补足</span>` : ''}`;
-                } else if (diffVal > 0.5) {
-                    actionText = `<span style="color:var(--accent-emerald); font-weight:600">🟢 测算应买入 ${diffVal.toFixed(2)} 万元</span>`;
-                } else if (diffVal < -0.5) {
-                    actionText = `<span style="color:var(--accent-red); font-weight:600">🔴 测算应卖出 ${Math.abs(diffVal).toFixed(2)} 万元</span>`;
+                } else if (buyAmount > 0) {
+                    actionText = `<span style="color:var(--accent-emerald); font-weight:600">🟢 新增资金买入 ${buyAmount.toFixed(2)} 万元</span>`;
+                } else if (sellAmount > 0) {
+                    actionText = `<span style="color:var(--accent-red); font-weight:600">🔴 增量用完后仍超带，测算卖出 ${sellAmount.toFixed(2)} 万元</span>`;
                 }
 
                 actionsTbody.innerHTML += `
@@ -3925,12 +3919,12 @@
 
             // Compare and display tolerance match
             const maxDrawdownLimit = parseFloat(document.getElementById('inv-drawdown') ? document.getElementById('inv-drawdown').value : 10) || 10;
-            document.getElementById('t5-portfolio-drawdown-val').innerText = `${res.maxNetWorthDrawdown.toFixed(2)}%`;
+            document.getElementById('t5-portfolio-drawdown-val').innerText = `${res.portfolioDrawdown.toFixed(2)}%`;
             document.getElementById('t5-user-tolerance-val').innerText = `${maxDrawdownLimit}%`;
             
             const matchStatusEl = document.getElementById('t5-tolerance-match-status');
             if (matchStatusEl) {
-                if (res.maxNetWorthDrawdown > maxDrawdownLimit) {
+                if (res.portfolioDrawdown > maxDrawdownLimit) {
                     matchStatusEl.innerText = "❌ 超出承受力 (危险)";
                     matchStatusEl.style.color = "var(--accent-red)";
                 } else {
@@ -3948,6 +3942,10 @@
                 summaryAlert.className = 'alert-banner alert-success';
                 summaryAlert.innerHTML = `<strong>✅ 压力测试通过：</strong> 在预设极端市场压力下，现金缓冲池在 36 个月内始终保持 <strong>正水位</strong>。资产配置方案具备极高的现金流抗震防线！`;
             }
+            if (!state.portfolioValid) {
+                summaryAlert.className = 'alert-banner alert-warning';
+                summaryAlert.textContent = `当前仅显示压力数值预览，权重无效时不输出“通过”结论：${(state.portfolioErrors || []).join(' ')}`;
+            }
 
             const explain = document.getElementById('stress-explain-content');
             if (explain) {
@@ -3958,7 +3956,7 @@
                         <li>压力测试先按角色回撤资产净值：红利 ${stressParams.drawdown.dividend_income}%、国内宽基 ${stressParams.drawdown.domestic_beta}%、科技 ${stressParams.drawdown.tech_growth}%、海外 ${stressParams.drawdown.overseas_broad}%、黄金/债券 ${stressParams.drawdown.hedge}%。</li>
                         <li>稳定现金流只统计 income_type 为 dividend 或 cash_interest 的资产，再按角色分红/利息折损率下调；成长资产预期收益不计入稳定现金流。</li>
                         <li>击穿月 = 压力缓冲池余额首次小于 0 的月份；当前${breachedMonth !== null ? `第 ${breachedMonth} 月击穿` : `36 个月未击穿`}，最低水位约 ¥${Math.round(minBalance).toLocaleString()}。</li>
-                        <li>承受力匹配比较组合极端回撤 ${res.maxNetWorthDrawdown.toFixed(2)}% 与家庭可承受最大回撤 ${maxDrawdownLimit}%。</li>
+                        <li>承受力匹配比较组合极端回撤 ${res.portfolioDrawdown.toFixed(2)}% 与家庭可承受最大回撤 ${maxDrawdownLimit}%。</li>
                     </ul>
                     <div style="margin-top:8px;">以上仅为压力情景解释，不构成投资建议，不承诺分红或收益。</div>
                 `;
@@ -4499,7 +4497,8 @@
             );
             const score = getCurrentHealthScore();
             return {
-                version: 1,
+                version: 2,
+                schema: 'wealth-planning-financial-plan',
                 exportedAt: formatLocalDateTime(),
                 source: 'wealth-planning-local-snapshot',
                 privacy: 'local-json-only-no-upload',
@@ -4543,10 +4542,12 @@
             reader.onload = () => {
                 try {
                     const imported = JSON.parse(reader.result);
-                    state.latestFinancialSnapshot = imported;
-                    renderSnapshotComparison(imported);
+                    const validation = portfolioEngine.validateAndMigrateSnapshot(imported);
+                    if (!validation.valid) throw new Error(validation.errors.join('\n'));
+                    state.latestFinancialSnapshot = validation.snapshot;
+                    renderSnapshotComparison(validation.snapshot);
                 } catch (err) {
-                    alert('快照 JSON 解析失败，请确认文件来自本工具导出的财务快照。');
+                    alert(`快照导入失败：\n${err.message || 'JSON 解析失败，请确认文件来自本工具导出的财务快照。'}`);
                 } finally {
                     event.target.value = '';
                 }
@@ -4560,22 +4561,21 @@
             const current = collectFinancialSnapshot();
             const oldMetrics = imported.metrics || {};
             const newMetrics = current.metrics || {};
+            const appendLine = text => { const div = document.createElement('div'); div.textContent = text; box.appendChild(div); };
             const fmtDiff = (label, oldVal, newVal, suffix = '') => {
-                if (oldVal === null || oldVal === undefined || newVal === null || newVal === undefined) return `<div>${label}: 历史或当前数据不足</div>`;
+                if (oldVal === null || oldVal === undefined || newVal === null || newVal === undefined) return `${label}: 历史或当前数据不足`;
                 const diff = Number(newVal) - Number(oldVal);
                 const arrow = diff > 0 ? '↑' : (diff < 0 ? '↓' : '→');
-                const color = diff > 0 ? 'var(--accent-emerald)' : (diff < 0 ? 'var(--accent-red)' : 'var(--text-secondary)');
-                return `<div>${label}: 历史 ${Number(oldVal).toFixed(2)}${suffix} → 当前 ${Number(newVal).toFixed(2)}${suffix} <strong style="color:${color};">${arrow} ${diff.toFixed(2)}${suffix}</strong></div>`;
+                return `${label}: 历史 ${Number(oldVal).toFixed(2)}${suffix} → 当前 ${Number(newVal).toFixed(2)}${suffix} ${arrow} ${diff.toFixed(2)}${suffix}`;
             };
             box.style.display = 'block';
-            box.innerHTML = `
-                <strong style="color:var(--text-primary);">已导入历史快照：</strong>${imported.exportedAt || '--'}<br>
-                ${fmtDiff('健康分', oldMetrics.healthScore, newMetrics.healthScore, ' 分')}
-                ${fmtDiff('安全月支取上限', oldMetrics.safeMonthlyWithdrawWan, newMetrics.safeMonthlyWithdrawWan, ' 万')}
-                ${fmtDiff('建议月支取', oldMetrics.recommendedMonthlyExpenseWan, newMetrics.recommendedMonthlyExpenseWan, ' 万')}
-                ${fmtDiff('现金覆盖月数', oldMetrics.cashCoverageMonths, newMetrics.cashCoverageMonths, ' 月')}
-                <div style="margin-top:6px;color:var(--text-secondary);">快照文件只在本地导入比较，不上传服务器。</div>
-            `;
+            box.replaceChildren();
+            appendLine(`已导入历史快照：${imported.exportedAt || '--'}${imported.readOnlySource ? '（version 1 只读迁移）' : ''}`);
+            appendLine(fmtDiff('健康分', oldMetrics.healthScore, newMetrics.healthScore, ' 分'));
+            appendLine(fmtDiff('安全月支取上限', oldMetrics.safeMonthlyWithdrawWan, newMetrics.safeMonthlyWithdrawWan, ' 万'));
+            appendLine(fmtDiff('建议月支取', oldMetrics.recommendedMonthlyExpenseWan, newMetrics.recommendedMonthlyExpenseWan, ' 万'));
+            appendLine(fmtDiff('现金覆盖月数', oldMetrics.cashCoverageMonths, newMetrics.cashCoverageMonths, ' 月'));
+            appendLine('快照文件只在本地导入比较，不上传服务器。');
         }
 
         // 设置三桶 UI
