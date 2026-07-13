@@ -29,6 +29,15 @@ test('负数、非有限数和单项超过100%均无效', () => {
   assert.ok(result.errors.length >= 3);
 });
 
+test('80%、120%、NaN 和 Infinity 权重无效，100%有效', () => {
+  const assets = { a: { income_type: 'dividend', distribution_months: { 12: 1 } }, b: { income_type: 'capital_growth' } };
+  assert.equal(engine.calculatePortfolio({ a: 80, b: 0 }, assets, 1, 0, 0).valid, false);
+  assert.equal(engine.calculatePortfolio({ a: 100, b: 0 }, assets, 1, 0, 0).valid, true);
+  assert.equal(engine.calculatePortfolio({ a: 120, b: 0 }, assets, 1, 0, 0).valid, false);
+  assert.equal(engine.calculatePortfolio({ a: NaN, b: 100 }, assets, 1, 0, 0).valid, false);
+  assert.equal(engine.calculatePortfolio({ a: Infinity, b: 100 }, assets, 1, 0, 0).valid, false);
+});
+
 test('分红月份比例异常可检测', () => {
   const result = engine.validateDistributionMonths({ income_type: 'dividend', distribution_months: { 1: 0.6, 13: 0.6 } });
   assert.equal(result.valid, false);

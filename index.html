@@ -2284,9 +2284,12 @@
                     name: item.name,
                     type: item.type,
                     weight: item.weight,
-                    yield: 0.0,
+                    impliedYield: item.impliedYield ?? item.yield ?? 0.0,
                     price: 0.0,
                     estimated_yield: item.estimated_yield,
+                    yield_method: item.yield_method || 'implied_from_reference_distribution',
+                    distribution_as_of: item.distribution_as_of || '',
+                    price_as_of: item.price_as_of || '',
                     estimated_return: item.estimated_return !== undefined ? item.estimated_return : item.estimated_yield,
                     target_index_code: item.target_index_code !== undefined ? item.target_index_code : getDefaultTargetIndexCode(role),
                     rebalance_band: item.rebalance_band !== undefined ? item.rebalance_band : getDefaultRebalanceBand(role),
@@ -2385,7 +2388,7 @@
             return code.startsWith('5') || code.startsWith('6') ? 'sh' : 'sz';
         }
 
-        function calculateLiveYield(code, price) {
+        function calculateImpliedYield(code, price) {
             const base = ETF_BASE[code];
             if (!base || !price || price <= 0 || !base.base_yield) {
                 return state.assets[code]?.estimated_yield || 0.0;
@@ -2437,7 +2440,10 @@
                 data[code] = {
                     name: fields[1] || state.assets[code].name,
                     price,
-                    yield: calculateLiveYield(code, price)
+                    impliedYield: calculateImpliedYield(code, price),
+                    yield_method: 'implied_from_reference_distribution',
+                    distribution_as_of: '',
+                    price_as_of: formatLocalDateTime()
                 };
             });
 
@@ -2468,13 +2474,12 @@
                 if (result.data[code]) {
                     state.assets[code].price = result.data[code].price;
                     state.assets[code].impliedYield = result.data[code].impliedYield ?? result.data[code].yield;
-                    state.assets[code].yield = state.assets[code].impliedYield;
                     state.assets[code].yield_method = result.data[code].yield_method || 'implied_from_reference_distribution';
                     state.assets[code].distribution_as_of = result.data[code].distribution_as_of || '';
                     state.assets[code].price_as_of = result.data[code].price_as_of || result.timestamp || '';
                 } else {
                     state.assets[code].price = 0.0;
-                    state.assets[code].yield = state.assets[code].estimated_yield || 0.0;
+                    state.assets[code].impliedYield = state.assets[code].estimated_yield || 0.0;
                 }
             });
 
@@ -2493,7 +2498,7 @@
             Object.keys(state.assets).forEach(code => {
                 if (state.assets[code]) {
                     state.assets[code].price = 0.0;
-                    state.assets[code].yield = state.assets[code].estimated_yield || 0.0;
+                    state.assets[code].impliedYield = state.assets[code].estimated_yield || 0.0;
                 }
             });
 
@@ -2906,7 +2911,7 @@
                         </td>
                         <td id="t1_invest_${code}" style="font-weight: 500;">0.00 万元</td>
                         <td style="color:var(--accent-blue);font-weight: 500; white-space: nowrap;">
-                            <input class="weight-input-field" aria-label="参考分红反推收益率" title="计算方法：参考年度分配收益率 × 参考价格 ÷ 当前价格；不代表实时或承诺收益" type="number" id="y_val_${code}" step="0.1" min="0" max="20" value="${asset.yield > 0 ? asset.yield.toFixed(2) : ''}" placeholder="获取中..." style="color:var(--accent-blue)" disabled readonly>%
+                            <input class="weight-input-field" aria-label="参考分红反推收益率" title="计算方法：参考年度分配收益率 × 参考价格 ÷ 当前价格；不代表实时或承诺收益" type="number" id="y_val_${code}" step="0.1" min="0" max="20" value="${asset.impliedYield > 0 ? asset.impliedYield.toFixed(2) : ''}" placeholder="获取中..." style="color:var(--accent-blue)" disabled readonly>%
                             <div style="font-size:0.7rem;color:var(--text-secondary);">参考分红反推收益率 · ${asset.distribution_as_of || '分配日期未提供'} / 价格 ${asset.price_as_of || state.dataTimestamp || '日期未提供'}</div>
                             <div id="t1_yield_badge_${code}" style="margin-top:4px;">${renderDataFreshnessBadge('yield')}</div>
                         </td>
@@ -2947,7 +2952,7 @@
                 const wInput = parseFloat(document.getElementById(`w_val_${code}`)?.value);
                 const yInput = parseFloat(document.getElementById(`y_val_${code}`)?.value);
                 if (!isNaN(wInput)) state.assets[code].weight = wInput;
-                if (!isNaN(yInput)) state.assets[code].yield = yInput;
+                if (!isNaN(yInput)) state.assets[code].impliedYield = yInput;
                 const holdInput = parseFloat(document.getElementById(`hold_input_${code}`)?.value);
                 if (!isNaN(holdInput)) state.holdings[code] = holdInput;
             });
@@ -3088,6 +3093,53 @@
             }, delay);
         }
 
+        function renderInvalidPortfolioState(errors) {
+            const invalidState = portfolioEngine.getInvalidPortfolioDecisionState(errors);
+            const message = invalidState.cashflowMessage;
+            ['t2-recommended-spend-val', 't2-safe-withdraw-val', 't2-min-principal-val', 't2-min-buffer-months-val'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = '--';
+            });
+            const cashflowAlert = document.getElementById('t2-status-alert');
+            if (cashflowAlert) {
+                cashflowAlert.className = 'alert-banner alert-warning';
+                cashflowAlert.textContent = message;
+            }
+            const actions = document.getElementById('t4-rebalance-actions-body');
+            if (actions) {
+                actions.replaceChildren();
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 2;
+                cell.textContent = invalidState.rebalanceMessage;
+                row.appendChild(cell);
+                actions.appendChild(row);
+            }
+            document.querySelectorAll('[id^="t4_status_"]').forEach(status => {
+                status.textContent = '不可判定';
+                status.style.color = 'var(--text-secondary)';
+            });
+            [12, 24, 36].forEach(period => {
+                const status = document.getElementById(`stress-status-${period}`);
+                if (status) {
+                    status.textContent = invalidState.stressStatus;
+                    status.style.color = 'var(--text-secondary)';
+                }
+            });
+            const tolerance = document.getElementById('t5-tolerance-match-status');
+            if (tolerance) {
+                tolerance.textContent = invalidState.stressStatus;
+                tolerance.style.color = 'var(--text-secondary)';
+            }
+            const stressAlert = document.getElementById('stress-test-summary-alert');
+            if (stressAlert) {
+                stressAlert.className = 'alert-banner alert-warning';
+                stressAlert.textContent = `${invalidState.stressMessage}${errors?.length ? ` ${errors.join(' ')}` : ''}`;
+            }
+            const stressExplain = document.getElementById('stress-explain-content');
+            if (stressExplain) stressExplain.textContent = '当前组合权重无效，压力数值仅为无效预览，不构成有效结论。';
+        }
+
         // 静默更新计算器的数据 (仅修改 TextNode，不重建 Input 元素，保证良好的打字焦点)
         function silentUpdateCalculations() {
             // Get current weights from state.assets
@@ -3129,7 +3181,7 @@
                 // 2) 如果股息率输入框当前没有聚焦，将实时算出的股息率更新进去
                 const yInput = document.getElementById(`y_val_${code}`);
                 if (yInput && document.activeElement !== yInput) {
-                    const currentYield = asset.yield !== undefined ? asset.yield : asset.estimated_yield;
+                    const currentYield = asset.impliedYield !== undefined ? asset.impliedYield : asset.estimated_yield;
                     yInput.value = currentYield.toFixed(2);
                 }
 
@@ -3190,6 +3242,7 @@
 
             // 6. 刷新当前可见 Tab 的 Plotly 图表
             renderAllCharts();
+            if (!res.valid) renderInvalidPortfolioState(res.errors);
         }
 
         // Tab 2 的核心计算与表格更新
@@ -3524,6 +3577,10 @@
 
             const actionsTbody = document.getElementById('t4-rebalance-actions-body');
             actionsTbody.innerHTML = '';
+            if (!state.portfolioValid) {
+                renderInvalidPortfolioState(state.portfolioErrors || []);
+                return;
+            }
             const incrementalMode = document.getElementById('t4-incremental-mode') ? document.getElementById('t4-incremental-mode').checked : true;
             const newCash = document.getElementById('t4-new-cash-input') ? (parseFloat(document.getElementById('t4-new-cash-input').value) || 0.0) : 0.0;
             const targetWeights = {};
@@ -3533,6 +3590,15 @@
                 rebalanceBands[code] = parseFloat(state.assets[code].rebalance_band) || getDefaultRebalanceBand(state.assets[code].role);
             });
             const plan = portfolioEngine.calculateRebalancePlan({ holdings: state.holdings, targetWeights, rebalanceBands, newCash, incrementalMode });
+            if (!plan.valid) {
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 2;
+                cell.textContent = `无法生成再平衡交易建议：${plan.errors.join(' ')}`;
+                row.appendChild(cell);
+                actionsTbody.appendChild(row);
+                return;
+            }
 
             plan.rows.forEach(item => {
                 const asset = state.assets[item.code];
@@ -3555,6 +3621,8 @@
                     actionText = '<span style="color:var(--text-secondary)">阈值内观察</span>';
                 } else if (buyAmount > 0) {
                     actionText = `<span style="color:var(--accent-emerald); font-weight:600">🟢 新增资金买入 ${buyAmount.toFixed(2)} 万元</span>`;
+                } else if (item.remainingBuyGap > 0) {
+                    actionText = `<span style="color:var(--accent-orange); font-weight:600">仍低配 ${item.remainingBuyGap.toFixed(2)} 万元，后续新增资金优先补足</span>`;
                 } else if (sellAmount > 0) {
                     actionText = `<span style="color:var(--accent-red); font-weight:600">🔴 增量用完后仍超带，测算卖出 ${sellAmount.toFixed(2)} 万元</span>`;
                 }
@@ -3867,17 +3935,10 @@
                     bond_duration: parseFloat(document.getElementById('stress-drawdown-hedge').value),
                     cashflow_alt: parseFloat(document.getElementById('stress-drawdown-tech').value)
                 },
-                dividendDrop: {
-                    cash: parseFloat(document.getElementById('stress-divdrop-cash').value),
-                    dividend_income: parseFloat(document.getElementById('stress-divdrop-dividend').value),
-                    hedge: parseFloat(document.getElementById('stress-divdrop-hedge').value),
-                    bond_duration: parseFloat(document.getElementById('stress-divdrop-hedge').value),
-                    cashflow_alt: 100,
-                    domestic_beta: 0,
-                    tech_growth: 0,
-                    overseas_beta: 0,
-                    overseas_broad: 0,
-                    overseas_tech: 0
+                cashflowDrop: {
+                    moneyMarket: parseFloat(document.getElementById('stress-divdrop-cash').value),
+                    equityDividend: parseFloat(document.getElementById('stress-divdrop-dividend').value),
+                    bondCoupon: parseFloat(document.getElementById('stress-divdrop-hedge').value)
                 }
             };
 
@@ -3893,6 +3954,13 @@
 
             stressBufferHistory = res.stressedBufferHistory;
             const breachedMonth = res.breachedAtMonth;
+
+            if (!state.portfolioValid) {
+                document.getElementById('t5-portfolio-drawdown-val').innerText = `${res.portfolioDrawdown.toFixed(2)}%（无效预览）`;
+                renderInvalidPortfolioState(state.portfolioErrors || []);
+                if (state.currentTab === 'tab5') renderTab5StressChart();
+                return;
+            }
 
             // 评估 12 / 24 / 36 个月是否击穿
             const periods = [12, 24, 36];
@@ -4458,6 +4526,11 @@
         function updateAssetHealthFeedback() {
             const el = document.getElementById('t1-health-feedback');
             if (!el) return;
+            if (!state.portfolioValid) {
+                el.className = 'alert-banner alert-warning';
+                el.textContent = '当前组合权重无效，仅显示无效预览，不提供组合适配结论。';
+                return;
+            }
             const score = getCurrentHealthScore();
             if (score === null || !Number.isFinite(score)) {
                 el.className = 'alert-banner alert-info';
@@ -4482,20 +4555,16 @@
             Object.keys(state.assets).forEach(code => {
                 weights[code] = state.assets[code].weight;
             });
-            const feasibility = portfolioEngine.calculateCashflowFeasibility(
-                36,
-                state.targetMonthly * 10000,
-                state.bufferSeed,
-                state.principal,
-                weights,
-                state.assets,
-                state.moneyMarketRate / 100.0,
-                new Date().getMonth() + 1,
-                20,
-                0,
-                false
-            );
+            const portfolio = portfolioEngine.calculatePortfolio(weights, state.assets, state.principal, state.bufferSeed, state.moneyMarketRate / 100.0);
+            const feasibility = portfolio.valid ? portfolioEngine.calculateCashflowFeasibility(
+                36, state.targetMonthly * 10000, state.bufferSeed, state.principal, weights, state.assets,
+                state.moneyMarketRate / 100.0, new Date().getMonth() + 1, 20, 0, false
+            ) : null;
             const score = getCurrentHealthScore();
+            const decisionMetrics = portfolioEngine.getSnapshotDecisionMetrics(portfolio, feasibility, {
+                stressBreached: state.tab2StressBreached === true,
+                stressMinBuffer: state.tab2StressMinValue ?? null
+            });
             return {
                 version: 2,
                 schema: 'wealth-planning-financial-plan',
@@ -4504,13 +4573,15 @@
                 privacy: 'local-json-only-no-upload',
                 metrics: {
                     healthScore: score,
-                    safeMonthlyWithdrawWan: feasibility.safeMonthlyWithdrawWan,
-                    recommendedMonthlyExpenseWan: feasibility.recommendedMonthlyExpenseWan,
+                    safeMonthlyWithdrawWan: decisionMetrics.safeMonthlyWithdrawWan,
+                    recommendedMonthlyExpenseWan: decisionMetrics.recommendedMonthlyExpenseWan,
                     cashCoverageMonths: globalFamilyMetrics.cashCoverageMonths || null,
                     repayIncomeRatio: globalFamilyMetrics.repayIncomeRatio || null,
                     surplusRatio: globalFamilyMetrics.surplusRatio || null,
-                    stressBreached: state.tab2StressBreached === true,
-                    stressMinBuffer: state.tab2StressMinValue || null
+                    stressBreached: decisionMetrics.stressBreached,
+                    stressMinBuffer: decisionMetrics.stressMinBuffer,
+                    portfolioValid: decisionMetrics.portfolioValid,
+                    portfolioErrors: decisionMetrics.portfolioErrors
                 },
                 assumptions: {
                     principalWan: state.principal,
@@ -5680,7 +5751,9 @@ ${avoidList}
             switchTab,
             updateCoreState,
             updateStressTestLabels,
-            userInputsChanged
+            userInputsChanged,
+            renderInvalidPortfolioState,
+            collectFinancialSnapshot
         });
     </script>
 </body>
