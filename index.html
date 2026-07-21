@@ -2167,27 +2167,8 @@
             lastAssetHealthScore: null,
             latestFinancialSnapshot: null,
             allowLiveQuotes: false,
+            strategyPresets: null,
             calculationTimer: null
-        };
-
-        // ETF参考参数，用于按参考分配额和当前价格反推估算收益率
-        const ETF_BASE = {
-            '511880': { base_price: 100.0, base_yield: 1.8 },
-            '511360': { base_price: 113.6, base_yield: 2.7 },
-            '512890': { base_price: 1.17, base_yield: 4.5 },
-            '510880': { base_price: 3.20, base_yield: 4.0 },
-            '561960': { base_price: 1.05, base_yield: 4.2 },
-            '513530': { base_price: 1.61, base_yield: 4.8 },
-            '510300': { base_price: 3.50, base_yield: 1.5 },
-            '563360': { base_price: 1.00, base_yield: 1.2 },
-            '510500': { base_price: 6.00, base_yield: 0.8 },
-            '588000': { base_price: 0.80, base_yield: 0.2 },
-            '513500': { base_price: 2.20, base_yield: 1.2 },
-            '513100': { base_price: 1.30, base_yield: 0.5 },
-            '518880': { base_price: 4.50, base_yield: 0.0 },
-            '511520': { base_price: 110.0, base_yield: 2.6 },
-            '511010': { base_price: 125.0, base_yield: 2.3 },
-            '508099': { base_price: 3.00, base_yield: 4.5 }
         };
 
         const DEFAULT_ASSETS_CONFIG = [
@@ -2206,7 +2187,7 @@
             {"code": "518880", "name": "黄金 ETF", "type": "ETF", "role": "hedge", "target_index_code": null, "market": "Global", "volatility_level": "medium", "income_type": "hedge", "rebalance_band": 5, "weight": 6.0, "estimated_yield": 0.0, "estimated_return": 4.5, "distribution_months": {}, "strategy_note": "黄金对冲通胀、汇率和极端风险，不提供稳定票息", "risk_note": "不构成投资建议；黄金无分红，价格可能长时间震荡或回撤，不承诺收益"},
             {"code": "511520", "name": "政金债券 ETF", "type": "ETF", "role": "bond_duration", "target_index_code": null, "market": "CN", "volatility_level": "low", "income_type": "cash_interest", "rebalance_band": 2, "weight": 4.0, "estimated_yield": 2.6, "estimated_return": 3.2, "distribution_months": {"6": 0.5, "12": 0.5}, "strategy_note": "中长期政金债/利率债久期资产，承担利率下行和风险事件对冲", "risk_note": "不构成投资建议；久期债会受利率上行影响产生净值回撤，不承诺票息或收益"},
             {"code": "511010", "name": "国债 ETF", "type": "ETF", "role": "bond_duration", "target_index_code": null, "market": "CN", "volatility_level": "low", "income_type": "cash_interest", "rebalance_band": 2, "weight": 3.0, "estimated_yield": 2.3, "estimated_return": 3.0, "distribution_months": {"6": 0.5, "12": 0.5}, "strategy_note": "国债类利率债，和黄金一起承担组合防御与对冲角色", "risk_note": "不构成投资建议；债券基金净值会随利率变化波动，不承诺分红、票息或收益"},
-            {"code": "508099", "name": "REITs 现金流增强备选", "type": "REITs", "role": "cashflow_alt", "target_index_code": null, "market": "CN", "volatility_level": "high", "income_type": "alternative_income", "rebalance_band": 5, "weight": 2.0, "estimated_yield": 4.5, "estimated_return": 6.0, "distribution_months": {"4": 0.25, "7": 0.25, "10": 0.25, "12": 0.25}, "strategy_note": "可选现金流增强观察位，默认低权重，只有在理解底层资产后再小比例使用", "risk_note": "不构成投资建议；REITs 分红和估值高度依赖底层经营与流动性，不计入稳定现金流，不承诺分红或收益"}
+            {"code": "508099", "name": "建信中关村 REIT", "type": "REITs", "role": "cashflow_alt", "target_index_code": null, "market": "CN", "volatility_level": "high", "income_type": "alternative_income", "rebalance_band": 5, "weight": 2.0, "estimated_yield": 4.5, "estimated_return": 6.0, "distribution_months": {"4": 0.25, "7": 0.25, "10": 0.25, "12": 0.25}, "strategy_note": "可选现金流增强观察位，默认低权重，只有在理解底层资产后再小比例使用", "risk_note": "不构成投资建议；REITs 分红和估值高度依赖底层经营与流动性，不计入稳定现金流，不承诺分红或收益"}
         ];
 
         // 估值模拟历史曲线数据
@@ -2221,6 +2202,7 @@
             } catch (error) {
                 console.warn('共享规则配置不可用，使用计算引擎内置同值兜底。', error);
             }
+            await loadStrategyPresets();
             await loadValuationHistory();
             await loadAssetsConfig(); // 加载 assets.json 动态配置
             initStaticTableStructures(); // 仅渲染一次 DOM 框架，避免重绘失去输入框焦点
@@ -2273,6 +2255,20 @@
             }
         }
 
+        async function loadStrategyPresets() {
+            try {
+                const response = await fetch('strategy_presets.json');
+                if (!response.ok) throw new Error('Failed to load strategy_presets.json');
+                const payload = await response.json();
+                state.strategyPresets = Object.fromEntries(
+                    Object.entries(payload.presets || {}).map(([key, value]) => [key, value.weights || {}])
+                );
+            } catch (error) {
+                console.warn('策略初始化文件不可用，使用页面内置同值兜底。', error);
+                state.strategyPresets = null;
+            }
+        }
+
         function applyAssetsConfig(list) {
             state.assets = {};
             state.holdings = {};
@@ -2287,7 +2283,7 @@
                     impliedYield: item.impliedYield ?? item.yield ?? 0.0,
                     price: 0.0,
                     estimated_yield: item.estimated_yield,
-                    yield_method: item.yield_method || 'implied_from_reference_distribution',
+                    yield_method: item.yield_method || 'planning_assumption',
                     distribution_as_of: item.distribution_as_of || '',
                     price_as_of: item.price_as_of || '',
                     estimated_return: item.estimated_return !== undefined ? item.estimated_return : item.estimated_yield,
@@ -2388,12 +2384,9 @@
             return code.startsWith('5') || code.startsWith('6') ? 'sh' : 'sz';
         }
 
-        function calculateImpliedYield(code, price) {
-            const base = ETF_BASE[code];
-            if (!base || !price || price <= 0 || !base.base_yield) {
-                return state.assets[code]?.estimated_yield || 0.0;
-            }
-            return Math.round(base.base_yield * (base.base_price / price) * 100) / 100;
+        function formatTencentQuoteTime(rawValue) {
+            if (!/^\d{14}$/.test(rawValue || '')) return formatLocalDateTime();
+            return `${rawValue.slice(0, 4)}-${rawValue.slice(4, 6)}-${rawValue.slice(6, 8)} ${rawValue.slice(8, 10)}:${rawValue.slice(10, 12)}:${rawValue.slice(12, 14)}`;
         }
 
         function loadTencentQuoteScript(secIds) {
@@ -2440,10 +2433,11 @@
                 data[code] = {
                     name: fields[1] || state.assets[code].name,
                     price,
-                    impliedYield: calculateImpliedYield(code, price),
-                    yield_method: 'implied_from_reference_distribution',
-                    distribution_as_of: '',
-                    price_as_of: formatLocalDateTime()
+                    impliedYield: state.assets[code].impliedYield,
+                    yield_method: state.assets[code].yield_method,
+                    distribution_as_of: state.assets[code].distribution_as_of,
+                    distribution_months: state.assets[code].distribution_months,
+                    price_as_of: formatTencentQuoteTime(fields[30])
                 };
             });
 
@@ -2473,10 +2467,15 @@
             Object.keys(state.assets).forEach(code => {
                 if (result.data[code]) {
                     state.assets[code].price = result.data[code].price;
-                    state.assets[code].impliedYield = result.data[code].impliedYield ?? result.data[code].yield;
-                    state.assets[code].yield_method = result.data[code].yield_method || 'implied_from_reference_distribution';
+                    const verifiedYield = result.data[code].impliedYield ?? result.data[code].yield;
+                    if (Number.isFinite(verifiedYield)) state.assets[code].impliedYield = verifiedYield;
+                    state.assets[code].yield_method = result.data[code].yield_method || state.assets[code].yield_method || 'planning_assumption';
                     state.assets[code].distribution_as_of = result.data[code].distribution_as_of || '';
                     state.assets[code].price_as_of = result.data[code].price_as_of || result.timestamp || '';
+                    if (result.data[code].distribution_months && Object.keys(result.data[code].distribution_months).length) {
+                        state.assets[code].months = result.data[code].distribution_months;
+                        state.assets[code].distribution_months = result.data[code].distribution_months;
+                    }
                 } else {
                     state.assets[code].price = 0.0;
                     state.assets[code].impliedYield = state.assets[code].estimated_yield || 0.0;
@@ -2611,10 +2610,10 @@
 
         function getDataFreshnessMeta(kind = 'price') {
             if (kind === 'yield' && state.marketDataSource === 'live') {
-                return { label: '参考分红反推收益率', detail: state.dataTimestamp || formatLocalDateTime(), color: 'var(--accent-orange)', bg: 'var(--yellow-container)', border: '#FEEFC3' };
+                return { label: '近12个月现金分配/规划兜底', detail: state.dataTimestamp || formatLocalDateTime(), color: 'var(--accent-orange)', bg: 'var(--yellow-container)', border: '#FEEFC3' };
             }
             if (kind === 'yield' && state.fetchStatus === 'success' && state.marketDataSource === 'cache') {
-                return { label: '本地缓存估算收益率', detail: state.dataTimestamp || '--', color: 'var(--accent-orange)', bg: 'var(--yellow-container)', border: '#FEEFC3' };
+                return { label: '近12个月现金分配/规划兜底', detail: state.dataTimestamp || '--', color: 'var(--accent-orange)', bg: 'var(--yellow-container)', border: '#FEEFC3' };
             }
             if (state.fetchStatus === 'success' && state.marketDataSource === 'live') {
                 return { label: '实时行情', detail: state.dataTimestamp || formatLocalDateTime(), color: 'var(--accent-emerald)', bg: 'var(--green-container)', border: '#CEEAD6' };
@@ -2911,8 +2910,8 @@
                         </td>
                         <td id="t1_invest_${code}" style="font-weight: 500;">0.00 万元</td>
                         <td style="color:var(--accent-blue);font-weight: 500; white-space: nowrap;">
-                            <input class="weight-input-field" aria-label="参考分红反推收益率" title="计算方法：参考年度分配收益率 × 参考价格 ÷ 当前价格；不代表实时或承诺收益" type="number" id="y_val_${code}" step="0.1" min="0" max="20" value="${asset.impliedYield > 0 ? asset.impliedYield.toFixed(2) : ''}" placeholder="获取中..." style="color:var(--accent-blue)" disabled readonly>%
-                            <div style="font-size:0.7rem;color:var(--text-secondary);">参考分红反推收益率 · ${asset.distribution_as_of || '分配日期未提供'} / 价格 ${asset.price_as_of || state.dataTimestamp || '日期未提供'}</div>
+                            <input class="weight-input-field" aria-label="近12个月现金分配收益率" title="计算方法：近365日每份现金分配合计 ÷ 最新价格；无可验证分配时显示规划兜底值" type="number" id="y_val_${code}" step="0.1" min="0" max="20" value="${asset.impliedYield > 0 ? asset.impliedYield.toFixed(2) : ''}" placeholder="获取中..." style="color:var(--accent-blue)" disabled readonly>%
+                            <div style="font-size:0.7rem;color:var(--text-secondary);">近12个月现金分配/规划兜底 · ${asset.distribution_as_of || '无可验证分配日期'} / 价格 ${asset.price_as_of || state.dataTimestamp || '日期未提供'}</div>
                             <div id="t1_yield_badge_${code}" style="margin-top:4px;">${renderDataFreshnessBadge('yield')}</div>
                         </td>
                         <td id="t1_div_${code}" style="font-weight: 500;">¥0</td>
@@ -2994,7 +2993,7 @@
             }
 
             // 预设比例
-            const presets = {
+            const presets = state.strategyPresets || {
                 conservative: {
                     '511880': 7.0,
                     '511360': 8.0,

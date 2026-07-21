@@ -2,7 +2,7 @@ name: Update Live Market Data
 
 on:
   schedule:
-    # 每个工作日北京时间下午 17:00 (即 UTC 9:00) 自动运行，更新收盘股息率
+    # 每个工作日北京时间下午 17:00 (即 UTC 9:00) 自动运行，更新收盘行情、现金分配与回测
     - cron: '0 9 * * 1-5'
   workflow_dispatch: # 允许在 GitHub Action 页面手动触发运行
 
@@ -24,12 +24,14 @@ jobs:
     - name: Fetch and update live data
       run: |
         python update_data.py
+        python backtest.py
+        python tests/data_integrity_check.py
 
     - name: Commit and push changes
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git add live_data.json
+        git add live_data.json strategy_presets.json
         # 如果数据没有发生任何改变，不报错退出
         git diff-index --quiet HEAD || git commit -m "Auto-update live market yields and prices [skip ci]"
         git push origin master

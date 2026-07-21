@@ -1,0 +1,319 @@
+{
+  "schema_version": 1,
+  "presets": {
+    "conservative": {
+      "name": "保守型现金流策略",
+      "weights": {
+        "511880": 7.0,
+        "511360": 8.0,
+        "512890": 18.0,
+        "510880": 8.0,
+        "561960": 6.0,
+        "513530": 8.0,
+        "510300": 8.0,
+        "563360": 5.0,
+        "510500": 2.0,
+        "588000": 2.0,
+        "513500": 8.0,
+        "513100": 0.0,
+        "518880": 8.0,
+        "511520": 7.0,
+        "511010": 5.0,
+        "508099": 0.0
+      }
+    },
+    "balanced": {
+      "name": "均衡型增长配置",
+      "weights": {
+        "511880": 4.0,
+        "511360": 2.0,
+        "512890": 14.0,
+        "510880": 6.0,
+        "561960": 5.0,
+        "513530": 10.0,
+        "510300": 8.0,
+        "563360": 7.0,
+        "510500": 5.0,
+        "588000": 7.0,
+        "513500": 12.0,
+        "513100": 5.0,
+        "518880": 6.0,
+        "511520": 4.0,
+        "511010": 3.0,
+        "508099": 2.0
+      }
+    },
+    "aggressive": {
+      "name": "积极型成长突破",
+      "weights": {
+        "511880": 4.0,
+        "511360": 1.0,
+        "512890": 10.0,
+        "510880": 5.0,
+        "561960": 3.0,
+        "513530": 7.0,
+        "510300": 10.0,
+        "563360": 9.0,
+        "510500": 6.0,
+        "588000": 15.0,
+        "513500": 12.0,
+        "513100": 10.0,
+        "518880": 5.0,
+        "511520": 2.0,
+        "511010": 1.0,
+        "508099": 0.0
+      }
+    }
+  },
+  "backtest": {
+    "generated_at": "2026-07-21T21:18:41+08:00",
+    "methodology": {
+      "history": "public daily forward-adjusted closing prices",
+      "return_scope": "adjusted-price total-return proxy before investor taxes",
+      "portfolio_construction": "initial target weights with rebalancing on the first common trading day of each calendar year",
+      "transaction_cost_bps_one_way": 3.0,
+      "start_rule": "latest first-available date among all positive-weight assets in each preset",
+      "missing_data_rule": "only dates present for every positive-weight asset are used",
+      "limitations": "short histories for newer ETFs constrain the common period; past performance is not a forecast"
+    },
+    "data_ranges": {
+      "511880": {
+        "start_date": "2023-11-27",
+        "end_date": "2026-07-21",
+        "observations": 641
+      },
+      "511360": {
+        "start_date": "2023-11-28",
+        "end_date": "2026-07-21",
+        "observations": 640
+      },
+      "512890": {
+        "start_date": "2023-11-27",
+        "end_date": "2026-07-21",
+        "observations": 641
+      },
+      "510880": {
+        "start_date": "2023-11-27",
+        "end_date": "2026-07-21",
+        "observations": 641
+      },
+      "561960": {
+        "start_date": "2023-11-28",
+        "end_date": "2026-07-21",
+        "observations": 640
+      },
+      "513530": {
+        "start_date": "2023-11-28",
+        "end_date": "2026-07-21",
+        "observations": 640
+      },
+      "510300": {
+        "start_date": "2023-11-27",
+        "end_date": "2026-07-21",
+        "observations": 641
+      },
+      "563360": {
+        "start_date": "2024-10-15",
+        "end_date": "2026-07-21",
+        "observations": 430
+      },
+      "510500": {
+        "start_date": "2023-11-27",
+        "end_date": "2026-07-21",
+        "observations": 641
+      },
+      "588000": {
+        "start_date": "2023-11-27",
+        "end_date": "2026-07-21",
+        "observations": 641
+      },
+      "513500": {
+        "start_date": "2023-11-27",
+        "end_date": "2026-07-21",
+        "observations": 641
+      },
+      "513100": {
+        "start_date": "2023-11-27",
+        "end_date": "2026-07-21",
+        "observations": 641
+      },
+      "518880": {
+        "start_date": "2023-11-27",
+        "end_date": "2026-07-21",
+        "observations": 641
+      },
+      "511520": {
+        "start_date": "2023-11-28",
+        "end_date": "2026-07-21",
+        "observations": 640
+      },
+      "511010": {
+        "start_date": "2023-11-27",
+        "end_date": "2026-07-21",
+        "observations": 641
+      },
+      "508099": {
+        "start_date": "2023-11-28",
+        "end_date": "2026-07-21",
+        "observations": 640
+      }
+    },
+    "quote_alignment_check": {
+      "status": "passed",
+      "compared_assets": 16,
+      "max_absolute_difference_pct": 0.198,
+      "details": {
+        "511880": {
+          "history_end": "2026-07-21",
+          "history_close": 100.63,
+          "quote_price": 100.628,
+          "same_trading_date": true,
+          "absolute_difference_pct": 0.002
+        },
+        "511360": {
+          "history_end": "2026-07-21",
+          "history_close": 113.695,
+          "quote_price": 113.695,
+          "same_trading_date": true,
+          "absolute_difference_pct": 0.0
+        },
+        "512890": {
+          "history_end": "2026-07-21",
+          "history_close": 1.16,
+          "quote_price": 1.16,
+          "same_trading_date": true,
+          "absolute_difference_pct": 0.0
+        },
+        "510880": {
+          "history_end": "2026-07-21",
+          "history_close": 3.21,
+          "quote_price": 3.205,
+          "same_trading_date": true,
+          "absolute_difference_pct": 0.1558
+        },
+        "561960": {
+          "history_end": "2026-07-21",
+          "history_close": 1.217,
+          "quote_price": 1.217,
+          "same_trading_date": true,
+          "absolute_difference_pct": 0.0
+        },
+        "513530": {
+          "history_end": "2026-07-21",
+          "history_close": 1.55,
+          "quote_price": 1.55,
+          "same_trading_date": true,
+          "absolute_difference_pct": 0.0
+        },
+        "510300": {
+          "history_end": "2026-07-21",
+          "history_close": 4.79,
+          "quote_price": 4.787,
+          "same_trading_date": true,
+          "absolute_difference_pct": 0.0626
+        },
+        "563360": {
+          "history_end": "2026-07-21",
+          "history_close": 1.316,
+          "quote_price": 1.316,
+          "same_trading_date": true,
+          "absolute_difference_pct": 0.0
+        },
+        "510500": {
+          "history_end": "2026-07-21",
+          "history_close": 7.79,
+          "quote_price": 7.792,
+          "same_trading_date": true,
+          "absolute_difference_pct": 0.0257
+        },
+        "588000": {
+          "history_end": "2026-07-21",
+          "history_close": 2.02,
+          "quote_price": 2.016,
+          "same_trading_date": true,
+          "absolute_difference_pct": 0.198
+        },
+        "513500": {
+          "history_end": "2026-07-21",
+          "history_close": 2.53,
+          "quote_price": 2.526,
+          "same_trading_date": true,
+          "absolute_difference_pct": 0.1581
+        },
+        "513100": {
+          "history_end": "2026-07-21",
+          "history_close": 2.13,
+          "quote_price": 2.13,
+          "same_trading_date": true,
+          "absolute_difference_pct": 0.0
+        },
+        "518880": {
+          "history_end": "2026-07-21",
+          "history_close": 8.47,
+          "quote_price": 8.468,
+          "same_trading_date": true,
+          "absolute_difference_pct": 0.0236
+        },
+        "511520": {
+          "history_end": "2026-07-21",
+          "history_close": 118.09,
+          "quote_price": 118.09,
+          "same_trading_date": true,
+          "absolute_difference_pct": 0.0
+        },
+        "511010": {
+          "history_end": "2026-07-21",
+          "history_close": 140.82,
+          "quote_price": 140.824,
+          "same_trading_date": true,
+          "absolute_difference_pct": 0.0028
+        },
+        "508099": {
+          "history_end": "2026-07-21",
+          "history_close": 1.128,
+          "quote_price": 1.128,
+          "same_trading_date": true,
+          "absolute_difference_pct": 0.0
+        }
+      }
+    },
+    "results": {
+      "conservative": {
+        "name": "保守型现金流策略",
+        "start_date": "2024-10-15",
+        "end_date": "2026-07-21",
+        "trading_days": 430,
+        "total_return_pct": 18.4,
+        "cagr_pct": 10.05,
+        "annualized_volatility_pct": 8.88,
+        "max_drawdown_pct": -5.48,
+        "ending_value_from_100": 118.4,
+        "estimated_total_cost_from_100": 0.0321
+      },
+      "balanced": {
+        "name": "均衡型增长配置",
+        "start_date": "2024-10-15",
+        "end_date": "2026-07-21",
+        "trading_days": 430,
+        "total_return_pct": 25.82,
+        "cagr_pct": 13.91,
+        "annualized_volatility_pct": 11.6,
+        "max_drawdown_pct": -8.6,
+        "ending_value_from_100": 125.82,
+        "estimated_total_cost_from_100": 0.0322
+      },
+      "aggressive": {
+        "name": "积极型成长突破",
+        "start_date": "2024-10-15",
+        "end_date": "2026-07-21",
+        "trading_days": 430,
+        "total_return_pct": 37.35,
+        "cagr_pct": 19.72,
+        "annualized_volatility_pct": 14.73,
+        "max_drawdown_pct": -10.79,
+        "ending_value_from_100": 137.35,
+        "estimated_total_cost_from_100": 0.0322
+      }
+    }
+  }
+}

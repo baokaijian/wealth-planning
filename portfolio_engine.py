@@ -1,5 +1,6 @@
 import datetime
 import json
+import math
 from pathlib import Path
 
 
@@ -582,14 +583,43 @@ def run_stress_test(weights, assets, invest_principal, monthly_withdraw, buffer_
     else:
         assets_dict = assets
 
-    start_buffer = buffer_months * monthly_withdraw
+    def finite_non_negative(value):
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError):
+            return 0.0
+        return max(parsed, 0.0) if math.isfinite(parsed) else 0.0
+
+    def clamp_percent(value, fallback=0.0):
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError):
+            parsed = fallback
+        if not math.isfinite(parsed):
+            parsed = fallback
+        return min(100.0, max(0.0, parsed))
+
+    safe_principal = finite_non_negative(invest_principal)
+    safe_withdraw = finite_non_negative(monthly_withdraw)
+    safe_buffer_months = finite_non_negative(buffer_months)
+    safe_money_market_rate = finite_non_negative(money_market_rate)
+    params = stress_params or {}
+    legacy_drops = params.get('dividendDrop', {})
+    explicit_drops = params.get('cashflowDrop', {})
+    cashflow_drop = {
+        'equityDividend': clamp_percent(explicit_drops.get('equityDividend'), legacy_drops.get('dividend_income', 0.0)),
+        'bondCoupon': clamp_percent(explicit_drops.get('bondCoupon'), legacy_drops.get('bond_duration', 0.0)),
+        'moneyMarket': clamp_percent(explicit_drops.get('moneyMarket'), legacy_drops.get('cash', 0.0))
+    }
+
+    start_buffer = safe_buffer_months * safe_withdraw
     stress_buffer_balance = [start_buffer]
     stress_dividends_history = []
     interest_earned_history = []
     breached_at_month = None
     months_range = 36
 
-    initial_portfolio_val = invest_principal * 10000.0  # 元
+    initial_portfolio_val = safe_principal * 10000.0  # 元
     stressed_portfolio_val = 0.0
 
     for code, asset in assets_dict.items():
@@ -597,7 +627,7 @@ def run_stress_test(weights, assets, invest_principal, monthly_withdraw, buffer_
         asset_val = initial_portfolio_val * (weight / 100.0)
         role = asset.get('role', '')
 
-        drawdown_ratio = stress_params.get('drawdown', {}).get(role, 30.0)
+        drawdown_ratio = clamp_percent(params.get('drawdown', {}).get(role), 30.0)
         stressed_portfolio_val += asset_val * (1.0 - drawdown_ratio / 100.0)
 
     max_net_worth_drawdown = ((initial_portfolio_val - stressed_portfolio_val) / initial_portfolio_val) * 100.0 if initial_portfolio_val > 0 else 0.0
@@ -614,18 +644,21 @@ def run_stress_test(weights, assets, invest_principal, monthly_withdraw, buffer_
                 dist_months = asset.get('distribution_months', None) or asset.get('months', {})
                 month_dist_ratio = dist_months.get(str(c_month)) or dist_months.get(c_month) or 0.0
                 if month_dist_ratio > 0.0:
-                    asset_val = invest_principal * (weight / 100.0) * 10000.0  # 元
+                    asset_val = safe_principal * (weight / 100.0) * 10000.0  # 元
                     role = asset.get('role', '')
-                    asset_drawdown = stress_params.get('drawdown', {}).get(role, 30.0)
-                    stressed_asset_val = asset_val * (1.0 - asset_drawdown / 100.0)
-
-                    div_drop = stress_params.get('dividendDrop', {}).get(role, 20.0)
+                    if asset.get('income_type') == 'dividend':
+                        div_drop = cashflow_drop['equityDividend']
+                    elif role == 'cash':
+                        div_drop = cashflow_drop['moneyMarket']
+                    else:
+                        div_drop = cashflow_drop['bondCoupon']
                     stressed_yield = current_yield * (1.0 - div_drop / 100.0)
 
-                    month_dividend += stressed_asset_val * (stressed_yield / 100.0) * month_dist_ratio
+                    # 现金分配以压力前持有份额和年度分配额为基数，市场回撤不重复折损现金流。
+                    month_dividend += asset_val * (stressed_yield / 100.0) * month_dist_ratio
 
-        current_interest = stress_buffer_balance[-1] * (money_market_rate / 12.0)
-        next_balance = stress_buffer_balance[-1] + month_dividend + current_interest - monthly_withdraw
+        current_interest = stress_buffer_balance[-1] * (safe_money_market_rate / 12.0) * (1.0 - cashflow_drop['moneyMarket'] / 100.0)
+        next_balance = stress_buffer_balance[-1] + month_dividend + current_interest - safe_withdraw
 
         stress_dividends_history.append(month_dividend)
         interest_earned_history.append(current_interest)
@@ -641,9 +674,11 @@ def run_stress_test(weights, assets, invest_principal, monthly_withdraw, buffer_
         'stressDividendsHistory': stress_dividends_history,
         'interestEarnedHistory': interest_earned_history,
         'breachedAtMonth': breached_at_month,
+        'portfolioDrawdown': max_net_worth_drawdown,
         'maxNetWorthDrawdown': max_net_worth_drawdown,
         'isBreached': breached_at_month is not None,
-        'minStressedBuffer': min(stressed_buffer_history) if stressed_buffer_history else 0.0
+        'minStressedBuffer': min(stressed_buffer_history) if stressed_buffer_history else 0.0,
+        'cashflowDrop': cashflow_drop
     }
 
 

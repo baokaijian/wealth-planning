@@ -121,6 +121,7 @@ st.markdown("""
 script_dir = os.path.dirname(os.path.abspath(__file__))
 assets_path = os.path.join(script_dir, 'assets.json')
 live_data_path = os.path.join(script_dir, 'live_data.json')
+strategy_presets_path = os.path.join(script_dir, 'strategy_presets.json')
 
 # 加载 assets.json 动态配置
 try:
@@ -162,7 +163,7 @@ def price_freshness_label():
     return data_freshness_label() if live_data_status == "cache" else "兜底估算值"
 
 def yield_freshness_label():
-    return f"本地缓存估算收益率 · {live_data_timestamp}" if live_data_status == "cache" and live_data_timestamp else "配置兜底估算值"
+    return f"近12个月现金分配数据 · {live_data_timestamp}" if live_data_status == "cache" and live_data_timestamp else "配置兜底规划值"
 
 # 组装完整的资产配置参数
 ASSETS_CONFIG = {}
@@ -173,7 +174,11 @@ if assets_list:
         # 读取实时数据
         live_info = live_data.get(code, {})
         price = live_info.get('price', 0.0)
-        dy = live_info.get('yield', item['estimated_yield'])
+        live_yield = live_info.get('yield')
+        dy = live_yield if isinstance(live_yield, (int, float)) else item['estimated_yield']
+        live_months = live_info.get('distribution_months')
+        if isinstance(live_months, dict) and live_months:
+            months_int = {int(k): v for k, v in live_months.items()}
         
         ASSETS_CONFIG[code] = {
             'name': item['name'],
@@ -211,7 +216,7 @@ else:
       {"code": "518880", "name": "黄金 ETF", "type": "ETF", "role": "hedge", "target_index_code": null, "market": "Global", "volatility_level": "medium", "income_type": "hedge", "rebalance_band": 5, "weight": 6.0, "estimated_yield": 0.0, "estimated_return": 4.5, "distribution_months": {}, "strategy_note": "黄金对冲通胀、汇率和极端风险，不提供稳定票息", "risk_note": "不构成投资建议；黄金无分红，价格可能长时间震荡或回撤，不承诺收益"},
       {"code": "511520", "name": "政金债券 ETF", "type": "ETF", "role": "bond_duration", "target_index_code": null, "market": "CN", "volatility_level": "low", "income_type": "cash_interest", "rebalance_band": 2, "weight": 4.0, "estimated_yield": 2.6, "estimated_return": 3.2, "distribution_months": {"6": 0.5, "12": 0.5}, "strategy_note": "中长期政金债/利率债久期资产，承担利率下行和风险事件对冲", "risk_note": "不构成投资建议；久期债会受利率上行影响产生净值回撤，不承诺票息或收益"},
       {"code": "511010", "name": "国债 ETF", "type": "ETF", "role": "bond_duration", "target_index_code": null, "market": "CN", "volatility_level": "low", "income_type": "cash_interest", "rebalance_band": 2, "weight": 3.0, "estimated_yield": 2.3, "estimated_return": 3.0, "distribution_months": {"6": 0.5, "12": 0.5}, "strategy_note": "国债类利率债，和黄金一起承担组合防御与对冲角色", "risk_note": "不构成投资建议；债券基金净值会随利率变化波动，不承诺分红、票息或收益"},
-      {"code": "508099", "name": "REITs 现金流增强备选", "type": "REITs", "role": "cashflow_alt", "target_index_code": null, "market": "CN", "volatility_level": "high", "income_type": "alternative_income", "rebalance_band": 5, "weight": 2.0, "estimated_yield": 4.5, "estimated_return": 6.0, "distribution_months": {"4": 0.25, "7": 0.25, "10": 0.25, "12": 0.25}, "strategy_note": "可选现金流增强观察位，默认低权重，只有在理解底层资产后再小比例使用", "risk_note": "不构成投资建议；REITs 分红和估值高度依赖底层经营与流动性，不计入稳定现金流，不承诺分红或收益"}
+      {"code": "508099", "name": "建信中关村 REIT", "type": "REITs", "role": "cashflow_alt", "target_index_code": null, "market": "CN", "volatility_level": "high", "income_type": "alternative_income", "rebalance_band": 5, "weight": 2.0, "estimated_yield": 4.5, "estimated_return": 6.0, "distribution_months": {"4": 0.25, "7": 0.25, "10": 0.25, "12": 0.25}, "strategy_note": "可选现金流增强观察位，默认低权重，只有在理解底层资产后再小比例使用", "risk_note": "不构成投资建议；REITs 分红和估值高度依赖底层经营与流动性，不计入稳定现金流，不承诺分红或收益"}
     ]""")
     for item in fallback_raw:
         code = item['code']
@@ -505,62 +510,21 @@ def collect_financial_snapshot(weights, principal, buffer_seed, target_monthly, 
 # ==========================================
 # 策略预设联动逻辑
 # ==========================================
-PRESETS = {
-    "🛡️ 保守型现金流策略": {
-        '511880': 7.0,
-        '511360': 8.0,
-        '512890': 18.0,
-        '510880': 8.0,
-        '561960': 6.0,
-        '513530': 8.0,
-        '510300': 8.0,
-        '563360': 5.0,
-        '510500': 2.0,
-        '588000': 2.0,
-        '513500': 8.0,
-        '513100': 0.0,
-        '518880': 8.0,
-        '511520': 7.0,
-        '511010': 5.0,
-        '508099': 0.0
-    },
-    "⚖️ 均衡型增长配置": {
-        '511880': 4.0,
-        '511360': 2.0,
-        '512890': 14.0,
-        '510880': 6.0,
-        '561960': 5.0,
-        '513530': 10.0,
-        '510300': 8.0,
-        '563360': 7.0,
-        '510500': 5.0,
-        '588000': 7.0,
-        '513500': 12.0,
-        '513100': 5.0,
-        '518880': 6.0,
-        '511520': 4.0,
-        '511010': 3.0,
-        '508099': 2.0
-    },
-    "🚀 积极型成长突破": {
-        '511880': 4.0,
-        '511360': 1.0,
-        '512890': 10.0,
-        '510880': 5.0,
-        '561960': 3.0,
-        '513530': 7.0,
-        '510300': 10.0,
-        '563360': 9.0,
-        '510500': 6.0,
-        '588000': 15.0,
-        '513500': 12.0,
-        '513100': 10.0,
-        '518880': 5.0,
-        '511520': 2.0,
-        '511010': 1.0,
-        '508099': 0.0
-    }
+PRESET_LABELS = {
+    "conservative": "🛡️ 保守型现金流策略",
+    "balanced": "⚖️ 均衡型增长配置",
+    "aggressive": "🚀 积极型成长突破"
 }
+try:
+    with open(strategy_presets_path, 'r', encoding='utf-8') as f:
+        preset_payload = json.load(f)
+    PRESETS = {
+        PRESET_LABELS[preset_id]: preset['weights']
+        for preset_id, preset in preset_payload['presets'].items()
+        if preset_id in PRESET_LABELS
+    }
+except (OSError, KeyError, TypeError, json.JSONDecodeError):
+    PRESETS = {}
 
 if 'strategy_preset_option' not in st.session_state:
     st.session_state.strategy_preset_option = "⚖️ 均衡型增长配置"

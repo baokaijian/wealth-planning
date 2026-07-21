@@ -69,12 +69,14 @@
 ## 🔄 数据来源与同步管线
 
 - **基础资产池配置**：通过 [assets.json](file:///Users/baokaijian/Project/gemini-invest/assets.json) 集中维护 ETF/指数基金/大类资产的基础配置信息（代码、目标指数、资产角色、市场、分配月份、权重等）。默认均衡配置将现金控制在 5%-8% 附近，红利作为 30%-40% 现金流底盘，国内宽基和海外宽基承担经济 beta 与币种分散，科技仓位保持小比例弹性，黄金和久期债承担对冲，REITs 仅作为 0%-5% 的可选观察位。
-- **实时行情数据**：静态前端每 60 秒优先通过 HTTPS 腾讯行情脚本拉取当前价格，并基于 [assets.json](file:///Users/baokaijian/Project/gemini-invest/assets.json) 中的基准股息率反算当前股息率；若在线接口失败，则读取同级目录下的缓存文件 [live_data.json](file:///Users/baokaijian/Project/gemini-invest/live_data.json)；若缓存也不可用，系统自动降级使用 `estimated_yield` 兜底。
+- **真实行情与分配数据**：静态前端可按用户选择刷新当前价格；默认读取同级目录下的 [live_data.json](file:///Users/baokaijian/Project/gemini-invest/live_data.json)。缓存价格来自公开交易行情，收益率仅在基金近 365 日存在可核验现金分配时按“每份现金分配合计 ÷ 最新价格”计算；没有可核验分配时不伪造实时收益率，界面明确降级为 `estimated_yield` 规划假设。
+- **三套方案回测**：[strategy_presets.json](file:///Users/baokaijian/Project/gemini-invest/strategy_presets.json) 同时保存保守、均衡、积极三套初始化权重和最近一次回测结果。回测使用公开前复权日收盘价，以各方案所有正权重资产均有数据后的共同日期为起点，每年首个共同交易日再平衡，计入单边 3bp 交易成本。新 ETF 的短历史会限制回测区间，结果不代表未来表现。
 - **历史估值数据**：估值温度计的百分位和趋势图完全基于 [valuation_history.json](file:///Users/baokaijian/Project/gemini-invest/valuation_history.json) 的真实日期、股息率、PE、PB 字段进行渲染和对齐。若某个 `target_index_code` 缺少历史估值，系统降级为 `1.0x` 基础计划，图表不沿用旧指数，不输出低估/高估判断。
 - **本地行情手动抓取**：
   若想手动触发实时行情抓取并更新本地缓存包，直接执行：
   ```bash
   python3 update_data.py
+  python3 backtest.py
   ```
 
 ---
@@ -89,8 +91,8 @@
    - 部署成功后，可通过 Pages 地址直接访问（例如：`https://baokaijian.github.io/wealth-planning/`）。
 2. **GitHub Actions 行情自动更新**：
    - 仓库已配置好 CI/CD 工作流：[.github/workflows/update_data.yml](file:///Users/baokaijian/Project/gemini-invest/.github/workflows/update_data.yml)。
-   - 该工作流在每个交易日的 17:00 (北京时间) 在 GitHub 托管的 Ubuntu 容器中自动运行 `update_data.py`。
-   - 抓取到最新收盘行情后，自动向 master 分支 commit 并 push `live_data.json` 缓存，从而触发 GitHub Pages 的自动重绘，无需人工维护。
+   - 该工作流在每个交易日的 17:00 (北京时间) 在 GitHub 托管的 Ubuntu 容器中自动运行 `update_data.py`、`backtest.py` 和数据完整性检查。
+   - 抓取到最新收盘行情后，自动更新并推送 `live_data.json` 与 `strategy_presets.json`，从而触发 GitHub Pages 自动刷新。
 
 ---
 

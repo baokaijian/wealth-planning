@@ -16,6 +16,7 @@ def main():
     live = json.loads((ROOT / "live_data.json").read_text(encoding="utf-8"))
     history = json.loads((ROOT / "valuation_history.json").read_text(encoding="utf-8"))
     rules = json.loads((ROOT / "planning_rules.json").read_text(encoding="utf-8"))
+    presets = json.loads((ROOT / "strategy_presets.json").read_text(encoding="utf-8"))
     errors = []
     codes = set()
     for index, asset in enumerate(assets):
@@ -38,11 +39,32 @@ def main():
     missing_live = codes - set(live.get("data", {}))
     if missing_live:
         errors.append(f"live_data.json 缺少资产: {sorted(missing_live)}")
+    for code, record in live.get("data", {}).items():
+        if not isinstance(record.get("price"), (int, float)) or record.get("price", 0) <= 0:
+            errors.append(f"live_data.json {code} 缺少有效价格")
+        if not record.get("price_as_of"):
+            errors.append(f"live_data.json {code} 缺少价格时间")
+        if record.get("yield_method") == "implied_from_reference_distribution":
+            errors.append(f"live_data.json {code} 仍使用参考价格反推收益率")
     for index, item in enumerate(history):
         if not item.get("index_code") or not item.get("date"):
             errors.append(f"valuation_history[{index}] 缺少 index_code/date")
     if not rules.get("family_risk") or not rules.get("concentration"):
         errors.append("planning_rules.json 缺少 family_risk/concentration")
+    preset_items = presets.get("presets", {})
+    if set(preset_items) != {"conservative", "balanced", "aggressive"}:
+        errors.append("strategy_presets.json 缺少三套标准方案")
+    for preset_id, preset in preset_items.items():
+        weights = preset.get("weights", {})
+        if set(weights) != codes:
+            errors.append(f"{preset_id} 的资产代码与 assets.json 不一致")
+        if abs(sum(float(value) for value in weights.values()) - 100.0) > 1e-8:
+            errors.append(f"{preset_id} 权重合计不为 100")
+    backtest = presets.get("backtest") or {}
+    if set((backtest.get("results") or {})) != set(preset_items):
+        errors.append("strategy_presets.json 缺少完整回测结果")
+    if (backtest.get("quote_alignment_check") or {}).get("status") != "passed":
+        errors.append("历史行情与最新行情对齐检查未通过")
     if errors:
         print("\n".join(errors))
         return 1
