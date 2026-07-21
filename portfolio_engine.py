@@ -414,6 +414,12 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
             'pe': "--",
             'pb': "--",
             'dividend_yield': "--",
+            'pePercentile': "--",
+            'pbPercentile': "--",
+            'dividendYieldPercentile': "--",
+            'percentileWindow': "--",
+            'asOf': "--",
+            'valuationSource': "--",
             'valuationZone': f"{role_message['zone']}，保持基础计划",
             'tips': f"由于未找到此标的的{role_message['metric']}，DCA 保持 1.0x，不生成低估/高估判断。{overseas_risk_tip}"
         }
@@ -454,6 +460,21 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
     if current_pb is None: current_pb = 0.0
     if current_dy is None: current_dy = 0.0
 
+    def calculated_percentile(values, current):
+        if not values:
+            return None
+        return round((sum(1 for value in values if value < current) / len(values)) * 100, 1)
+
+    def verified_percentile(field, fallback):
+        value = safe_float(latest.get(field))
+        if value is None or value < 0.0 or value > 100.0:
+            return fallback
+        return round(value, 1)
+
+    pe_pct = verified_percentile('pe_percentile_3y', calculated_percentile(pe_list, current_pe))
+    pb_pct = verified_percentile('pb_percentile_3y', calculated_percentile(pb_list, current_pb))
+    dy_pct = verified_percentile('dividend_yield_percentile_3y', calculated_percentile(dy_list, current_dy))
+
     percentile = 50.0
     factor = 1.0
     valuation_zone = "合理估值区间 (估值适中)"
@@ -461,9 +482,8 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
     context = context or {}
 
     if role == 'dividend_income':
-        if dy_list:
-            count = sum(1 for y in dy_list if y < current_dy)
-            percentile = round((count / len(dy_list)) * 100, 1)
+        if dy_pct is not None:
+            percentile = dy_pct
         
         if percentile >= 70.0:
             valuation_zone = "极具性价比 (低估区域)"
@@ -488,10 +508,8 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
                 tips += " 现金缓冲池默认安全测试未通过，先补现金缓冲，不要因低估强行加仓。"
 
     elif role == 'domestic_beta':
-        if pe_list:
-            pe_pct = round((sum(1 for p in pe_list if p < current_pe) / len(pe_list)) * 100, 1)
-            pb_pct = round((sum(1 for p in pb_list if p < current_pb) / len(pb_list)) * 100, 1) if pb_list else pe_pct
-            percentile = max(pe_pct, pb_pct)
+        if pe_pct is not None:
+            percentile = max(pe_pct, pb_pct if pb_pct is not None else pe_pct)
         
         if percentile <= 30.0:
             valuation_zone = "极具性价比 (国内宽基低估)"
@@ -507,9 +525,8 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
             tips = "提示：国内宽基 PE/PB 已进入历史高估区域，适当下调定投金额，系数 0.6x。"
 
     elif role == 'tech_growth':
-        if pe_list:
-            count = sum(1 for p in pe_list if p < current_pe)
-            percentile = round((count / len(pe_list)) * 100, 1)
+        if pe_pct is not None:
+            percentile = pe_pct
 
         if percentile <= 25.0:
             valuation_zone = "超跌低估区间 (科技成长蓄势)"
@@ -530,8 +547,7 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
             factor = 1.0
             tips = "提示：当前缺少该海外资产的本地估值历史，保持 1.0x 基础计划，不生成低估/高估判断。注意汇率、QDII 溢价与跟踪误差风险。"
         elif role == 'overseas_tech':
-            count = sum(1 for p in pe_list if p < current_pe)
-            percentile = round((count / len(pe_list)) * 100, 1)
+            percentile = pe_pct if pe_pct is not None else 50.0
 
             if percentile <= 25.0:
                 valuation_zone = "海外科技估值低位"
@@ -546,8 +562,7 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
                 factor = 0.3
                 tips = "提示：海外科技高估时严格降温，系数 0.3x，并注意汇率与溢价风险。"
         else:
-            count = sum(1 for p in pe_list if p < current_pe)
-            percentile = round((count / len(pe_list)) * 100, 1)
+            percentile = pe_pct if pe_pct is not None else 50.0
             if percentile <= 30.0:
                 valuation_zone = "低估配置区域 (海外宽基低估)"
                 factor = 1.0
@@ -568,6 +583,12 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
         'pe': f"{current_pe:.2f}",
         'pb': f"{current_pb:.2f}",
         'dividend_yield': f"{current_dy:.2f}%",
+        'pePercentile': pe_pct if pe_pct is not None else "--",
+        'pbPercentile': pb_pct if pb_pct is not None else "--",
+        'dividendYieldPercentile': dy_pct if dy_pct is not None else "--",
+        'percentileWindow': latest.get('percentile_window') or '本地历史',
+        'asOf': latest.get('date') or "--",
+        'valuationSource': latest.get('valuation_source') or 'valuation_history',
         'valuationZone': valuation_zone,
         'tips': tips
     }

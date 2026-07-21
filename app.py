@@ -206,11 +206,11 @@ else:
       {"code": "512890", "name": "中证红利低波 ETF", "type": "ETF", "role": "dividend_income", "target_index_code": "H30269", "market": "CN", "volatility_level": "medium", "income_type": "dividend", "rebalance_band": 3, "weight": 14.0, "estimated_yield": 4.5, "estimated_return": 7.0, "distribution_months": {"7": 0.5, "12": 0.5}, "strategy_note": "红利现金流核心底盘，偏高股息与低波动筛选", "risk_note": "不构成投资建议；分红金额和频率取决于成分股与基金政策，不承诺分红或收益"},
       {"code": "510880", "name": "华泰柏瑞红利 ETF", "type": "ETF", "role": "dividend_income", "target_index_code": "000015", "market": "CN", "volatility_level": "medium", "income_type": "dividend", "rebalance_band": 3, "weight": 6.0, "estimated_yield": 4.0, "estimated_return": 6.5, "distribution_months": {"12": 1.0}, "strategy_note": "上证红利类现金流补充，增加红利策略来源差异", "risk_note": "不构成投资建议；周期行业占比可能较高，分红和净值均会波动"},
       {"code": "561960", "name": "央企股东回报 ETF", "type": "ETF", "role": "dividend_income", "target_index_code": "932039", "market": "CN", "volatility_level": "medium", "income_type": "dividend", "rebalance_band": 3, "weight": 5.0, "estimated_yield": 4.2, "estimated_return": 6.6, "distribution_months": {"6": 0.5, "12": 0.5}, "strategy_note": "央企红利/股东回报方向，分散传统红利行业集中度", "risk_note": "不构成投资建议；央企风格会受政策、行业景气和估值切换影响，不承诺分红"},
-      {"code": "513530", "name": "恒生港股通高股息低波 ETF", "type": "ETF", "role": "dividend_income", "target_index_code": "HSHDY", "market": "HK", "volatility_level": "high", "income_type": "dividend", "rebalance_band": 5, "weight": 10.0, "estimated_yield": 4.8, "estimated_return": 7.5, "distribution_months": {"7": 0.5, "12": 0.5}, "strategy_note": "港股红利资产，补充离岸市场与币种分散下的现金流来源", "risk_note": "不构成投资建议；港股波动、汇率、税费和分红政策均可能影响实际现金流"},
+      {"code": "513530", "name": "恒生港股通高股息低波 ETF", "type": "ETF", "role": "dividend_income", "target_index_code": "HSHYLV", "market": "HK", "volatility_level": "high", "income_type": "dividend", "rebalance_band": 5, "weight": 10.0, "estimated_yield": 4.8, "estimated_return": 7.5, "distribution_months": {"7": 0.5, "12": 0.5}, "strategy_note": "港股红利资产，补充离岸市场与币种分散下的现金流来源", "risk_note": "不构成投资建议；港股波动、汇率、税费和分红政策均可能影响实际现金流"},
       {"code": "510300", "name": "沪深300 ETF", "type": "ETF", "role": "domestic_beta", "target_index_code": "000300", "market": "CN", "volatility_level": "medium", "income_type": "capital_growth", "rebalance_band": 3, "weight": 8.0, "estimated_yield": 1.5, "estimated_return": 8.0, "distribution_months": {"10": 1.0}, "strategy_note": "国内核心大盘宽基，承担中国经济 beta 暴露", "risk_note": "不构成投资建议；宽基仍有系统性回撤，预期回报不等于承诺收益"},
       {"code": "563360", "name": "中证A500 ETF", "type": "ETF", "role": "domestic_beta", "target_index_code": "000510", "market": "CN", "volatility_level": "medium", "income_type": "capital_growth", "rebalance_band": 3, "weight": 7.0, "estimated_yield": 1.2, "estimated_return": 8.2, "distribution_months": {}, "strategy_note": "A股新一代宽基代表，补充行业覆盖与核心资产广度", "risk_note": "不构成投资建议；指数历史较短，估值数据不足时保持基础计划，不承诺收益"},
       {"code": "510500", "name": "中证500 ETF", "type": "ETF", "role": "domestic_beta", "target_index_code": "000905", "market": "CN", "volatility_level": "high", "income_type": "capital_growth", "rebalance_band": 4, "weight": 5.0, "estimated_yield": 0.8, "estimated_return": 8.8, "distribution_months": {}, "strategy_note": "中盘宽基 beta，补充沪深300以外的经济结构弹性", "risk_note": "不构成投资建议；中盘指数波动高于大盘，回撤和估值波动不可忽视"},
-      {"code": "588000", "name": "科创50 ETF", "type": "ETF", "role": "tech_growth", "target_index_code": "588000", "market": "CN", "volatility_level": "high", "income_type": "capital_growth", "rebalance_band": 5, "weight": 7.0, "estimated_yield": 0.2, "estimated_return": 10.0, "distribution_months": {}, "strategy_note": "国内硬科技成长弹性，仅承担组合增长期权，不作为稳定现金流来源", "risk_note": "不构成投资建议；科技资产高波动高回撤，估值和产业周期不确定，不承诺收益"},
+      {"code": "588000", "name": "科创50 ETF", "type": "ETF", "role": "tech_growth", "target_index_code": "000688", "market": "CN", "volatility_level": "high", "income_type": "capital_growth", "rebalance_band": 5, "weight": 7.0, "estimated_yield": 0.2, "estimated_return": 10.0, "distribution_months": {}, "strategy_note": "国内硬科技成长弹性，仅承担组合增长期权，不作为稳定现金流来源", "risk_note": "不构成投资建议；科技资产高波动高回撤，估值和产业周期不确定，不承诺收益"},
       {"code": "513500", "name": "标普500 ETF", "type": "ETF", "role": "overseas_broad", "target_index_code": "SPX", "market": "US", "volatility_level": "medium", "income_type": "capital_growth", "rebalance_band": 5, "weight": 12.0, "estimated_yield": 1.2, "estimated_return": 8.0, "distribution_months": {}, "strategy_note": "海外宽基，承担全球市场 beta 与美元资产分散，不等同于海外科技", "risk_note": "不构成投资建议；存在海外市场、汇率、额度、溢价和税费风险，不承诺收益"},
       {"code": "513100", "name": "纳斯达克100 ETF", "type": "ETF", "role": "overseas_tech", "target_index_code": "NDX", "market": "US", "volatility_level": "high", "income_type": "capital_growth", "rebalance_band": 5, "weight": 5.0, "estimated_yield": 0.5, "estimated_return": 9.5, "distribution_months": {}, "strategy_note": "海外科技成长弹性，明确不等于海外宽基，需控制集中度", "risk_note": "不构成投资建议；美股科技估值、汇率和基金溢价均可能导致大幅波动"},
       {"code": "518880", "name": "黄金 ETF", "type": "ETF", "role": "hedge", "target_index_code": null, "market": "Global", "volatility_level": "medium", "income_type": "hedge", "rebalance_band": 5, "weight": 6.0, "estimated_yield": 0.0, "estimated_return": 4.5, "distribution_months": {}, "strategy_note": "黄金对冲通胀、汇率和极端风险，不提供稳定票息", "risk_note": "不构成投资建议；黄金无分红，价格可能长时间震荡或回撤，不承诺收益"},
@@ -1450,7 +1450,7 @@ elif menu == "4. 估值温度计与测算工具":
         return {
             'dividend_income': 'H30269',
             'domestic_beta': '000300',
-            'tech_growth': '588000',
+            'tech_growth': '000688',
             'overseas_broad': 'SPX',
             'overseas_tech': 'NDX'
         }.get(role)
@@ -1462,11 +1462,11 @@ elif menu == "4. 估值温度计与测算工具":
         'H30269': {'name': '中证红利低波', 'role': 'dividend_income', 'metric': '股息率'},
         '000015': {'name': '上证红利', 'role': 'dividend_income', 'metric': '股息率'},
         '932039': {'name': '央企股东回报', 'role': 'dividend_income', 'metric': '股息率'},
-        'HSHDY': {'name': '港股高股息低波', 'role': 'dividend_income', 'metric': '股息率'},
+        'HSHYLV': {'name': '恒生港股通高股息低波动', 'role': 'dividend_income', 'metric': '股息率'},
         '000300': {'name': '沪深300', 'role': 'domestic_beta', 'metric': 'PE/PB'},
         '000510': {'name': '中证A500', 'role': 'domestic_beta', 'metric': 'PE/PB'},
         '000905': {'name': '中证500', 'role': 'domestic_beta', 'metric': 'PE/PB'},
-        '588000': {'name': '科创50', 'role': 'tech_growth', 'metric': 'PE/PB'},
+        '000688': {'name': '科创50', 'role': 'tech_growth', 'metric': 'PE/PB'},
         'SPX': {'name': '标普500', 'role': 'overseas_broad', 'metric': 'PE/PB'},
         'NDX': {'name': '纳斯达克100', 'role': 'overseas_tech', 'metric': 'PE/PB'}
     }
@@ -1520,7 +1520,7 @@ elif menu == "4. 估值温度计与测算工具":
             missing_detail.append(f"{idx}: " + "；".join(linked_assets))
         st.warning("资产池缺少估值数据：" + ("；".join(missing_detail) if missing_detail else "无"))
 
-    index_order = ["H30269", "000015", "932039", "HSHDY", "000300", "000510", "000905", "588000", "SPX", "NDX"]
+    index_order = ["H30269", "000015", "932039", "HSHYLV", "000300", "000510", "000905", "000688", "SPX", "NDX"]
     index_options = [
         f"{code} ({valuation_meta(code)['name']})" + ("" if code in valuation_index_set else " [无历史数据]")
         for code in index_order
@@ -1554,47 +1554,30 @@ elif menu == "4. 估值温度计与测算工具":
     has_selected_valuation_history = bool(res.get('hasHistory'))
 
     st.markdown(f"### 📊 {index_code} 指数温度计指标板")
-    t_col1, t_col2, t_col3, t_col4, t_col5 = st.columns(5)
     is_dividend_role = role_to_use == 'dividend_income'
-    with t_col1:
-        lbl = "最新估值股息率" if is_dividend_role else "最新市盈率 (PE)"
-        val = res['dividend_yield'] if is_dividend_role else res['pe']
-        st.markdown(f"""
-        <div class='card'>
-            <div class='metric-label'>{lbl}</div>
-            <div class='metric-value' style='color:#3B82F6;'>{val}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with t_col2:
-        lbl = "历史股息率百分位" if is_dividend_role else "历史 PE 百分位"
-        color = "#10B981" if (res['percentile'] >= 70 if is_dividend_role else res['percentile'] <= 30) else ("#EF4444" if (res['percentile'] <= 30 if is_dividend_role else res['percentile'] >= 70) else "#F59E0B")
-        st.markdown(f"""
-        <div class='card'>
-            <div class='metric-label'>{lbl}</div>
-            <div class='metric-value' style='color:{color};'>{res['percentile']}%</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with t_col3:
-        st.markdown(f"""
-        <div class='card'>
-            <div class='metric-label'>市盈率 (PE)</div>
-            <div class='metric-value'>{res['pe']}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with t_col4:
-        st.markdown(f"""
-        <div class='card'>
-            <div class='metric-label'>市净率 (PB)</div>
-            <div class='metric-value'>{res['pb']}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with t_col5:
-        st.markdown(f"""
-        <div class='card'>
-            <div class='metric-label'>定投调节系数</div>
-            <div class='metric-value' style='color:#10B981;'>{res['factor']}x</div>
-        </div>
-        """, unsafe_allow_html=True)
+
+    def percentile_text(value):
+        return "--" if value in (None, "--") else f"{float(value):.1f}%"
+
+    decision_label = "股息率百分位" if is_dividend_role else ("PE/PB较高百分位" if role_to_use == 'domestic_beta' else "PE百分位")
+    decision_value = f"{res['percentile']:.1f}%" if has_selected_valuation_history else "--"
+    metric_row1 = st.columns(4)
+    metric_row1[0].metric("当前 PE（市盈率）", res['pe'])
+    metric_row1[1].metric("PE 三年百分位", percentile_text(res.get('pePercentile')))
+    metric_row1[2].metric("当前 PB（市净率）", res['pb'])
+    metric_row1[3].metric("PB 三年百分位", percentile_text(res.get('pbPercentile')))
+    metric_row2 = st.columns(4)
+    metric_row2[0].metric("当前指数股息率", res['dividend_yield'])
+    metric_row2[1].metric("股息率三年百分位", percentile_text(res.get('dividendYieldPercentile')))
+    metric_row2[2].metric(f"定投判断：{decision_label}", decision_value)
+    metric_row2[3].metric("定投调节系数", f"{res['factor']:.1f}x")
+
+    if has_selected_valuation_history:
+        window_label = "近三年" if res.get('percentileWindow') == '3y' else res.get('percentileWindow', '本地历史')
+        source_label = "已验证指数基本面" if res.get('valuationSource') == 'verified_index_fundamentals' else "本地估值历史"
+        st.caption(f"数据日期：{res.get('asOf', '--')}｜百分位窗口：{window_label}｜口径：市值加权｜来源：{source_label}")
+    else:
+        st.caption("当前指数缺少可验证估值历史，因此不展示 PE/PB 百分位，也不生成估值判断。")
 
     # 诊断横幅
     color_banner = "#10B981" if res['factor'] > 1.1 else ("#EF4444" if res['factor'] < 0.9 else "#3B82F6")
@@ -1685,6 +1668,9 @@ elif menu == "4. 估值温度计与测算工具":
                 'pe': '--',
                 'pb': '--',
                 'dividend_yield': '--',
+                'pePercentile': '--',
+                'pbPercentile': '--',
+                'dividendYieldPercentile': '--',
                 'valuationZone': '不做估值择时，按基础比例',
                 'tips': ''
             }
@@ -1699,7 +1685,8 @@ elif menu == "4. 估值温度计与测算工具":
             'asset_res': asset_res,
             'original_weight': original_weight,
             'raw_score': raw_score,
-            'data_status': data_status
+            'data_status': data_status,
+            'no_timing_role': no_timing_role
         })
 
     raw_score_sum = sum(row['raw_score'] for row in calc_rows) or 1.0
@@ -1714,14 +1701,21 @@ elif menu == "4. 估值温度计与测算工具":
             adjusted_pct = row['original_weight'] / 100.0
             rec_amt = base_dca * adjusted_pct * float(asset_res['factor'])
         total_adjusted_dca += rec_amt
-        valuation_metrics = f"{asset_res.get('pe', '--')} / {asset_res.get('pb', '--')} / {asset_res.get('percentile', '--')}%" if asset_res.get('hasHistory') else "-- / -- / --"
+        if asset_res.get('hasHistory'):
+            valuation_metrics = (
+                f"PE {asset_res.get('pe', '--')}（{percentile_text(asset_res.get('pePercentile'))}） / "
+                f"PB {asset_res.get('pb', '--')}（{percentile_text(asset_res.get('pbPercentile'))}） / "
+                f"股息率百分位 {percentile_text(asset_res.get('dividendYieldPercentile'))}"
+            )
+        else:
+            valuation_metrics = "不适用" if row['no_timing_role'] else "数据缺失"
         rec_data.append({
             '基金代码': row['code'],
             '基金名称': row['info']['name'],
             'Role / Market': f"{row['info'].get('role', '--')} / {row['info'].get('market', '--')}",
             '目标指数': row['target_index'] or '--',
             '数据状态': row['data_status'],
-            'PE/PB/百分位': valuation_metrics,
+            'PE/PB 及各自百分位': valuation_metrics,
             '估值状态': asset_res['valuationZone'],
             '原始权重': f"{row['original_weight']:.1f}%",
             'Factor': f"{asset_res['factor']:.1f}x",

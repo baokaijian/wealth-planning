@@ -56,3 +56,16 @@ test('不再提供与策略控制台重复的30秒诊断输入', () => {
   assert.match(html, /配置看板与缓冲池模拟的唯一参数口径/);
   assert.match(streamlit, /配置看板与缓冲池模拟的唯一参数口径/);
 });
+
+test('估值页面分别展示PE、PB和股息率百分位', () => {
+  const html = fs.readFileSync(path.join(projectRoot, 'index.html'), 'utf8');
+  const streamlit = fs.readFileSync(path.join(projectRoot, 'app.py'), 'utf8');
+
+  ['t3-idx-pe-percentile', 't3-idx-pb-percentile', 't3-idx-dy-percentile', 't3-valuation-data-note'].forEach(id => {
+    assert.equal((html.match(new RegExp(`id=["']${id}["']`, 'g')) || []).length, 1, id);
+  });
+  assert.match(html, /PE\/PB 及各自百分位/);
+  assert.match(streamlit, /PE\/PB 及各自百分位/);
+  assert.match(html, /HSHYLV/);
+  assert.match(html, /000688/);
+});

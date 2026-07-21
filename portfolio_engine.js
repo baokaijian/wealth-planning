@@ -473,6 +473,12 @@ const portfolioEngine = {
                 pe: "--",
                 pb: "--",
                 dividend_yield: "--",
+                pePercentile: "--",
+                pbPercentile: "--",
+                dividendYieldPercentile: "--",
+                percentileWindow: "--",
+                asOf: "--",
+                valuationSource: "--",
                 valuationZone: `${roleMessage.zone}，保持基础计划`,
                 tips: `由于未找到此标的的${roleMessage.metric}，DCA 保持 1.0x，不生成低估/高估判断。${overseasRiskTip}`
             };
@@ -498,6 +504,20 @@ const portfolioEngine = {
         const currentPB = parseFloat(latest.pb);
         const currentDY = parseFloat(latest.dividend_yield);
 
+        const calculatedPercentile = (values, current) => {
+            if (!values.length || !Number.isFinite(current)) return null;
+            return parseFloat(((values.filter(value => value < current).length / values.length) * 100).toFixed(1));
+        };
+        const verifiedPercentile = (field, fallback) => {
+            const value = parseFloat(latest[field]);
+            return Number.isFinite(value) && value >= 0 && value <= 100
+                ? parseFloat(value.toFixed(1))
+                : fallback;
+        };
+        const pePct = verifiedPercentile('pe_percentile_3y', calculatedPercentile(peList, currentPE));
+        const pbPct = verifiedPercentile('pb_percentile_3y', calculatedPercentile(pbList, currentPB));
+        const dyPct = verifiedPercentile('dividend_yield_percentile_3y', calculatedPercentile(dyList, currentDY));
+
         let percentile = 50.0;
         let factor = 1.0;
         let valuationZone = "合理估值区间 (估值适中)";
@@ -506,8 +526,7 @@ const portfolioEngine = {
         // 根据资产角色使用不同的核心估值百分位判断指标
         if (role === 'dividend_income') {
             // 红利看股息率高低进行加仓调节（股息率越高代表估值越便宜）
-            const count = dyList.filter(y => y < currentDY).length;
-            percentile = parseFloat(((count / dyList.length) * 100).toFixed(1));
+            if (dyPct !== null) percentile = dyPct;
 
             if (percentile >= 70.0) {
                 valuationZone = "极具性价比 (低估区域)";
@@ -533,9 +552,7 @@ const portfolioEngine = {
             }
         } else if (role === 'domestic_beta') {
             // 宽基看 PE/PB 估值百分位（PE 越低代表越低估，低估时定投调高）
-            const pePct = parseFloat(((peList.filter(p => p < currentPE).length / peList.length) * 100).toFixed(1));
-            const pbPct = pbList.length > 0 ? parseFloat(((pbList.filter(p => p < currentPB).length / pbList.length) * 100).toFixed(1)) : pePct;
-            percentile = Math.max(pePct, pbPct);
+            if (pePct !== null) percentile = Math.max(pePct, pbPct !== null ? pbPct : pePct);
 
             if (percentile <= 30.0) {
                 valuationZone = "极具性价比 (国内宽基低估)";
@@ -552,8 +569,7 @@ const portfolioEngine = {
             }
         } else if (role === 'tech_growth') {
             // 科技成长看估值和波动回撤区间
-            const count = peList.filter(p => p < currentPE).length;
-            percentile = parseFloat(((count / peList.length) * 100).toFixed(1));
+            if (pePct !== null) percentile = pePct;
 
             if (percentile <= 25.0) {
                 valuationZone = "超跌低估区间 (科技成长蓄势)";
@@ -574,8 +590,7 @@ const portfolioEngine = {
                 factor = 1.0;
                 tips = "提示：当前缺少该海外资产的本地估值历史，保持 1.0x 基础计划，不生成低估/高估判断。注意汇率、QDII 溢价与跟踪误差风险。";
             } else if (role === 'overseas_tech') {
-                const count = peList.filter(p => p < currentPE).length;
-                percentile = parseFloat(((count / peList.length) * 100).toFixed(1));
+                percentile = pePct !== null ? pePct : 50.0;
 
                 if (percentile <= 25.0) {
                     valuationZone = "海外科技估值低位";
@@ -591,8 +606,7 @@ const portfolioEngine = {
                     tips = "提示：海外科技高估时严格降温，系数 0.3x，并注意汇率与溢价风险。";
                 }
             } else {
-                const count = peList.filter(p => p < currentPE).length;
-                percentile = parseFloat(((count / peList.length) * 100).toFixed(1));
+                percentile = pePct !== null ? pePct : 50.0;
 
                 if (percentile <= 30.0) {
                     valuationZone = "低估配置区域 (海外宽基低估)";
@@ -617,6 +631,12 @@ const portfolioEngine = {
             pe: currentPE.toFixed(2),
             pb: currentPB.toFixed(2),
             dividend_yield: currentDY.toFixed(2) + "%",
+            pePercentile: pePct !== null ? pePct : "--",
+            pbPercentile: pbPct !== null ? pbPct : "--",
+            dividendYieldPercentile: dyPct !== null ? dyPct : "--",
+            percentileWindow: latest.percentile_window || "本地历史",
+            asOf: latest.date || "--",
+            valuationSource: latest.valuation_source || "valuation_history",
             valuationZone,
             tips
         };

@@ -43,3 +43,23 @@ test('分红月份比例异常可检测', () => {
   assert.equal(result.valid, false);
   assert.match(result.errors.join(' '), /无效分红月份|合计/);
 });
+
+test('估值温度计分别返回已验证的PE、PB和股息率百分位', () => {
+  const history = [
+    { date: '2026-07-13', index_code: '000300', pe: 13, pb: 1.3, dividend_yield: 3 },
+    {
+      date: '2026-07-20', index_code: '000300', pe: 14.304, pb: 1.4592, dividend_yield: 2.7396,
+      pe_percentile_3y: 88.3978, pb_percentile_3y: 78.7293, dividend_yield_percentile_3y: 8.011,
+      percentile_window: '3y', valuation_source: 'verified_index_fundamentals'
+    }
+  ];
+  const result = engine.getDcaAdjustment(history, '000300', 'domestic_beta');
+  assert.equal(result.pe, '14.30');
+  assert.equal(result.pb, '1.46');
+  assert.equal(result.pePercentile, 88.4);
+  assert.equal(result.pbPercentile, 78.7);
+  assert.equal(result.dividendYieldPercentile, 8);
+  assert.equal(result.percentile, 88.4);
+  assert.equal(result.factor, 0.6);
+  assert.equal(result.asOf, '2026-07-20');
+});

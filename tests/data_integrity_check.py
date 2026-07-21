@@ -9,6 +9,12 @@ REQUIRED_ASSET_FIELDS = {
     "estimated_yield", "estimated_return", "distribution_months",
     "strategy_note", "risk_note"
 }
+VERIFIED_VALUATION_CODES = {
+    "000015", "000300", "000510", "000905", "000688", "932039", "H30269", "HSHYLV"
+}
+VERIFIED_PERCENTILE_FIELDS = {
+    "pe_percentile_3y", "pb_percentile_3y", "dividend_yield_percentile_3y"
+}
 
 
 def main():
@@ -49,6 +55,24 @@ def main():
     for index, item in enumerate(history):
         if not item.get("index_code") or not item.get("date"):
             errors.append(f"valuation_history[{index}] 缺少 index_code/date")
+        for field in VERIFIED_PERCENTILE_FIELDS & set(item):
+            value = item.get(field)
+            if not isinstance(value, (int, float)) or not 0 <= value <= 100:
+                errors.append(f"valuation_history[{index}] {field} 不在 0-100")
+    history_codes = {str(item.get("index_code")) for item in history}
+    if {"588000", "HSHDY"} & history_codes:
+        errors.append("valuation_history.json 仍使用 ETF/错误别名作为指数代码")
+    asset_targets = {str(asset.get("target_index_code")) for asset in assets if asset.get("target_index_code")}
+    missing_target_history = (asset_targets - {"NDX"}) - history_codes
+    if missing_target_history:
+        errors.append(f"估值历史缺少目标指数: {sorted(missing_target_history)}")
+    latest_verified = {
+        code: max((item for item in history if item.get("index_code") == code), key=lambda item: item.get("date", ""), default={})
+        for code in VERIFIED_VALUATION_CODES
+    }
+    for code, item in latest_verified.items():
+        if item.get("date") != "2026-07-20" or not VERIFIED_PERCENTILE_FIELDS <= set(item):
+            errors.append(f"{code} 缺少 2026-07-20 已验证估值或三年百分位")
     if not rules.get("family_risk") or not rules.get("concentration"):
         errors.append("planning_rules.json 缺少 family_risk/concentration")
     preset_items = presets.get("presets", {})
