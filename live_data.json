@@ -1,150 +1,150 @@
 {
     "status": "success",
-    "timestamp": "2026-07-17 10:40:16",
+    "timestamp": "2026-07-21 10:59:57",
     "data": {
         "511880": {
             "name": "银华日利ETF",
-            "price": 100.639,
+            "price": 100.628,
             "impliedYield": 1.79,
             "price_source": "tencent_realtime_quote",
             "yield_method": "implied_from_reference_distribution",
             "distribution_as_of": "",
-            "price_as_of": "2026-07-17 10:40:16"
+            "price_as_of": "2026-07-21 10:59:57"
         },
         "511360": {
             "name": "短融ETF海富通",
-            "price": 113.698,
+            "price": 113.695,
             "impliedYield": 2.7,
             "price_source": "tencent_realtime_quote",
             "yield_method": "implied_from_reference_distribution",
             "distribution_as_of": "",
-            "price_as_of": "2026-07-17 10:40:16"
+            "price_as_of": "2026-07-21 10:59:57"
         },
         "512890": {
             "name": "红利低波ETF华泰柏瑞",
-            "price": 1.146,
-            "impliedYield": 4.59,
+            "price": 1.16,
+            "impliedYield": 4.54,
             "price_source": "tencent_realtime_quote",
             "yield_method": "implied_from_reference_distribution",
             "distribution_as_of": "",
-            "price_as_of": "2026-07-17 10:40:16"
+            "price_as_of": "2026-07-21 10:59:57"
         },
         "510880": {
             "name": "红利ETF华泰柏瑞",
-            "price": 3.135,
-            "impliedYield": 4.08,
+            "price": 3.205,
+            "impliedYield": 3.99,
             "price_source": "tencent_realtime_quote",
             "yield_method": "implied_from_reference_distribution",
             "distribution_as_of": "",
-            "price_as_of": "2026-07-17 10:40:16"
+            "price_as_of": "2026-07-21 10:59:57"
         },
         "561960": {
             "name": "央企回报ETF招商",
-            "price": 1.189,
-            "impliedYield": 3.71,
+            "price": 1.217,
+            "impliedYield": 3.62,
             "price_source": "tencent_realtime_quote",
             "yield_method": "implied_from_reference_distribution",
             "distribution_as_of": "",
-            "price_as_of": "2026-07-17 10:40:16"
+            "price_as_of": "2026-07-21 10:59:57"
         },
         "513530": {
             "name": "港股通红利ETF华泰柏瑞",
-            "price": 1.532,
-            "impliedYield": 5.04,
+            "price": 1.55,
+            "impliedYield": 4.99,
             "price_source": "tencent_realtime_quote",
             "yield_method": "implied_from_reference_distribution",
             "distribution_as_of": "",
-            "price_as_of": "2026-07-17 10:40:16"
+            "price_as_of": "2026-07-21 10:59:57"
         },
         "510300": {
             "name": "沪深300ETF华泰柏瑞",
-            "price": 4.589,
-            "impliedYield": 1.14,
+            "price": 4.787,
+            "impliedYield": 1.1,
             "price_source": "tencent_realtime_quote",
             "yield_method": "implied_from_reference_distribution",
             "distribution_as_of": "",
-            "price_as_of": "2026-07-17 10:40:16"
+            "price_as_of": "2026-07-21 10:59:57"
         },
         "563360": {
             "name": "A500ETF华泰柏瑞",
-            "price": 1.259,
-            "impliedYield": 0.95,
+            "price": 1.316,
+            "impliedYield": 0.91,
             "price_source": "tencent_realtime_quote",
             "yield_method": "implied_from_reference_distribution",
             "distribution_as_of": "",
-            "price_as_of": "2026-07-17 10:40:16"
+            "price_as_of": "2026-07-21 10:59:57"
         },
         "510500": {
             "name": "中证500ETF南方",
-            "price": 7.505,
-            "impliedYield": 0.64,
+            "price": 7.792,
+            "impliedYield": 0.62,
             "price_source": "tencent_realtime_quote",
             "yield_method": "implied_from_reference_distribution",
             "distribution_as_of": "",
-            "price_as_of": "2026-07-17 10:40:16"
+            "price_as_of": "2026-07-21 10:59:57"
         },
         "588000": {
             "name": "科创50ETF华夏",
-            "price": 1.807,
-            "impliedYield": 0.09,
+            "price": 2.016,
+            "impliedYield": 0.08,
             "price_source": "tencent_realtime_quote",
             "yield_method": "implied_from_reference_distribution",
             "distribution_as_of": "",
-            "price_as_of": "2026-07-17 10:40:16"
+            "price_as_of": "2026-07-21 10:59:57"
         },
         "513500": {
             "name": "标普500ETF博时",
-            "price": 2.503,
+            "price": 2.526,
             "impliedYield": 1.05,
             "price_source": "tencent_realtime_quote",
             "yield_method": "implied_from_reference_distribution",
             "distribution_as_of": "",
-            "price_as_of": "2026-07-17 10:40:16"
+            "price_as_of": "2026-07-21 10:59:57"
         },
         "513100": {
             "name": "纳指ETF国泰",
-            "price": 2.107,
+            "price": 2.13,
             "impliedYield": 0.31,
             "price_source": "tencent_realtime_quote",
             "yield_method": "implied_from_reference_distribution",
             "distribution_as_of": "",
-            "price_as_of": "2026-07-17 10:40:16"
+            "price_as_of": "2026-07-21 10:59:57"
         },
         "518880": {
             "name": "黄金ETF华安",
-            "price": 8.311,
+            "price": 8.468,
             "impliedYield": 0.0,
             "price_source": "tencent_realtime_quote",
             "yield_method": "implied_from_reference_distribution",
             "distribution_as_of": "",
-            "price_as_of": "2026-07-17 10:40:16"
+            "price_as_of": "2026-07-21 10:59:57"
         },
         "511520": {
             "name": "政金债ETF富国",
-            "price": 118.085,
+            "price": 118.09,
             "impliedYield": 2.42,
             "price_source": "tencent_realtime_quote",
             "yield_method": "implied_from_reference_distribution",
             "distribution_as_of": "",
-            "price_as_of": "2026-07-17 10:40:16"
+            "price_as_of": "2026-07-21 10:59:57"
         },
         "511010": {
             "name": "国债ETF国泰",
-            "price": 140.812,
+            "price": 140.824,
             "impliedYield": 2.04,
             "price_source": "tencent_realtime_quote",
             "yield_method": "implied_from_reference_distribution",
             "distribution_as_of": "",
-            "price_as_of": "2026-07-17 10:40:16"
+            "price_as_of": "2026-07-21 10:59:57"
         },
         "508099": {
             "name": "建信中关村REIT",
-            "price": 1.162,
-            "impliedYield": 11.62,
+            "price": 1.128,
+            "impliedYield": 11.97,
             "price_source": "tencent_realtime_quote",
             "yield_method": "implied_from_reference_distribution",
             "distribution_as_of": "",
-            "price_as_of": "2026-07-17 10:40:16"
+            "price_as_of": "2026-07-21 10:59:57"
         }
     }
 }
