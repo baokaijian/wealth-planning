@@ -299,6 +299,37 @@ if 'buffer_seed' not in st.session_state:
     st.session_state.buffer_seed = 12.0
 if 'money_market_rate' not in st.session_state:
     st.session_state.money_market_rate = 2.0
+if 'buffer_start_month' not in st.session_state:
+    st.session_state.buffer_start_month = datetime.now().month
+if 'buffer_stable_income_drop' not in st.session_state:
+    st.session_state.buffer_stable_income_drop = 20
+if 'buffer_delay_months' not in st.session_state:
+    st.session_state.buffer_delay_months = 1
+if 'buffer_pause_dividend_year' not in st.session_state:
+    st.session_state.buffer_pause_dividend_year = False
+if 'buffer_rebalance_harvest_checkbox' not in st.session_state:
+    st.session_state.buffer_rebalance_harvest_checkbox = False
+if 'buffer_harvest_scenario' not in st.session_state:
+    st.session_state.buffer_harvest_scenario = "neutral"
+
+
+def set_buffer_coverage_months(months):
+    target = max(float(st.session_state.get('target_monthly', 0.0)), 0.0)
+    principal_value = max(float(st.session_state.get('principal', 0.0)), 0.0)
+    st.session_state.buffer_seed = min(target * months, principal_value, 5000.0)
+
+
+def set_buffer_scenario(mode):
+    presets = {
+        'baseline': (0, 0, False),
+        'standard': (20, 1, False),
+        'severe': (40, 3, True)
+    }
+    drop, delay, pause = presets.get(mode, presets['standard'])
+    st.session_state.buffer_stable_income_drop = drop
+    st.session_state.buffer_delay_months = delay
+    st.session_state.buffer_pause_dividend_year = pause
+    st.session_state.buffer_rebalance_harvest_checkbox = False
 
 strategy_console_pages = [
     "2. 资产配置与股息测算看板",
@@ -313,17 +344,13 @@ if menu in strategy_console_pages:
     st.sidebar.markdown("### 🔑 策略控制台")
     st.sidebar.markdown("### 基本配置参数")
 
-    principal = st.sidebar.number_input("您的可用总本金 (万元)", min_value=10.0, max_value=5000.0, value=st.session_state.principal, step=10.0)
-    st.session_state.principal = principal
+    principal = st.sidebar.number_input("您的可用总本金 (万元)", min_value=10.0, max_value=5000.0, step=10.0, key="principal")
 
-    target_monthly = st.sidebar.number_input("期望月现金流 (万元)", min_value=0.1, max_value=50.0, value=st.session_state.target_monthly, step=0.5)
-    st.session_state.target_monthly = target_monthly
+    target_monthly = st.sidebar.number_input("期望月现金流 (万元)", min_value=0.1, max_value=50.0, step=0.5, key="target_monthly")
 
-    buffer_seed = st.sidebar.number_input("现金缓冲池初始资金 (万元)", min_value=0.0, max_value=100.0, value=st.session_state.buffer_seed, step=1.0)
-    st.session_state.buffer_seed = buffer_seed
+    buffer_seed = st.sidebar.number_input("现金缓冲池初始资金 (万元)", min_value=0.0, max_value=5000.0, step=1.0, key="buffer_seed", help="不确定时，可在模拟器内一键选择 6、9 或 12 个月目标支取额。")
 
-    money_market_rate = st.sidebar.slider("缓冲池闲置资金年化收益 (%)", min_value=0.5, max_value=5.0, value=st.session_state.money_market_rate, step=0.1)
-    st.session_state.money_market_rate = money_market_rate
+    money_market_rate = st.sidebar.slider("缓冲池闲置资金年化收益 (%)", min_value=0.5, max_value=5.0, step=0.1, key="money_market_rate")
 else:
     principal = st.session_state.principal
     target_monthly = st.session_state.target_monthly
@@ -1134,30 +1161,67 @@ elif menu == "2. 资产配置与股息测算看板":
 # ==========================================
 elif menu == "3. 现金缓冲池平滑模拟器":
     st.markdown("<h1 style='color:#102033; margin-bottom:10px;'>⏱️ 现金缓冲池平滑模拟器</h1>", unsafe_allow_html=True)
-    st.write("大多数红利资产的分红在少数月份集中派发。默认安全结论只基于分红、票息、现金利息和缓冲池，不把成长资产上涨当成稳定现金流。")
+    st.write("用它回答一个问题：在分红下降或晚到账时，现有缓冲池能否支撑目标月支取。默认安全结论只看稳定现金流和缓冲池，不把成长资产上涨算进去。")
 
-    ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns(4)
-    with ctrl_col1:
-        start_month = st.selectbox("模拟起始月份", list(range(1, 13)), index=datetime.now().month - 1, format_func=lambda x: f"{x}月")
-    with ctrl_col2:
-        stable_income_drop = st.slider("稳定分红/票息下降比例 (%)", min_value=0, max_value=100, value=20, step=5)
-    with ctrl_col3:
-        delay_months = st.selectbox("分红到账延迟月数", list(range(0, 7)), index=0, format_func=lambda x: f"{x}个月")
-    with ctrl_col4:
-        pause_dividend_year = st.checkbox("模拟某一年分红暂停", value=False)
+    st.markdown("### 只需 3 步")
+    guide_col1, guide_col2, guide_col3 = st.columns(3)
+    with guide_col1:
+        st.markdown("**1. 先定缓冲月数**  \n按目标月支取估算；6个月起步，9个月更稳健，收入波动大可比较12个月。")
+    with guide_col2:
+        st.markdown("**2. 选择压力情景**  \n首次使用直接选“标准压力”，无需逐项调整参数。")
+    with guide_col3:
+        st.markdown("**3. 只看两个结果**  \n先看压力最低水位是否大于0，再看建议月支出是否覆盖目标。")
 
-    harvest_col1, harvest_col2 = st.columns([1.2, 1.0])
-    with harvest_col1:
-        rebalance_harvest = st.checkbox("警示：乐观情景 · 卖出成长资产补充现金流", value=False, help="仅作为附加情景，不计入默认现金流安全结论", key="buffer_rebalance_harvest_checkbox")
-    with harvest_col2:
-        harvest_scenario = st.selectbox(
-            "卖出成长资产补流情景",
-            ["conservative", "neutral", "optimistic"],
-            index=1,
-            format_func=lambda x: {"conservative": "保守：不假设可卖出获利", "neutral": "中性：最多按 3%", "optimistic": "乐观：按预期收益率"}[x],
-            disabled=not rebalance_harvest
-        )
-    st.warning("固定说明：Harvest 是非稳定卖出补流，只展示依赖变现资产的附加情景，不计入默认安全结论；若只有开启 Harvest 才通过，结论仍是现金流不自洽。")
+    st.caption("这里按目标月支取计算覆盖月数；若家庭刚性支出更高，应以刚性支出重新换算。")
+    buffer_btn1, buffer_btn2, buffer_btn3 = st.columns(3)
+    with buffer_btn1:
+        st.button("设为 6 个月起步值", on_click=set_buffer_coverage_months, args=(6,), width="stretch")
+    with buffer_btn2:
+        st.button("设为 9 个月稳健值", on_click=set_buffer_coverage_months, args=(9,), width="stretch", type="primary")
+    with buffer_btn3:
+        st.button("设为 12 个月谨慎值", on_click=set_buffer_coverage_months, args=(12,), width="stretch")
+
+    current_coverage = buffer_seed / target_monthly if target_monthly > 0 else 0.0
+    if current_coverage < 6:
+        st.warning(f"当前缓冲池 {buffer_seed:.1f} 万元，仅覆盖目标支取约 {current_coverage:.1f} 个月。建议先比较 6 个月方案。")
+    elif current_coverage < 9:
+        st.info(f"当前覆盖约 {current_coverage:.1f} 个月，已达到起步线；收入波动较大时可继续比较 9 个月方案。")
+    else:
+        st.success(f"当前覆盖约 {current_coverage:.1f} 个月。下一步直接使用标准压力，检查最低水位。")
+
+    st.markdown("#### 一键选择压力情景")
+    scenario_btn1, scenario_btn2, scenario_btn3 = st.columns(3)
+    with scenario_btn1:
+        st.button("正常观察", on_click=set_buffer_scenario, args=('baseline',), width="stretch")
+    with scenario_btn2:
+        st.button("标准压力（推荐）", on_click=set_buffer_scenario, args=('standard',), width="stretch", type="primary")
+    with scenario_btn3:
+        st.button("严重压力", on_click=set_buffer_scenario, args=('severe',), width="stretch")
+
+    with st.expander("高级参数：仅在复盘压力来源时调整"):
+        st.caption("起始月份只影响到账顺序；下降、延迟和暂停用于构造压力，不是对未来的预测。")
+        ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns(4)
+        with ctrl_col1:
+            start_month = st.selectbox("模拟起始月份", list(range(1, 13)), format_func=lambda x: f"{x}月", key="buffer_start_month")
+        with ctrl_col2:
+            stable_income_drop = st.slider("稳定分红/票息下降比例 (%)", min_value=0, max_value=100, step=5, key="buffer_stable_income_drop")
+        with ctrl_col3:
+            delay_months = st.selectbox("分红到账延迟月数", list(range(0, 7)), format_func=lambda x: f"{x}个月", key="buffer_delay_months")
+        with ctrl_col4:
+            pause_dividend_year = st.checkbox("模拟某一年分红暂停", key="buffer_pause_dividend_year")
+
+        harvest_col1, harvest_col2 = st.columns([1.2, 1.0])
+        with harvest_col1:
+            rebalance_harvest = st.checkbox("可选：卖出成长资产补充现金流", help="仅作为附加情景，不计入默认现金流安全结论", key="buffer_rebalance_harvest_checkbox")
+        with harvest_col2:
+            harvest_scenario = st.selectbox(
+                "卖出成长资产补流情景",
+                ["conservative", "neutral", "optimistic"],
+                format_func=lambda x: {"conservative": "保守：不假设可卖出获利", "neutral": "中性：最多按 3%", "optimistic": "乐观：按预期收益率"}[x],
+                disabled=not rebalance_harvest,
+                key="buffer_harvest_scenario"
+            )
+        st.caption("卖出成长资产只展示附加可能性，不计入默认安全结论；若只有开启后才通过，仍表示现金流不自洽。")
 
     # 正常口径：只基于稳定现金流，不含卖出资产补流。
     normal_sim = portfolio_engine.simulate_cashflow(
@@ -1236,61 +1300,32 @@ elif menu == "3. 现金缓冲池平滑模拟器":
     total_withdraw = target_monthly * 10000.0 * 36.0
     harvest_dependency = tot_harvest_sum / total_withdraw if total_withdraw > 0 else 0.0
 
-    st.markdown("### 🔍 缓冲池安全性体检")
-    b_col1, b_col2, b_col3, b_col4 = st.columns(4)
-    with b_col1:
-        st.markdown(f"""
-        <div class='card'>
-            <div class='metric-label'>初始缓冲池预留</div>
-            <div class='metric-value'>¥{buffer_seed*10000:,.0f}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with b_col2:
-        status_color = "#10B981" if min_buffer > 0 else "#EF4444"
-        st.markdown(f"""
-        <div class='card'>
-            <div class='metric-label'>压力口径最低水位</div>
-            <div class='metric-value' style='color:{status_color};'>¥{min_buffer:,.0f}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with b_col3:
-        st.markdown(f"""
-        <div class='card'>
-            <div class='metric-label'>正常口径最低水位</div>
-            <div class='metric-value'>¥{normal_sim['minBuffer']:,.0f}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with b_col4:
-        st.markdown(f"""
-        <div class='card'>
-            <div class='metric-label'>3年累计稳定现金流入</div>
-            <div class='metric-value'>¥{tot_stable_sum:,.0f}</div>
-        </div>
-        """, unsafe_allow_html=True)
+    min_principal = feasibility['minPrincipalWan']
+    min_principal_text = "超过测算上限" if min_principal is None else f"{min_principal:.1f} 万"
+    buffer_months_text = "仅加缓冲不足" if feasibility['minBufferMonths'] is None else f"{feasibility['minBufferMonths']:.1f}个月"
+    additional_buffer_text = "仅加缓冲不足" if feasibility['minBufferMonths'] is None else f"{max(feasibility['minBufferMonths'] * target_monthly - buffer_seed, 0.0):.1f} 万"
 
-    q_col1, q_col2, q_col3, q_col4 = st.columns(4)
-    with q_col1:
-        st.markdown(f"<div class='card'><div class='metric-label'>当前缓冲池覆盖月数</div><div class='metric-value'>{buffer_coverage_months:.1f} 月</div></div>", unsafe_allow_html=True)
-    with q_col2:
-        color = "#10B981" if stable_coverage >= 0.6 else "#EF4444"
-        st.markdown(f"<div class='card'><div class='metric-label'>稳定现金流覆盖率</div><div class='metric-value' style='color:{color};'>{stable_coverage*100:.0f}%</div></div>", unsafe_allow_html=True)
-    with q_col3:
-        st.markdown(f"<div class='card'><div class='metric-label'>最脆弱月份</div><div class='metric-value'>第 {weakest_month} 月 / {weakest_cal_month}月</div></div>", unsafe_allow_html=True)
-    with q_col4:
-        metric_label = "卖出资产依赖度" if rebalance_harvest else "建议每月支出不超过"
-        metric_value = f"{harvest_dependency*100:.1f}%" if rebalance_harvest else f"{feasibility['recommendedMonthlyExpenseWan']:.2f} 万"
-        st.markdown(f"<div class='card'><div class='metric-label'>{metric_label}</div><div class='metric-value'>{metric_value}</div></div>", unsafe_allow_html=True)
+    st.markdown("### 🔍 先看核心结果")
+    core_col1, core_col2, core_col3, core_col4 = st.columns(4)
+    core_col1.metric("当前缓冲池覆盖", f"{buffer_coverage_months:.1f} 月")
+    core_col2.metric("压力口径最低水位", f"¥{min_buffer:,.0f}")
+    core_col3.metric("建议每月支出不超过", f"{feasibility['recommendedMonthlyExpenseWan']:.2f} 万")
+    core_col4.metric("目标所需缓冲月数", buffer_months_text)
 
-    limit_col1, limit_col2, limit_col3 = st.columns(3)
-    with limit_col1:
-        st.markdown(f"<div class='card'><div class='metric-label'>理论安全月支取上限</div><div class='metric-value'>{feasibility['safeMonthlyWithdrawWan']:.2f} 万</div></div>", unsafe_allow_html=True)
-    with limit_col2:
-        min_principal = feasibility['minPrincipalWan']
-        min_principal_text = "超过测算上限" if min_principal is None else f"{min_principal:.1f} 万"
-        st.markdown(f"<div class='card'><div class='metric-label'>目标支取所需最低本金</div><div class='metric-value'>{min_principal_text}</div></div>", unsafe_allow_html=True)
-    with limit_col3:
-        buffer_months_text = "仅加缓冲不足" if feasibility['minBufferMonths'] is None else f"{feasibility['minBufferMonths']:.1f}个月"
-        st.markdown(f"<div class='card'><div class='metric-label'>目标支取所需缓冲月数</div><div class='metric-value'>{buffer_months_text}</div></div>", unsafe_allow_html=True)
+    with st.expander("查看完整诊断指标"):
+        full_col1, full_col2, full_col3, full_col4 = st.columns(4)
+        full_col1.metric("初始缓冲池预留", f"¥{buffer_seed*10000:,.0f}")
+        full_col2.metric("正常口径最低水位", f"¥{normal_sim['minBuffer']:,.0f}")
+        full_col3.metric("3年累计稳定现金流入", f"¥{tot_stable_sum:,.0f}")
+        full_col4.metric("稳定现金流覆盖率", f"{stable_coverage*100:.0f}%")
+        more_col1, more_col2, more_col3, more_col4 = st.columns(4)
+        more_col1.metric("最脆弱月份", f"第 {weakest_month} 月 / {weakest_cal_month}月")
+        more_col2.metric("理论安全月支取上限", f"{feasibility['safeMonthlyWithdrawWan']:.2f} 万")
+        more_col3.metric("目标支取所需最低本金", min_principal_text)
+        if rebalance_harvest:
+            more_col4.metric("卖出资产依赖度", f"{harvest_dependency*100:.1f}%")
+        else:
+            more_col4.metric("额外所需缓冲资金", additional_buffer_text)
 
     if min_buffer <= 0:
         msg = f"⚠️ **缓冲池期中击穿警报**：压力口径下，按 {target_monthly:.2f} 万元/月支取会在第 **{stress_sim.get('breachedAtMonth') or weakest_month}** 个月附近断流，最低水位为 ¥{min_buffer:,.0f}。建议每月支出不超过 **{feasibility['recommendedMonthlyExpenseWan']:.2f} 万元**（理论临界上限约 {feasibility['safeMonthlyWithdrawWan']:.2f} 万元，已预留 5% 安全余量）。解决路径是降低支取、增加本金（测算最低约 {min_principal_text}）或增加缓冲，而不是提高科技仓位。"

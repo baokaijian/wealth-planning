@@ -1609,23 +1609,59 @@
            TAB 2: BUFFER POOL SIMULATOR
            ========================================== -->
         <div id="tab2-view" class="tab-content">
-            <!-- 顶置安全性卡片 -->
-            <div class="grid-cards">
-                <div class="metric-card">
-                    <span class="metric-label">初始缓冲池预留</span>
-                    <span class="metric-val-num" id="t2-seed-val">¥0</span>
+            <div class="card" style="border-left:4px solid var(--accent-blue);">
+                <div class="card-title-text" style="margin-bottom:12px;">按 3 步完成，不需要逐项调参</div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;font-size:0.86rem;line-height:1.55;">
+                    <div><strong>1. 先定缓冲月数</strong><br><span style="color:var(--text-secondary);">按目标月支取估算：6个月为起点，9个月更稳健，收入波动大可看12个月。</span></div>
+                    <div><strong>2. 再选压力情景</strong><br><span style="color:var(--text-secondary);">首次使用直接选“标准压力”；只有需要复盘极端风险时才展开高级参数。</span></div>
+                    <div><strong>3. 最后只看两项</strong><br><span style="color:var(--text-secondary);">先看“压力最低水位”是否大于0，再看“建议月支出”是否覆盖目标。</span></div>
                 </div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;align-items:center;">
+                    <span style="font-size:0.82rem;font-weight:700;">缓冲池快捷值：</span>
+                    <button class="action-btn secondary" onclick="setBufferCoverageMonths(6)">6个月起步</button>
+                    <button class="action-btn secondary" onclick="setBufferCoverageMonths(9)">9个月稳健</button>
+                    <button class="action-btn secondary" onclick="setBufferCoverageMonths(12)">12个月谨慎</button>
+                    <span style="font-size:0.82rem;font-weight:700;margin-left:8px;">压力情景：</span>
+                    <button class="action-btn secondary" onclick="applyBufferScenario('baseline')">正常观察</button>
+                    <button class="action-btn" onclick="applyBufferScenario('standard')">标准压力（推荐）</button>
+                    <button class="action-btn secondary" onclick="applyBufferScenario('severe')">严重压力</button>
+                </div>
+                <div id="t2-guided-summary" style="margin-top:12px;padding:10px 12px;border-radius:6px;background:var(--subtle-bg);color:var(--text-secondary);font-size:0.82rem;line-height:1.5;"></div>
+            </div>
+
+            <div class="card-title-text" style="margin:18px 0 12px;">先看核心结果</div>
+            <div class="grid-cards">
                 <div class="metric-card">
                     <span class="metric-label">当前缓冲池覆盖月数</span>
                     <span class="metric-val-num" id="t2-coverage-months-val">0.0 月</span>
                 </div>
                 <div class="metric-card">
-                    <span class="metric-label">正常口径最低水位</span>
-                    <span class="metric-val-num" id="t2-normal-min-buffer-val">¥0</span>
-                </div>
-                <div class="metric-card">
                     <span class="metric-label">压力口径最低水位</span>
                     <span class="metric-val-num" id="t2-min-buffer-val">¥0</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">建议每月支出不超过</span>
+                    <span class="metric-val-num" id="t2-recommended-spend-val">0.00 万</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">额外所需缓冲资金/月数</span>
+                    <span class="metric-val-num" id="t2-min-buffer-months-val">--</span>
+                </div>
+            </div>
+
+            <!-- 动态安全性状态警告框 -->
+            <div id="t2-status-alert" class="alert-banner"></div>
+
+            <details class="card" style="margin-bottom:20px;">
+                <summary style="cursor:pointer;font-weight:800;color:var(--text-primary);">查看完整诊断指标</summary>
+                <div class="grid-cards" style="margin-top:15px;">
+                <div class="metric-card">
+                    <span class="metric-label">初始缓冲池预留</span>
+                    <span class="metric-val-num" id="t2-seed-val">¥0</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">正常口径最低水位</span>
+                    <span class="metric-val-num" id="t2-normal-min-buffer-val">¥0</span>
                 </div>
                 <div class="metric-card">
                     <span class="metric-label">3年累计稳定现金流入</span>
@@ -1644,10 +1680,6 @@
                     <span class="metric-val-num" id="t2-harvest-dependency-val">0%</span>
                 </div>
                 <div class="metric-card">
-                    <span class="metric-label">建议每月支出不超过</span>
-                    <span class="metric-val-num" id="t2-recommended-spend-val">0.00 万</span>
-                </div>
-                <div class="metric-card">
                     <span class="metric-label">理论安全月支取上限</span>
                     <span class="metric-val-num" id="t2-safe-withdraw-val">0.00 万</span>
                 </div>
@@ -1655,17 +1687,15 @@
                     <span class="metric-label">目标支取所需最低本金</span>
                     <span class="metric-val-num" id="t2-min-principal-val">--</span>
                 </div>
-                <div class="metric-card">
-                    <span class="metric-label">额外所需缓冲资金/月数</span>
-                    <span class="metric-val-num" id="t2-min-buffer-months-val">--</span>
                 </div>
-            </div>
+            </details>
 
-            <!-- 动态安全性状态警告框 -->
-            <div id="t2-status-alert" class="alert-banner"></div>
+            <details class="card" style="margin-bottom:20px;">
+                <summary style="cursor:pointer;font-weight:800;color:var(--text-primary);">高级参数：仅在复盘压力来源时调整</summary>
+                <div style="font-size:0.8rem;color:var(--text-secondary);margin:10px 0 14px;">起始月份只影响现金到账顺序；下降比例、延迟和暂停用于构造压力，不是对未来的预测。</div>
 
             <!-- 模拟控制项 -->
-            <div class="card" style="margin-bottom: 20px; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
+            <div style="padding: 5px 0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
                 <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                     <label for="t2-start-month" style="font-size:0.86rem;font-weight:700;">模拟起始月份</label>
                     <select id="t2-start-month" onchange="onScenarioChanged()" style="font-size: 0.82rem;">
@@ -1686,8 +1716,8 @@
                     <input type="number" id="t2-stress-income-drop" value="20" min="0" max="100" step="5" onchange="onScenarioChanged()" style="width:76px;font-size:0.82rem;">%
                     <label for="t2-delay-months" style="font-size:0.86rem;font-weight:700;">到账延迟</label>
                     <select id="t2-delay-months" onchange="onScenarioChanged()" style="font-size: 0.82rem;">
-                        <option value="0" selected>0个月</option>
-                        <option value="1">1个月</option>
+                        <option value="0">0个月</option>
+                        <option value="1" selected>1个月</option>
                         <option value="2">2个月</option>
                         <option value="3">3个月</option>
                         <option value="4">4个月</option>
@@ -1700,7 +1730,7 @@
                     </label>
                     <label class="checkbox-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
                         <input type="checkbox" id="t2-harvest-checkbox" onchange="onScenarioChanged()" style="width: 18px; height: 18px; cursor: pointer;">
-                        <span style="font-size: 0.9rem; font-weight: 800; color: #7C3AED; background:#F3E8FF; border:1px solid #E9D5FF; border-radius:999px; padding:4px 10px;">警示：乐观情景 · 卖出成长资产补流</span>
+                        <span style="font-size: 0.9rem; font-weight: 800; color: #7C3AED; background:#F3E8FF; border:1px solid #E9D5FF; border-radius:999px; padding:4px 10px;">可选：卖出成长资产补流</span>
                     </label>
                     <select id="t2-harvest-scenario" onchange="onScenarioChanged()" style="font-size: 0.82rem;">
                         <option value="conservative">保守：不假设可卖出获利</option>
@@ -1709,9 +1739,10 @@
                     </select>
                 </div>
                 <div style="font-size: 0.8rem; color: var(--text-secondary); max-width: 500px; line-height: 1.4;">
-                    <strong style="color:#7C3AED;">固定说明：</strong> 乐观情景中的“非稳定卖出补流”只展示变现资产的附加可能性，不计入默认安全结论；若只有开启 Harvest 才通过，结论仍是现金流不自洽。
+                    卖出成长资产只展示附加可能性，不计入默认安全结论；若只有开启后才通过，仍表示现金流不自洽。
                 </div>
             </div>
+            </details>
 
             <!-- 图表及数据细化 -->
             <div class="card">
@@ -1719,13 +1750,13 @@
                 <div id="t2-plotly-mixed" style="height: 400px; width: 100%;"></div>
             </div>
 
-            <div class="card">
-                <div class="card-title-text" style="margin-bottom: 15px;">稳定现金流来源集中度</div>
+            <details class="card">
+                <summary style="cursor:pointer;font-weight:800;color:var(--text-primary);">查看稳定现金流来源集中度</summary>
                 <div id="t2-cashflow-quality" style="font-size:0.86rem;line-height:1.55;color:var(--text-secondary);"></div>
-            </div>
+            </details>
 
-            <div class="card">
-                <div class="card-title-text" style="margin-bottom: 15px;">36个月流转明细账目 (年化滚动)</div>
+            <details class="card">
+                <summary style="cursor:pointer;font-weight:800;color:var(--text-primary);">查看36个月流转明细账目</summary>
                 <div style="overflow-x: auto; max-height: 400px;">
                     <table>
                         <thead>
@@ -1746,7 +1777,7 @@
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </details>
         </div>
 
         <!-- ==========================================
@@ -2238,6 +2269,34 @@
                 startMonthSelect.value = String(new Date().getMonth() + 1);
                 startMonthSelect.dataset.initialized = 'true';
             }
+        }
+
+        function setBufferCoverageMonths(months) {
+            const target = Math.max(Number(state.targetMonthly) || 0, 0);
+            const principal = Math.max(Number(state.principal) || 0, 0);
+            const recommended = Math.min(target * months, principal);
+            const input = document.getElementById('buffer-input');
+            if (!input) return;
+            input.value = recommended.toFixed(2);
+            updateCoreState();
+        }
+
+        function applyBufferScenario(mode) {
+            const presets = {
+                baseline: { drop: 0, delay: 0, pause: false },
+                standard: { drop: 20, delay: 1, pause: false },
+                severe: { drop: 40, delay: 3, pause: true }
+            };
+            const preset = presets[mode] || presets.standard;
+            const dropInput = document.getElementById('t2-stress-income-drop');
+            const delayInput = document.getElementById('t2-delay-months');
+            const pauseInput = document.getElementById('t2-pause-year-checkbox');
+            const harvestInput = document.getElementById('t2-harvest-checkbox');
+            if (dropInput) dropInput.value = String(preset.drop);
+            if (delayInput) delayInput.value = String(preset.delay);
+            if (pauseInput) pauseInput.checked = preset.pause;
+            if (harvestInput) harvestInput.checked = false;
+            onScenarioChanged();
         }
 
         // 从 assets.json 加载配置
@@ -3377,6 +3436,16 @@
             const bufferCoverageMonths = state.targetMonthly > 0 ? state.bufferSeed / state.targetMonthly : 0.0;
             const weakestMonth = stressRes.minBufferMonth || 1;
             const weakestCalMonth = ((startMonth - 1 + weakestMonth - 1) % 12) + 1;
+            const guideEl = document.getElementById('t2-guided-summary');
+            if (guideEl) {
+                const bufferMessage = bufferCoverageMonths < 6
+                    ? `当前仅覆盖 ${bufferCoverageMonths.toFixed(1)} 个月，先把缓冲池补到至少 6 个月，再判断组合收益。`
+                    : bufferCoverageMonths < 9
+                        ? `当前覆盖 ${bufferCoverageMonths.toFixed(1)} 个月，已达到起步线；若收入或分红波动较大，可比较 9 个月情景。`
+                        : `当前覆盖 ${bufferCoverageMonths.toFixed(1)} 个月，缓冲厚度较充足，重点确认压力最低水位和稳定现金流覆盖率。`;
+                const scenarioMessage = `当前压力设置：稳定收入下降 ${stableIncomeDrop.toFixed(0)}%、到账延迟 ${delayMonths} 个月${pauseDividendYear ? '、并模拟一年分红暂停' : ''}。`;
+                guideEl.textContent = `${bufferMessage} ${scenarioMessage} 这里的覆盖月数按“目标月支取”计算；若家庭刚性支出更高，应按更高者重新换算。`;
+            }
 
             document.getElementById('t2-seed-val').innerText = `¥${(state.bufferSeed * 10000).toLocaleString()}`;
             document.getElementById('t2-coverage-months-val').innerText = `${bufferCoverageMonths.toFixed(1)} 月`;
