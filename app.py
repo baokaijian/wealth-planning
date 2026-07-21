@@ -262,28 +262,6 @@ MENU_OPTIONS = [
 if 'main_menu' not in st.session_state:
     st.session_state.main_menu = MENU_OPTIONS[0]
 
-with st.sidebar.expander("30秒诊断", expanded=True):
-    quick_rigid = st.number_input("刚性支出 / 月 (元)", min_value=0.0, value=float(st.session_state.get('quick_rigid', 12000.0)), step=1000.0, key="quick_rigid")
-    quick_income = st.number_input("月收入 (元)", min_value=0.0, value=float(st.session_state.get('quick_income', 30000.0)), step=1000.0, key="quick_income")
-    quick_cash = st.number_input("当前现金缓冲池 (元)", min_value=0.0, value=float(st.session_state.get('quick_cash', 100000.0)), step=10000.0, key="quick_cash")
-    quick_months = quick_cash / quick_rigid if quick_rigid > 0 else 0.0
-    if quick_rigid > 0 and quick_income > 0:
-        if quick_months < 3:
-            st.warning(f"当前可覆盖 {quick_months:.1f} 个月。优先进入体检和缓冲池模拟。")
-            target_menu = "1. 家庭资产体检与配置建议"
-        elif quick_months < 6 or (quick_income - quick_rigid) / quick_income < 0.15:
-            st.info(f"当前可覆盖 {quick_months:.1f} 个月。建议确认结余率和缓冲池最低水位。")
-            target_menu = "3. 现金缓冲池平滑模拟器"
-        else:
-            st.success(f"当前可覆盖 {quick_months:.1f} 个月。可进入配置看板优化分散度。")
-            target_menu = "2. 资产配置与股息测算看板"
-        st.caption("仅本地即时计算，不构成投资建议，不承诺分红或收益。")
-        if st.button("进入建议模块", key="quick_jump_button"):
-            st.session_state.main_menu = target_menu
-            st.rerun()
-    else:
-        st.caption("填写三项后立即显示覆盖月数。")
-
 menu = st.sidebar.radio(
     "功能模块导航",
     MENU_OPTIONS,
@@ -342,6 +320,7 @@ strategy_console_pages = [
 if menu in strategy_console_pages:
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 🔑 策略控制台")
+    st.sidebar.caption("这里是配置看板与缓冲池模拟的唯一参数口径；家庭刚性支出、收入和负债请在“家庭资产体检”中填写。")
     st.sidebar.markdown("### 基本配置参数")
 
     principal = st.sidebar.number_input("您的可用总本金 (万元)", min_value=10.0, max_value=5000.0, step=10.0, key="principal")

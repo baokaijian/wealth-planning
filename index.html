@@ -952,6 +952,7 @@
 
         <div class="sidebar-config" id="strategy-console-panel" style="display:none;">
             <h3>🔑 策略控制台</h3>
+            <p style="font-size:0.76rem;line-height:1.5;color:var(--text-secondary);margin:-2px 0 14px;">这里是配置看板与缓冲池模拟的唯一参数口径；家庭刚性支出、收入和负债请在“家庭资产体检”中填写。</p>
 
             <div class="input-group">
                 <label for="strategy-preset">配置策略预设</label>
@@ -1016,33 +1017,6 @@
                 </ol>
             </div>
         </details>
-
-        <div class="card" id="quick-diagnosis-card" style="margin-bottom:20px;">
-            <div class="card-header-bar" style="margin-bottom:12px;">
-                <span class="card-title-text">30秒诊断</span>
-                <span style="font-size:0.78rem;color:var(--text-secondary);">仅本地计算：刚性支出、月收入、现金缓冲池</span>
-            </div>
-            <div style="display:grid;grid-template-columns:repeat(3,minmax(160px,1fr));gap:12px;margin-bottom:12px;">
-                <div class="input-group" style="margin-bottom:0;">
-                    <label for="quick-rigid-expense">刚性支出 / 月 (元)</label>
-                    <input type="number" id="quick-rigid-expense" min="0" placeholder="例如: 12000" oninput="runQuickDiagnosis()">
-                </div>
-                <div class="input-group" style="margin-bottom:0;">
-                    <label for="quick-monthly-income">月收入 (元)</label>
-                    <input type="number" id="quick-monthly-income" min="0" placeholder="例如: 30000" oninput="runQuickDiagnosis()">
-                </div>
-                <div class="input-group" style="margin-bottom:0;">
-                    <label for="quick-cash-buffer">当前现金缓冲池 (元)</label>
-                    <input type="number" id="quick-cash-buffer" min="0" placeholder="例如: 100000" oninput="runQuickDiagnosis()">
-                </div>
-            </div>
-            <div id="quick-diagnosis-result" class="alert-banner alert-info" style="margin-bottom:12px;">填写三项后，将立即显示当前现金可覆盖月数。</div>
-            <div class="btn-row" style="margin-bottom:0;">
-                <button class="action-btn secondary" onclick="jumpToModule('tab-family')">进入体检</button>
-                <button class="action-btn secondary" onclick="jumpToModule('tab1')">进入配置</button>
-                <button class="action-btn secondary" onclick="jumpToModule('tab2')">进入缓冲池模拟</button>
-            </div>
-        </div>
 
         <!-- ==========================================
            TAB FAMILY: FAMILY FINANCIAL PROFILE
@@ -2686,32 +2660,6 @@
         function renderDataFreshnessBadge(kind = 'price') {
             const meta = getDataFreshnessMeta(kind);
             return `<span style="display:inline-flex;align-items:center;gap:4px;border:1px solid ${meta.border};background:${meta.bg};color:${meta.color};border-radius:999px;padding:2px 8px;font-size:0.72rem;font-weight:700;white-space:nowrap;">${meta.label}${meta.detail ? ` · ${meta.detail}` : ''}</span>`;
-        }
-
-        function runQuickDiagnosis() {
-            const rigid = parseFloat(document.getElementById('quick-rigid-expense')?.value) || 0.0;
-            const income = parseFloat(document.getElementById('quick-monthly-income')?.value) || 0.0;
-            const cash = parseFloat(document.getElementById('quick-cash-buffer')?.value) || 0.0;
-            const result = document.getElementById('quick-diagnosis-result');
-            if (!result) return;
-            if (rigid <= 0 || income <= 0) {
-                result.className = 'alert-banner alert-info';
-                result.innerHTML = '填写三项后，将立即显示当前现金可覆盖月数。';
-                return;
-            }
-            const months = cash / rigid;
-            const surplusRatio = income > 0 ? (income - rigid) / income : 0.0;
-            let cls = 'alert-success';
-            let guide = '现金垫初步够用，可进入资产配置看板优化分散度。';
-            if (months < 3) {
-                cls = 'alert-warning';
-                guide = '现金垫偏薄，优先进入家庭体检与现金缓冲池模拟。';
-            } else if (months < 6 || surplusRatio < 0.15) {
-                cls = 'alert-info';
-                guide = '建议先确认刚性支出、结余率和缓冲池最低水位。';
-            }
-            result.className = `alert-banner ${cls}`;
-            result.innerHTML = `<strong>当前可覆盖 ${months.toFixed(1)} 个月。</strong> ${guide}<br><span style="font-size:0.78rem;">仅用于本地快速诊断，不构成投资建议，不承诺分红或收益。</span>`;
         }
 
         function jumpToModule(tabId) {

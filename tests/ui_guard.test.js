@@ -44,3 +44,15 @@ test('现金缓冲池核心结果元素在静态页面中保持唯一', () => {
     assert.equal((html.match(new RegExp(`id=["']${id}["']`, 'g')) || []).length, 1, id);
   });
 });
+
+test('不再提供与策略控制台重复的30秒诊断输入', () => {
+  const html = fs.readFileSync(path.join(projectRoot, 'index.html'), 'utf8');
+  const streamlit = fs.readFileSync(path.join(projectRoot, 'app.py'), 'utf8');
+
+  ['30秒诊断', 'quick-diagnosis-card', 'runQuickDiagnosis', 'quick_rigid', 'quick_income', 'quick_cash'].forEach(text => {
+    assert.equal(html.includes(text), false, `index.html: ${text}`);
+    assert.equal(streamlit.includes(text), false, `app.py: ${text}`);
+  });
+  assert.match(html, /配置看板与缓冲池模拟的唯一参数口径/);
+  assert.match(streamlit, /配置看板与缓冲池模拟的唯一参数口径/);
+});
