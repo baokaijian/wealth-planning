@@ -307,10 +307,12 @@
         .badge-cash { background: var(--green-container); color: var(--accent-emerald); border-color: #CEEAD6; }
         .badge-dividend_income { background: var(--blue-container); color: var(--accent-blue); border-color: #D2E3FC; }
         .badge-domestic_beta { background: var(--yellow-container); color: #A05A00; border-color: #FEEFC3; }
+        .badge-small_cap { background: #FFF3E0; color: #B45309; border-color: #FCD34D; }
         .badge-tech_growth { background: #F3E8FD; color: var(--accent-purple); border-color: #E9D2FD; }
         .badge-overseas_beta,
         .badge-overseas_broad,
-        .badge-overseas_tech { background: var(--blue-container); color: var(--accent-blue); border-color: #D2E3FC; }
+        .badge-overseas_tech,
+        .badge-china_offshore_growth { background: var(--blue-container); color: var(--accent-blue); border-color: #D2E3FC; }
         .badge-bond_duration { background: var(--green-container); color: var(--accent-emerald); border-color: #CEEAD6; }
         .badge-cashflow_alt { background: #F3E8FD; color: var(--accent-purple); border-color: #E9D2FD; }
         .badge-hedge { background: var(--subtle-bg); color: var(--text-secondary); border-color: var(--card-border); }
@@ -1531,6 +1533,14 @@
             <div class="alert-banner alert-info">
                 <strong>口径与免责：</strong>本看板仅用于 ETF/指数基金/大类资产配置测算，不构成投资建议，不推荐单只股票，不承诺任何分红、票息或收益。成长资产、黄金和 REITs 备选不计入稳定现金流。
             </div>
+            <div class="card" style="border-left:4px solid #F59E0B;">
+                <div class="card-title-text">中国风险溢价覆盖检查</div>
+                <div style="font-size:0.86rem;color:var(--text-secondary);line-height:1.75;margin-top:10px;">
+                    <strong style="color:var(--text-primary);">已覆盖：</strong>现金/短债 → 利率债 → 红利低波 → 大盘/中盘宽基 → 国内科技 → 黄金/REITs。<br>
+                    <strong style="color:var(--text-primary);">本次补全：</strong>中证1000（512100）补小盘层级，恒生科技（513180）补离岸中国成长层级；两者默认均为 <strong>0% 观察位</strong>。<br>
+                    <strong style="color:var(--text-primary);">正确使用：</strong>风险溢价是长期补偿和估值检查工具，不是短线买入信号。先确保现金缓冲与确定性支出隔离；启用时从“国内权益桶”或“高波动成长桶”内部置换，不从缓冲池加钱，也不要同时把两项都拉到高权重。
+                </div>
+            </div>
             <div id="t1-health-feedback" class="alert-banner alert-info" style="margin-bottom:20px;">
                 家庭基础健康分来自收支与资产负债；组合权重调整会在这里单独显示适配反馈。
             </div>
@@ -1770,7 +1780,9 @@
                         <option value="000300">🇨🇳 沪深300指数 (000300)</option>
                         <option value="000510">🇨🇳 中证A500指数 (000510)</option>
                         <option value="000905">🇨🇳 中证500指数 (000905)</option>
+                        <option value="000852">🇨🇳 中证1000指数 (000852) [无历史数据]</option>
                         <option value="000688">💻 科创50指数 (000688)</option>
+                        <option value="HKTECH">🇭🇰 恒生科技指数 (HKTECH) [无历史数据]</option>
                         <option value="SPX">🌐 标普500指数 (SPX)</option>
                         <option value="NDX">🌐 纳斯达克100指数 (NDX) [无历史数据]</option>
                     </select>
@@ -2205,7 +2217,9 @@
             {"code": "518880", "name": "黄金 ETF", "type": "ETF", "role": "hedge", "target_index_code": null, "market": "Global", "volatility_level": "medium", "income_type": "hedge", "rebalance_band": 5, "weight": 6.0, "estimated_yield": 0.0, "estimated_return": 4.5, "distribution_months": {}, "strategy_note": "黄金对冲通胀、汇率和极端风险，不提供稳定票息", "risk_note": "不构成投资建议；黄金无分红，价格可能长时间震荡或回撤，不承诺收益"},
             {"code": "511520", "name": "政金债券 ETF", "type": "ETF", "role": "bond_duration", "target_index_code": null, "market": "CN", "volatility_level": "low", "income_type": "cash_interest", "rebalance_band": 2, "weight": 4.0, "estimated_yield": 2.6, "estimated_return": 3.2, "distribution_months": {"6": 0.5, "12": 0.5}, "strategy_note": "中长期政金债/利率债久期资产，承担利率下行和风险事件对冲", "risk_note": "不构成投资建议；久期债会受利率上行影响产生净值回撤，不承诺票息或收益"},
             {"code": "511010", "name": "国债 ETF", "type": "ETF", "role": "bond_duration", "target_index_code": null, "market": "CN", "volatility_level": "low", "income_type": "cash_interest", "rebalance_band": 2, "weight": 3.0, "estimated_yield": 2.3, "estimated_return": 3.0, "distribution_months": {"6": 0.5, "12": 0.5}, "strategy_note": "国债类利率债，和黄金一起承担组合防御与对冲角色", "risk_note": "不构成投资建议；债券基金净值会随利率变化波动，不承诺分红、票息或收益"},
-            {"code": "508099", "name": "建信中关村 REIT", "type": "REITs", "role": "cashflow_alt", "target_index_code": null, "market": "CN", "volatility_level": "high", "income_type": "alternative_income", "rebalance_band": 5, "weight": 2.0, "estimated_yield": 4.5, "estimated_return": 6.0, "distribution_months": {"4": 0.25, "7": 0.25, "10": 0.25, "12": 0.25}, "strategy_note": "可选现金流增强观察位，默认低权重，只有在理解底层资产后再小比例使用", "risk_note": "不构成投资建议；REITs 分红和估值高度依赖底层经营与流动性，不计入稳定现金流，不承诺分红或收益"}
+            {"code": "508099", "name": "建信中关村 REIT", "type": "REITs", "role": "cashflow_alt", "target_index_code": null, "market": "CN", "volatility_level": "high", "income_type": "alternative_income", "rebalance_band": 5, "weight": 2.0, "estimated_yield": 4.5, "estimated_return": 6.0, "distribution_months": {"4": 0.25, "7": 0.25, "10": 0.25, "12": 0.25}, "strategy_note": "可选现金流增强观察位，默认低权重，只有在理解底层资产后再小比例使用", "risk_note": "不构成投资建议；REITs 分红和估值高度依赖底层经营与流动性，不计入稳定现金流，不承诺分红或收益"},
+            {"code": "512100", "name": "南方中证1000 ETF", "type": "ETF", "role": "small_cap", "target_index_code": "000852", "market": "CN", "volatility_level": "high", "income_type": "capital_growth", "rebalance_band": 5, "weight": 0.0, "estimated_yield": 0.0, "estimated_return": 9.0, "distribution_months": {}, "strategy_note": "中国小盘风险溢价观察位，补足沪深300、中证A500和中证500以下的市值层级；默认0%，仅在现金防线完整且估值数据可核验时从国内权益桶内置换", "risk_note": "不构成投资建议；小盘股对流动性、盈利周期和交易拥挤更敏感，回撤可能显著高于大盘宽基，不因高风险溢价标签自动加仓"},
+            {"code": "513180", "name": "华夏恒生科技 ETF", "type": "ETF", "role": "china_offshore_growth", "target_index_code": "HKTECH", "market": "HK", "volatility_level": "high", "income_type": "capital_growth", "rebalance_band": 5, "weight": 0.0, "estimated_yield": 0.0, "estimated_return": 9.0, "distribution_months": {}, "strategy_note": "离岸中国成长风险溢价观察位，与港股高股息形成价值/成长两端覆盖；默认0%，仅从高波动成长桶内置换，不挤占现金缓冲池", "risk_note": "不构成投资建议；存在港股科技高波动、政策与盈利周期、汇率、QDII溢折价和跟踪误差风险，不把低估判断等同于短期上涨"}
         ];
 
         // 估值模拟历史曲线数据
@@ -2352,9 +2366,11 @@
         function getDefaultTargetIndexCode(role) {
             if (role === 'dividend_income') return 'H30269';
             if (role === 'domestic_beta') return '000300';
+            if (role === 'small_cap') return '000852';
             if (role === 'tech_growth') return '000688';
             if (role === 'overseas_broad') return 'SPX';
             if (role === 'overseas_tech') return 'NDX';
+            if (role === 'china_offshore_growth') return 'HKTECH';
             return null;
         }
 
@@ -2362,7 +2378,7 @@
             if (role === 'cash') return 1;
             if (role === 'bond_duration') return 2;
             if (role === 'hedge') return 5;
-            if (role === 'tech_growth' || role === 'overseas_tech' || role === 'overseas_broad') return 5;
+            if (role === 'tech_growth' || role === 'small_cap' || role === 'overseas_tech' || role === 'overseas_broad' || role === 'china_offshore_growth') return 5;
             return 3;
         }
 
@@ -2600,9 +2616,11 @@
                 'cash': '💵 现金/短债',
                 'dividend_income': '📈 红利现金流',
                 'domestic_beta': '🇨🇳 国内宽基',
+                'small_cap': '🇨🇳 国内小盘',
                 'tech_growth': '💻 科技成长',
                 'overseas_broad': '🌐 海外宽基',
                 'overseas_tech': '🌐 海外科技',
+                'china_offshore_growth': '🇭🇰 离岸中国成长',
                 'overseas_beta': '🌐 海外权益',
                 'bond_duration': '🧱 久期债券',
                 'cashflow_alt': '🏢 现金流增强',
@@ -2619,7 +2637,9 @@
             '000300': { name: '沪深300指数', role: 'domestic_beta', metric: 'PE/PB', icon: '🇨🇳' },
             '000510': { name: '中证A500指数', role: 'domestic_beta', metric: 'PE/PB', icon: '🇨🇳' },
             '000905': { name: '中证500指数', role: 'domestic_beta', metric: 'PE/PB', icon: '🇨🇳' },
+            '000852': { name: '中证1000指数', role: 'small_cap', metric: 'PE/PB', icon: '🇨🇳' },
             '000688': { name: '科创50指数', role: 'tech_growth', metric: 'PE/PB', icon: '💻' },
+            'HKTECH': { name: '恒生科技指数', role: 'china_offshore_growth', metric: 'PE/PB', icon: '🇭🇰' },
             'SPX': { name: '标普500指数', role: 'overseas_broad', metric: 'PE/PB', icon: '🌐' },
             'NDX': { name: '纳斯达克100指数', role: 'overseas_tech', metric: 'PE/PB', icon: '🌐' }
         };
@@ -2701,13 +2721,13 @@
             if (dcaRes && dcaRes.hasHistory) {
                 return `有历史数据：按${meta.metric}校准`;
             }
-            if (asset.role === 'overseas_broad' || asset.role === 'overseas_tech') {
+            if (asset.role === 'overseas_broad' || asset.role === 'overseas_tech' || asset.role === 'china_offshore_growth') {
                 return `缺${meta.metric}历史：1.0x，关注汇率/QDII溢价`;
             }
             if (asset.role === 'dividend_income') {
                 return `缺${meta.metric}历史：1.0x，不判断高股息低估`;
             }
-            if (asset.role === 'tech_growth') {
+            if (asset.role === 'tech_growth' || asset.role === 'small_cap') {
                 return `缺${meta.metric}历史：1.0x，高波动不放大`;
             }
             return `缺${meta.metric}历史：1.0x 基础计划`;
@@ -2899,7 +2919,7 @@
                 ratingAlert.style.borderColor = "#D2E3FC";
                 ratingAlert.style.color = "var(--accent-blue)";
             }
-            const overseasNoDataTip = role.startsWith('overseas')
+            const overseasNoDataTip = role.startsWith('overseas') || role === 'china_offshore_growth'
                 ? '<br>海外资产还需额外关注汇率、QDII 溢价与跟踪误差风险。'
                 : '';
             const noHistoryMetric = indexMeta.metric === '股息率' ? '股息率历史' : 'PE/PB 估值历史';
@@ -3762,7 +3782,7 @@
             assetDetails.forEach(detail => {
                 roleWeights[detail.role] = (roleWeights[detail.role] || 0) + detail.weight;
                 marketWeights[detail.market] = (marketWeights[detail.market] || 0) + detail.weight;
-                if (detail.role === 'tech_growth' || detail.role === 'overseas_tech') techWeight += detail.weight;
+                if (detail.role === 'tech_growth' || detail.role === 'overseas_tech' || detail.role === 'china_offshore_growth') techWeight += detail.weight;
                 if (detail.role === 'dividend_income') dividendWeight += detail.weight;
             });
 
@@ -3969,10 +3989,12 @@
                     cash: parseFloat(document.getElementById('stress-drawdown-cash').value),
                     dividend_income: parseFloat(document.getElementById('stress-drawdown-dividend').value),
                     domestic_beta: parseFloat(document.getElementById('stress-drawdown-domestic').value),
+                    small_cap: parseFloat(document.getElementById('stress-drawdown-tech').value),
                     tech_growth: parseFloat(document.getElementById('stress-drawdown-tech').value),
                     overseas_beta: parseFloat(document.getElementById('stress-drawdown-overseas').value),
                     overseas_broad: parseFloat(document.getElementById('stress-drawdown-overseas').value),
                     overseas_tech: parseFloat(document.getElementById('stress-drawdown-overseas').value),
+                    china_offshore_growth: parseFloat(document.getElementById('stress-drawdown-overseas').value),
                     hedge: parseFloat(document.getElementById('stress-drawdown-hedge').value),
                     bond_duration: parseFloat(document.getElementById('stress-drawdown-hedge').value),
                     cashflow_alt: parseFloat(document.getElementById('stress-drawdown-tech').value)

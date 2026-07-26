@@ -273,6 +273,40 @@
             "distribution_count": 0,
             "distribution_as_of": "",
             "distribution_months": {}
+        },
+        "512100": {
+            "name": "中证1000ETF南方",
+            "price": 2.832,
+            "previous_close": 2.914,
+            "open": 2.886,
+            "high": 2.904,
+            "low": 2.828,
+            "price_source": "tencent_realtime_quote",
+            "price_as_of": "2026-07-24 16:14:54",
+            "yield": null,
+            "impliedYield": null,
+            "yield_method": "no_cash_distribution_in_trailing_12m",
+            "trailing_12m_cash_per_unit": 0,
+            "distribution_count": 0,
+            "distribution_as_of": "",
+            "distribution_months": {}
+        },
+        "513180": {
+            "name": "恒生科技ETF华夏",
+            "price": 0.585,
+            "previous_close": 0.595,
+            "open": 0.586,
+            "high": 0.591,
+            "low": 0.583,
+            "price_source": "tencent_realtime_quote",
+            "price_as_of": "2026-07-24 16:14:58",
+            "yield": null,
+            "impliedYield": null,
+            "yield_method": "no_cash_distribution_in_trailing_12m",
+            "trailing_12m_cash_per_unit": 0,
+            "distribution_count": 0,
+            "distribution_as_of": "",
+            "distribution_months": {}
         }
     },
     "methodology": {

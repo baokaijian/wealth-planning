@@ -63,3 +63,15 @@ test('估值温度计分别返回已验证的PE、PB和股息率百分位', () =
   assert.equal(result.factor, 0.6);
   assert.equal(result.asOf, '2026-07-20');
 });
+
+test('新增风险溢价观察位缺少估值历史时保持1.0x且不生成高低估判断', () => {
+  const smallCap = engine.getDcaAdjustment([], '000852', 'small_cap');
+  const offshoreGrowth = engine.getDcaAdjustment([], 'HKTECH', 'china_offshore_growth');
+
+  assert.equal(smallCap.hasHistory, false);
+  assert.equal(smallCap.factor, 1);
+  assert.match(smallCap.valuationZone, /数据不足.*基础计划/);
+  assert.equal(offshoreGrowth.hasHistory, false);
+  assert.equal(offshoreGrowth.factor, 1);
+  assert.match(offshoreGrowth.tips, /汇率、QDII 溢价与跟踪误差/);
+});

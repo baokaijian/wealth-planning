@@ -15,6 +15,10 @@ VERIFIED_VALUATION_CODES = {
 VERIFIED_PERCENTILE_FIELDS = {
     "pe_percentile_3y", "pb_percentile_3y", "dividend_yield_percentile_3y"
 }
+RISK_PREMIUM_OBSERVATION_ASSETS = {
+    "512100": ("small_cap", "000852"),
+    "513180": ("china_offshore_growth", "HKTECH"),
+}
 
 
 def main():
@@ -40,6 +44,13 @@ def main():
     total_weight = sum(float(asset.get("weight", 0.0)) for asset in assets)
     if abs(total_weight - 100.0) > 1e-8:
         errors.append(f"默认权重合计为 {total_weight}，应为 100")
+    assets_by_code = {str(asset.get("code")): asset for asset in assets}
+    for code, (role, target_index) in RISK_PREMIUM_OBSERVATION_ASSETS.items():
+        asset = assets_by_code.get(code, {})
+        if asset.get("role") != role or asset.get("target_index_code") != target_index:
+            errors.append(f"{code} 风险溢价观察位角色或目标指数配置错误")
+        if float(asset.get("weight", -1.0)) != 0.0:
+            errors.append(f"{code} 应保持 0% 观察位，不能自动进入默认组合")
     if live.get("status") != "success" or not isinstance(live.get("data"), dict):
         errors.append("live_data.json 状态或 data 结构无效")
     missing_live = codes - set(live.get("data", {}))
@@ -62,7 +73,19 @@ def main():
     history_codes = {str(item.get("index_code")) for item in history}
     if {"588000", "HSHDY"} & history_codes:
         errors.append("valuation_history.json 仍使用 ETF/错误别名作为指数代码")
-    asset_targets = {str(asset.get("target_index_code")) for asset in assets if asset.get("target_index_code")}
+    # 0% 观察位允许先进入候选池；只要默认或任一预设启用，就必须先有估值历史。
+    preset_items = presets.get("presets", {})
+    active_codes = {
+        str(asset.get("code"))
+        for asset in assets
+        if float(asset.get("weight", 0.0)) > 0
+        or any(float(preset.get("weights", {}).get(str(asset.get("code")), 0.0)) > 0 for preset in preset_items.values())
+    }
+    asset_targets = {
+        str(asset.get("target_index_code"))
+        for asset in assets
+        if asset.get("target_index_code") and str(asset.get("code")) in active_codes
+    }
     missing_target_history = (asset_targets - {"NDX"}) - history_codes
     if missing_target_history:
         errors.append(f"估值历史缺少目标指数: {sorted(missing_target_history)}")
@@ -75,7 +98,6 @@ def main():
             errors.append(f"{code} 缺少 2026-07-20 已验证估值或三年百分位")
     if not rules.get("family_risk") or not rules.get("concentration"):
         errors.append("planning_rules.json 缺少 family_risk/concentration")
-    preset_items = presets.get("presets", {})
     if set(preset_items) != {"conservative", "balanced", "aggressive"}:
         errors.append("strategy_presets.json 缺少三套标准方案")
     for preset_id, preset in preset_items.items():
@@ -84,6 +106,9 @@ def main():
             errors.append(f"{preset_id} 的资产代码与 assets.json 不一致")
         if abs(sum(float(value) for value in weights.values()) - 100.0) > 1e-8:
             errors.append(f"{preset_id} 权重合计不为 100")
+        for code in RISK_PREMIUM_OBSERVATION_ASSETS:
+            if float(weights.get(code, -1.0)) != 0.0:
+                errors.append(f"{preset_id} 不应自动启用观察位 {code}")
     backtest = presets.get("backtest") or {}
     if set((backtest.get("results") or {})) != set(preset_items):
         errors.append("strategy_presets.json 缺少完整回测结果")

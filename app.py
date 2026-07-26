@@ -216,7 +216,9 @@ else:
       {"code": "518880", "name": "黄金 ETF", "type": "ETF", "role": "hedge", "target_index_code": null, "market": "Global", "volatility_level": "medium", "income_type": "hedge", "rebalance_band": 5, "weight": 6.0, "estimated_yield": 0.0, "estimated_return": 4.5, "distribution_months": {}, "strategy_note": "黄金对冲通胀、汇率和极端风险，不提供稳定票息", "risk_note": "不构成投资建议；黄金无分红，价格可能长时间震荡或回撤，不承诺收益"},
       {"code": "511520", "name": "政金债券 ETF", "type": "ETF", "role": "bond_duration", "target_index_code": null, "market": "CN", "volatility_level": "low", "income_type": "cash_interest", "rebalance_band": 2, "weight": 4.0, "estimated_yield": 2.6, "estimated_return": 3.2, "distribution_months": {"6": 0.5, "12": 0.5}, "strategy_note": "中长期政金债/利率债久期资产，承担利率下行和风险事件对冲", "risk_note": "不构成投资建议；久期债会受利率上行影响产生净值回撤，不承诺票息或收益"},
       {"code": "511010", "name": "国债 ETF", "type": "ETF", "role": "bond_duration", "target_index_code": null, "market": "CN", "volatility_level": "low", "income_type": "cash_interest", "rebalance_band": 2, "weight": 3.0, "estimated_yield": 2.3, "estimated_return": 3.0, "distribution_months": {"6": 0.5, "12": 0.5}, "strategy_note": "国债类利率债，和黄金一起承担组合防御与对冲角色", "risk_note": "不构成投资建议；债券基金净值会随利率变化波动，不承诺分红、票息或收益"},
-      {"code": "508099", "name": "建信中关村 REIT", "type": "REITs", "role": "cashflow_alt", "target_index_code": null, "market": "CN", "volatility_level": "high", "income_type": "alternative_income", "rebalance_band": 5, "weight": 2.0, "estimated_yield": 4.5, "estimated_return": 6.0, "distribution_months": {"4": 0.25, "7": 0.25, "10": 0.25, "12": 0.25}, "strategy_note": "可选现金流增强观察位，默认低权重，只有在理解底层资产后再小比例使用", "risk_note": "不构成投资建议；REITs 分红和估值高度依赖底层经营与流动性，不计入稳定现金流，不承诺分红或收益"}
+      {"code": "508099", "name": "建信中关村 REIT", "type": "REITs", "role": "cashflow_alt", "target_index_code": null, "market": "CN", "volatility_level": "high", "income_type": "alternative_income", "rebalance_band": 5, "weight": 2.0, "estimated_yield": 4.5, "estimated_return": 6.0, "distribution_months": {"4": 0.25, "7": 0.25, "10": 0.25, "12": 0.25}, "strategy_note": "可选现金流增强观察位，默认低权重，只有在理解底层资产后再小比例使用", "risk_note": "不构成投资建议；REITs 分红和估值高度依赖底层经营与流动性，不计入稳定现金流，不承诺分红或收益"},
+      {"code": "512100", "name": "南方中证1000 ETF", "type": "ETF", "role": "small_cap", "target_index_code": "000852", "market": "CN", "volatility_level": "high", "income_type": "capital_growth", "rebalance_band": 5, "weight": 0.0, "estimated_yield": 0.0, "estimated_return": 9.0, "distribution_months": {}, "strategy_note": "中国小盘风险溢价观察位，补足沪深300、中证A500和中证500以下的市值层级；默认0%，仅在现金防线完整且估值数据可核验时从国内权益桶内置换", "risk_note": "不构成投资建议；小盘股对流动性、盈利周期和交易拥挤更敏感，回撤可能显著高于大盘宽基，不因高风险溢价标签自动加仓"},
+      {"code": "513180", "name": "华夏恒生科技 ETF", "type": "ETF", "role": "china_offshore_growth", "target_index_code": "HKTECH", "market": "HK", "volatility_level": "high", "income_type": "capital_growth", "rebalance_band": 5, "weight": 0.0, "estimated_yield": 0.0, "estimated_return": 9.0, "distribution_months": {}, "strategy_note": "离岸中国成长风险溢价观察位，与港股高股息形成价值/成长两端覆盖；默认0%，仅从高波动成长桶内置换，不挤占现金缓冲池", "risk_note": "不构成投资建议；存在港股科技高波动、政策与盈利周期、汇率、QDII溢折价和跟踪误差风险，不把低估判断等同于短期上涨"}
     ]""")
     for item in fallback_raw:
         code = item['code']
@@ -944,6 +946,16 @@ elif menu == "2. 资产配置与股息测算看板":
     st.markdown("<h1 style='color:#102033; margin-bottom:10px;'>📊 资产配置与股息测算看板</h1>", unsafe_allow_html=True)
     st.write(f"当前可用总本金 **{principal:.1f}** 万元，其中已调拨 **{buffer_seed:.1f}** 万元进入初始缓冲池，实际进入组合配置的可投资本金为 **{invest_principal:.1f}** 万元。")
     st.info("口径与免责：本看板仅用于 ETF/指数基金/大类资产配置测算，不构成投资建议，不推荐单只股票，不承诺任何分红、票息或收益。成长资产、黄金和 REITs 备选不计入稳定现金流。")
+    st.markdown("""
+    <div class='card' style='border-left:4px solid #F59E0B;'>
+        <div class='card-title-text'>中国风险溢价覆盖检查</div>
+        <div style='font-size:0.86rem;color:#334155;line-height:1.75;margin-top:10px;'>
+            <strong>已覆盖：</strong>现金/短债 → 利率债 → 红利低波 → 大盘/中盘宽基 → 国内科技 → 黄金/REITs。<br>
+            <strong>本次补全：</strong>中证1000（512100）补小盘层级，恒生科技（513180）补离岸中国成长层级；两者默认均为 <strong>0% 观察位</strong>。<br>
+            <strong>正确使用：</strong>风险溢价是长期补偿和估值检查工具，不是短线买入信号。先确保现金缓冲与确定性支出隔离；启用时从“国内权益桶”或“高波动成长桶”内部置换，不从缓冲池加钱，也不要同时把两项都拉到高权重。
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     current_family_metrics = calculate_family_diagnostics(st.session_state.family_data)
     current_health_score = current_family_metrics['res'].get('fourMoney', {}).get('score')
     if current_health_score is not None:
@@ -1082,7 +1094,7 @@ elif menu == "2. 资产配置与股息测算看板":
         role_weights[role] = role_weights.get(role, 0.0) + detail['weight']
         market = detail['market']
         market_weights[market] = market_weights.get(market, 0.0) + detail['weight']
-        if role in ['tech_growth', 'overseas_tech']:
+        if role in ['tech_growth', 'overseas_tech', 'china_offshore_growth']:
             tech_weight += detail['weight']
         if role == 'dividend_income':
             dividend_weight += detail['weight']
@@ -1450,9 +1462,11 @@ elif menu == "4. 估值温度计与测算工具":
         return {
             'dividend_income': 'H30269',
             'domestic_beta': '000300',
+            'small_cap': '000852',
             'tech_growth': '000688',
             'overseas_broad': 'SPX',
-            'overseas_tech': 'NDX'
+            'overseas_tech': 'NDX',
+            'china_offshore_growth': 'HKTECH'
         }.get(role)
 
     def asset_target_index(info):
@@ -1466,9 +1480,11 @@ elif menu == "4. 估值温度计与测算工具":
         '000300': {'name': '沪深300', 'role': 'domestic_beta', 'metric': 'PE/PB'},
         '000510': {'name': '中证A500', 'role': 'domestic_beta', 'metric': 'PE/PB'},
         '000905': {'name': '中证500', 'role': 'domestic_beta', 'metric': 'PE/PB'},
+        '000852': {'name': '中证1000', 'role': 'small_cap', 'metric': 'PE/PB'},
         '000688': {'name': '科创50', 'role': 'tech_growth', 'metric': 'PE/PB'},
         'SPX': {'name': '标普500', 'role': 'overseas_broad', 'metric': 'PE/PB'},
-        'NDX': {'name': '纳斯达克100', 'role': 'overseas_tech', 'metric': 'PE/PB'}
+        'NDX': {'name': '纳斯达克100', 'role': 'overseas_tech', 'metric': 'PE/PB'},
+        'HKTECH': {'name': '恒生科技', 'role': 'china_offshore_growth', 'metric': 'PE/PB'}
     }
 
     def valuation_meta(index_code_value, fallback_role='domestic_beta'):
@@ -1491,11 +1507,11 @@ elif menu == "4. 估值温度计与测算工具":
         if asset_res.get('hasHistory'):
             return f"有历史数据：按{meta['metric']}校准"
         role = info.get('role')
-        if role in ('overseas_broad', 'overseas_tech'):
+        if role in ('overseas_broad', 'overseas_tech', 'china_offshore_growth'):
             return f"缺{meta['metric']}历史：1.0x，关注汇率/QDII溢价"
         if role == 'dividend_income':
             return f"缺{meta['metric']}历史：1.0x，不判断高股息低估"
-        if role == 'tech_growth':
+        if role in ('tech_growth', 'small_cap'):
             return f"缺{meta['metric']}历史：1.0x，高波动不放大"
         return f"缺{meta['metric']}历史：1.0x 基础计划"
 
@@ -1520,7 +1536,7 @@ elif menu == "4. 估值温度计与测算工具":
             missing_detail.append(f"{idx}: " + "；".join(linked_assets))
         st.warning("资产池缺少估值数据：" + ("；".join(missing_detail) if missing_detail else "无"))
 
-    index_order = ["H30269", "000015", "932039", "HSHYLV", "000300", "000510", "000905", "000688", "SPX", "NDX"]
+    index_order = ["H30269", "000015", "932039", "HSHYLV", "000300", "000510", "000905", "000852", "000688", "HKTECH", "SPX", "NDX"]
     index_options = [
         f"{code} ({valuation_meta(code)['name']})" + ("" if code in valuation_index_set else " [无历史数据]")
         for code in index_order
@@ -1865,10 +1881,12 @@ elif menu == "6. 风险压力测试":
             'cash': stress_drawdown_cash,
             'dividend_income': stress_drawdown_dividend,
             'domestic_beta': stress_drawdown_domestic,
+            'small_cap': stress_drawdown_tech,
             'tech_growth': stress_drawdown_tech,
             'overseas_beta': stress_drawdown_overseas,
             'overseas_broad': stress_drawdown_overseas,
             'overseas_tech': stress_drawdown_overseas,
+            'china_offshore_growth': stress_drawdown_overseas,
             'hedge': stress_drawdown_hedge,
             'bond_duration': stress_drawdown_hedge,
             'cashflow_alt': stress_drawdown_tech
@@ -1877,10 +1895,12 @@ elif menu == "6. 风险压力测试":
             'cash': 0.0,
             'dividend_income': stress_div_drop,
             'domestic_beta': 0.0,
+            'small_cap': 0.0,
             'tech_growth': 0.0,
             'overseas_beta': 0.0,
             'overseas_broad': 0.0,
             'overseas_tech': 0.0,
+            'china_offshore_growth': 0.0,
             'hedge': 0.0,
             'bond_duration': stress_div_drop,
             'cashflow_alt': 100.0

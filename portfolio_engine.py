@@ -30,7 +30,11 @@ def evaluate_portfolio_fit(weights, assets, is_prohibit_aggressive=False):
         role_weights[role] = role_weights.get(role, 0.0) + weight
         market_weights[market] = market_weights.get(market, 0.0) + weight
 
-    tech_weight = role_weights.get('tech_growth', 0.0) + role_weights.get('overseas_tech', 0.0)
+    tech_weight = (
+        role_weights.get('tech_growth', 0.0)
+        + role_weights.get('overseas_tech', 0.0)
+        + role_weights.get('china_offshore_growth', 0.0)
+    )
     dividend_weight = role_weights.get('dividend_income', 0.0)
     messages = []
     limits = RULES['concentration']
@@ -385,6 +389,10 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
                 'zone': "宽基估值数据不足",
                 'metric': "PE/PB 历史"
             },
+            'small_cap': {
+                'zone': "小盘估值数据不足",
+                'metric': "PE/PB 历史"
+            },
             'tech_growth': {
                 'zone': "科技成长估值数据不足",
                 'metric': "PE/PB 历史"
@@ -397,6 +405,10 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
                 'zone': "海外科技估值数据不足",
                 'metric': "本地估值历史"
             },
+            'china_offshore_growth': {
+                'zone': "离岸中国成长估值数据不足",
+                'metric': "本地估值历史"
+            },
             'overseas_beta': {
                 'zone': "海外权益估值数据不足",
                 'metric': "本地估值历史"
@@ -406,7 +418,7 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
             'zone': "估值数据不足",
             'metric': "估值历史"
         })
-        overseas_risk_tip = "注意汇率、QDII 溢价与跟踪误差风险。" if role in ['overseas_broad', 'overseas_tech', 'overseas_beta'] else ""
+        overseas_risk_tip = "注意汇率、QDII 溢价与跟踪误差风险。" if role in ['overseas_broad', 'overseas_tech', 'overseas_beta', 'china_offshore_growth'] else ""
         return {
             'hasHistory': False,
             'percentile': 50.0,
@@ -507,22 +519,27 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
             else:
                 tips += " 现金缓冲池默认安全测试未通过，先补现金缓冲，不要因低估强行加仓。"
 
-    elif role == 'domestic_beta':
+    elif role in ['domestic_beta', 'small_cap']:
         if pe_pct is not None:
             percentile = max(pe_pct, pb_pct if pb_pct is not None else pe_pct)
         
         if percentile <= 30.0:
-            valuation_zone = "极具性价比 (国内宽基低估)"
-            factor = 1.2
-            tips = "提示：国内宽基 PE/PB 估值处于历史低位，长期配置性价比凸显，定投系数上调至 1.2x。"
+            if role == 'small_cap':
+                valuation_zone = "小盘估值低位"
+                factor = 1.0
+                tips = "提示：小盘估值处于历史低位，但波动和流动性风险较高，定投系数不超过 1.0x。"
+            else:
+                valuation_zone = "极具性价比 (国内宽基低估)"
+                factor = 1.2
+                tips = "提示：国内宽基 PE/PB 估值处于历史低位，长期配置性价比凸显，定投系数上调至 1.2x。"
         elif percentile <= 70.0:
             valuation_zone = "合理估值区间 (估值中性)"
-            factor = 1.0
-            tips = "提示：宽基估值处于历史常态水平，建议按基础定投稳步积累，系数 1.0x。"
+            factor = 0.8 if role == 'small_cap' else 1.0
+            tips = "提示：小盘估值中性时保持克制的小额定投，系数 0.8x。" if role == 'small_cap' else "提示：宽基估值处于历史常态水平，建议按基础定投稳步积累，系数 1.0x。"
         else:
-            valuation_zone = "估值偏贵区间 (宽基估值高企)"
-            factor = 0.6
-            tips = "提示：国内宽基 PE/PB 已进入历史高估区域，适当下调定投金额，系数 0.6x。"
+            valuation_zone = "估值偏贵区间 (小盘估值高企)" if role == 'small_cap' else "估值偏贵区间 (宽基估值高企)"
+            factor = 0.3 if role == 'small_cap' else 0.6
+            tips = "提示：小盘风险溢价不足且估值偏高，定投系数下调至 0.3x。" if role == 'small_cap' else "提示：国内宽基 PE/PB 已进入历史高估区域，适当下调定投金额，系数 0.6x。"
 
     elif role == 'tech_growth':
         if pe_pct is not None:
@@ -541,12 +558,12 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
             factor = 0.3
             tips = "提示：科技成长股情绪过热，估值高位溢价，为防范高位被套，定投系数严格下调至 0.3x。"
 
-    elif role in ['overseas_broad', 'overseas_tech', 'overseas_beta']:
+    elif role in ['overseas_broad', 'overseas_tech', 'overseas_beta', 'china_offshore_growth']:
         if not pe_list:
             valuation_zone = "海外估值数据不足"
             factor = 1.0
             tips = "提示：当前缺少该海外资产的本地估值历史，保持 1.0x 基础计划，不生成低估/高估判断。注意汇率、QDII 溢价与跟踪误差风险。"
-        elif role == 'overseas_tech':
+        elif role in ['overseas_tech', 'china_offshore_growth']:
             percentile = pe_pct if pe_pct is not None else 50.0
 
             if percentile <= 25.0:

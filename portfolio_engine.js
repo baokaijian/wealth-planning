@@ -55,7 +55,9 @@ const portfolioEngine = {
             roleWeights[role] = (roleWeights[role] || 0.0) + weight;
             marketWeights[market] = (marketWeights[market] || 0.0) + weight;
         });
-        const techWeight = (roleWeights.tech_growth || 0.0) + (roleWeights.overseas_tech || 0.0);
+        const techWeight = (roleWeights.tech_growth || 0.0)
+            + (roleWeights.overseas_tech || 0.0)
+            + (roleWeights.china_offshore_growth || 0.0);
         const dividendWeight = roleWeights.dividend_income || 0.0;
         const messages = [];
         const limits = planningRules.concentration;
@@ -442,6 +444,10 @@ const portfolioEngine = {
                     zone: "宽基估值数据不足",
                     metric: "PE/PB 历史"
                 },
+                small_cap: {
+                    zone: "小盘估值数据不足",
+                    metric: "PE/PB 历史"
+                },
                 tech_growth: {
                     zone: "科技成长估值数据不足",
                     metric: "PE/PB 历史"
@@ -454,6 +460,10 @@ const portfolioEngine = {
                     zone: "海外科技估值数据不足",
                     metric: "本地估值历史"
                 },
+                china_offshore_growth: {
+                    zone: "离岸中国成长估值数据不足",
+                    metric: "本地估值历史"
+                },
                 overseas_beta: {
                     zone: "海外权益估值数据不足",
                     metric: "本地估值历史"
@@ -463,7 +473,7 @@ const portfolioEngine = {
                 zone: "估值数据不足",
                 metric: "估值历史"
             };
-            const overseasRiskTip = (role === 'overseas_broad' || role === 'overseas_tech' || role === 'overseas_beta')
+            const overseasRiskTip = (role === 'overseas_broad' || role === 'overseas_tech' || role === 'overseas_beta' || role === 'china_offshore_growth')
                 ? "注意汇率、QDII 溢价与跟踪误差风险。"
                 : "";
             return {
@@ -550,22 +560,32 @@ const portfolioEngine = {
                     : "现金缓冲池默认安全测试未通过，先补现金缓冲，不要因低估强行加仓。";
                 tips += ` ${capReason}`;
             }
-        } else if (role === 'domestic_beta') {
+        } else if (role === 'domestic_beta' || role === 'small_cap') {
             // 宽基看 PE/PB 估值百分位（PE 越低代表越低估，低估时定投调高）
             if (pePct !== null) percentile = Math.max(pePct, pbPct !== null ? pbPct : pePct);
 
             if (percentile <= 30.0) {
-                valuationZone = "极具性价比 (国内宽基低估)";
-                factor = 1.2;
-                tips = "提示：国内宽基 PE/PB 估值处于历史低位，长期配置性价比凸显，定投系数上调至 1.2x。";
+                if (role === 'small_cap') {
+                    valuationZone = "小盘估值低位";
+                    factor = 1.0;
+                    tips = "提示：小盘估值处于历史低位，但波动和流动性风险较高，定投系数不超过 1.0x。";
+                } else {
+                    valuationZone = "极具性价比 (国内宽基低估)";
+                    factor = 1.2;
+                    tips = "提示：国内宽基 PE/PB 估值处于历史低位，长期配置性价比凸显，定投系数上调至 1.2x。";
+                }
             } else if (percentile <= 70.0) {
                 valuationZone = "合理估值区间 (估值中性)";
-                factor = 1.0;
-                tips = "提示：宽基估值处于历史常态水平，建议按基础定投稳步积累，系数 1.0x。";
+                factor = role === 'small_cap' ? 0.8 : 1.0;
+                tips = role === 'small_cap'
+                    ? "提示：小盘估值中性时保持克制的小额定投，系数 0.8x。"
+                    : "提示：宽基估值处于历史常态水平，建议按基础定投稳步积累，系数 1.0x。";
             } else {
-                valuationZone = "估值偏贵区间 (宽基估值高企)";
-                factor = 0.6;
-                tips = "提示：国内宽基 PE/PB 已进入历史高估区域，适当下调定投金额，系数 0.6x。";
+                valuationZone = role === 'small_cap' ? "估值偏贵区间 (小盘估值高企)" : "估值偏贵区间 (宽基估值高企)";
+                factor = role === 'small_cap' ? 0.3 : 0.6;
+                tips = role === 'small_cap'
+                    ? "提示：小盘风险溢价不足且估值偏高，定投系数下调至 0.3x。"
+                    : "提示：国内宽基 PE/PB 已进入历史高估区域，适当下调定投金额，系数 0.6x。";
             }
         } else if (role === 'tech_growth') {
             // 科技成长看估值和波动回撤区间
@@ -584,12 +604,12 @@ const portfolioEngine = {
                 factor = 0.3;
                 tips = "提示：科技成长股情绪过热，估值高位溢价，为防范高位被套，定投系数严格下调至 0.3x。";
             }
-        } else if (role === 'overseas_broad' || role === 'overseas_tech' || role === 'overseas_beta') {
+        } else if (role === 'overseas_broad' || role === 'overseas_tech' || role === 'overseas_beta' || role === 'china_offshore_growth') {
             if (peList.length === 0) {
                 valuationZone = "海外估值数据不足";
                 factor = 1.0;
                 tips = "提示：当前缺少该海外资产的本地估值历史，保持 1.0x 基础计划，不生成低估/高估判断。注意汇率、QDII 溢价与跟踪误差风险。";
-            } else if (role === 'overseas_tech') {
+            } else if (role === 'overseas_tech' || role === 'china_offshore_growth') {
                 percentile = pePct !== null ? pePct : 50.0;
 
                 if (percentile <= 25.0) {
