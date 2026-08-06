@@ -72,7 +72,7 @@
     }
   },
   "backtest": {
-    "generated_at": "2026-08-05T11:14:30+00:00",
+    "generated_at": "2026-08-06T11:14:47+00:00",
     "methodology": {
       "history": "public daily forward-adjusted closing prices",
       "return_scope": "adjusted-price total-return proxy before investor taxes",
@@ -84,224 +84,224 @@
     },
     "data_ranges": {
       "511880": {
-        "start_date": "2023-12-12",
-        "end_date": "2026-08-05",
+        "start_date": "2023-12-13",
+        "end_date": "2026-08-06",
         "observations": 641
       },
       "511360": {
-        "start_date": "2023-12-12",
-        "end_date": "2026-08-05",
-        "observations": 641
+        "start_date": "2023-12-14",
+        "end_date": "2026-08-06",
+        "observations": 640
       },
       "512890": {
-        "start_date": "2023-12-12",
-        "end_date": "2026-08-05",
+        "start_date": "2023-12-13",
+        "end_date": "2026-08-06",
         "observations": 641
       },
       "510880": {
-        "start_date": "2023-12-12",
-        "end_date": "2026-08-05",
+        "start_date": "2023-12-13",
+        "end_date": "2026-08-06",
         "observations": 641
       },
       "561960": {
-        "start_date": "2023-12-12",
-        "end_date": "2026-08-05",
-        "observations": 641
+        "start_date": "2023-12-14",
+        "end_date": "2026-08-06",
+        "observations": 640
       },
       "513530": {
-        "start_date": "2023-12-12",
-        "end_date": "2026-08-05",
+        "start_date": "2023-12-13",
+        "end_date": "2026-08-06",
         "observations": 641
       },
       "510300": {
-        "start_date": "2023-12-12",
-        "end_date": "2026-08-05",
+        "start_date": "2023-12-13",
+        "end_date": "2026-08-06",
         "observations": 641
       },
       "563360": {
         "start_date": "2024-10-15",
-        "end_date": "2026-08-05",
-        "observations": 441
+        "end_date": "2026-08-06",
+        "observations": 442
       },
       "510500": {
-        "start_date": "2023-12-12",
-        "end_date": "2026-08-05",
+        "start_date": "2023-12-13",
+        "end_date": "2026-08-06",
         "observations": 641
       },
       "588000": {
-        "start_date": "2023-12-12",
-        "end_date": "2026-08-05",
+        "start_date": "2023-12-13",
+        "end_date": "2026-08-06",
         "observations": 641
       },
       "513500": {
-        "start_date": "2023-12-12",
-        "end_date": "2026-08-05",
+        "start_date": "2023-12-13",
+        "end_date": "2026-08-06",
         "observations": 641
       },
       "513100": {
-        "start_date": "2023-12-12",
-        "end_date": "2026-08-05",
+        "start_date": "2023-12-13",
+        "end_date": "2026-08-06",
         "observations": 641
       },
       "518880": {
-        "start_date": "2023-12-12",
-        "end_date": "2026-08-05",
+        "start_date": "2023-12-13",
+        "end_date": "2026-08-06",
         "observations": 641
       },
       "511520": {
-        "start_date": "2023-12-12",
-        "end_date": "2026-08-05",
+        "start_date": "2023-12-13",
+        "end_date": "2026-08-06",
         "observations": 641
       },
       "511010": {
-        "start_date": "2023-12-12",
-        "end_date": "2026-08-05",
+        "start_date": "2023-12-13",
+        "end_date": "2026-08-06",
         "observations": 641
       },
       "508099": {
         "start_date": "2023-12-13",
-        "end_date": "2026-08-05",
-        "observations": 640
+        "end_date": "2026-08-06",
+        "observations": 641
       },
       "512100": {
-        "start_date": "2023-12-12",
-        "end_date": "2026-08-05",
+        "start_date": "2023-12-13",
+        "end_date": "2026-08-06",
         "observations": 641
       },
       "513180": {
         "start_date": "2021-05-25",
-        "end_date": "2026-08-05",
-        "observations": 1262
+        "end_date": "2026-08-06",
+        "observations": 1263
       }
     },
     "quote_alignment_check": {
       "status": "passed",
       "compared_assets": 18,
-      "max_absolute_difference_pct": 0.3448,
+      "max_absolute_difference_pct": 0.4545,
       "details": {
         "511880": {
-          "history_end": "2026-08-05",
+          "history_end": "2026-08-06",
           "history_close": 100.67,
-          "quote_price": 100.669,
+          "quote_price": 100.672,
           "same_trading_date": true,
-          "absolute_difference_pct": 0.001
+          "absolute_difference_pct": 0.002
         },
         "511360": {
-          "history_end": "2026-08-05",
-          "history_close": 113.76,
-          "quote_price": 113.755,
+          "history_end": "2026-08-06",
+          "history_close": 113.764,
+          "quote_price": 113.764,
           "same_trading_date": true,
-          "absolute_difference_pct": 0.0044
+          "absolute_difference_pct": 0.0
         },
         "512890": {
-          "history_end": "2026-08-05",
-          "history_close": 1.16,
-          "quote_price": 1.164,
+          "history_end": "2026-08-06",
+          "history_close": 1.17,
+          "quote_price": 1.166,
           "same_trading_date": true,
-          "absolute_difference_pct": 0.3448
+          "absolute_difference_pct": 0.3419
         },
         "510880": {
-          "history_end": "2026-08-05",
-          "history_close": 3.23,
-          "quote_price": 3.228,
+          "history_end": "2026-08-06",
+          "history_close": 3.29,
+          "quote_price": 3.288,
           "same_trading_date": true,
-          "absolute_difference_pct": 0.0619
+          "absolute_difference_pct": 0.0608
         },
         "561960": {
-          "history_end": "2026-08-05",
-          "history_close": 1.24,
-          "quote_price": 1.244,
+          "history_end": "2026-08-06",
+          "history_close": 1.248,
+          "quote_price": 1.248,
           "same_trading_date": true,
-          "absolute_difference_pct": 0.3226
+          "absolute_difference_pct": 0.0
         },
         "513530": {
-          "history_end": "2026-08-05",
-          "history_close": 1.58,
-          "quote_price": 1.575,
+          "history_end": "2026-08-06",
+          "history_close": 1.57,
+          "quote_price": 1.567,
           "same_trading_date": true,
-          "absolute_difference_pct": 0.3165
+          "absolute_difference_pct": 0.1911
         },
         "510300": {
-          "history_end": "2026-08-05",
+          "history_end": "2026-08-06",
           "history_close": 4.71,
-          "quote_price": 4.714,
+          "quote_price": 4.709,
           "same_trading_date": true,
-          "absolute_difference_pct": 0.0849
+          "absolute_difference_pct": 0.0212
         },
         "563360": {
-          "history_end": "2026-08-05",
-          "history_close": 1.298,
-          "quote_price": 1.298,
+          "history_end": "2026-08-06",
+          "history_close": 1.299,
+          "quote_price": 1.299,
           "same_trading_date": true,
           "absolute_difference_pct": 0.0
         },
         "510500": {
-          "history_end": "2026-08-05",
-          "history_close": 7.82,
-          "quote_price": 7.815,
+          "history_end": "2026-08-06",
+          "history_close": 7.83,
+          "quote_price": 7.832,
           "same_trading_date": true,
-          "absolute_difference_pct": 0.0639
+          "absolute_difference_pct": 0.0255
         },
         "588000": {
-          "history_end": "2026-08-05",
+          "history_end": "2026-08-06",
           "history_close": 1.79,
-          "quote_price": 1.786,
+          "quote_price": 1.794,
           "same_trading_date": true,
           "absolute_difference_pct": 0.2235
         },
         "513500": {
-          "history_end": "2026-08-05",
-          "history_close": 2.67,
-          "quote_price": 2.669,
+          "history_end": "2026-08-06",
+          "history_close": 2.69,
+          "quote_price": 2.69,
           "same_trading_date": true,
-          "absolute_difference_pct": 0.0375
+          "absolute_difference_pct": 0.0
         },
         "513100": {
-          "history_end": "2026-08-05",
-          "history_close": 2.27,
-          "quote_price": 2.267,
+          "history_end": "2026-08-06",
+          "history_close": 2.24,
+          "quote_price": 2.244,
           "same_trading_date": true,
-          "absolute_difference_pct": 0.1322
+          "absolute_difference_pct": 0.1786
         },
         "518880": {
-          "history_end": "2026-08-05",
-          "history_close": 8.64,
-          "quote_price": 8.64,
+          "history_end": "2026-08-06",
+          "history_close": 8.8,
+          "quote_price": 8.795,
           "same_trading_date": true,
-          "absolute_difference_pct": 0.0
+          "absolute_difference_pct": 0.0568
         },
         "511520": {
-          "history_end": "2026-08-05",
-          "history_close": 118.2,
-          "quote_price": 118.196,
+          "history_end": "2026-08-06",
+          "history_close": 118.21,
+          "quote_price": 118.212,
           "same_trading_date": true,
-          "absolute_difference_pct": 0.0034
+          "absolute_difference_pct": 0.0017
         },
         "511010": {
-          "history_end": "2026-08-05",
-          "history_close": 141.0,
-          "quote_price": 141.0,
+          "history_end": "2026-08-06",
+          "history_close": 141.02,
+          "quote_price": 141.015,
           "same_trading_date": true,
-          "absolute_difference_pct": 0.0
+          "absolute_difference_pct": 0.0035
         },
         "508099": {
-          "history_end": "2026-08-05",
+          "history_end": "2026-08-06",
           "history_close": 1.1,
-          "quote_price": 1.1,
+          "quote_price": 1.095,
           "same_trading_date": true,
-          "absolute_difference_pct": 0.0
+          "absolute_difference_pct": 0.4545
         },
         "512100": {
-          "history_end": "2026-08-05",
-          "history_close": 3.04,
-          "quote_price": 3.035,
+          "history_end": "2026-08-06",
+          "history_close": 3.05,
+          "quote_price": 3.049,
           "same_trading_date": true,
-          "absolute_difference_pct": 0.1645
+          "absolute_difference_pct": 0.0328
         },
         "513180": {
-          "history_end": "2026-08-05",
-          "history_close": 0.624,
-          "quote_price": 0.624,
+          "history_end": "2026-08-06",
+          "history_close": 0.61,
+          "quote_price": 0.61,
           "same_trading_date": true,
           "absolute_difference_pct": 0.0
         }
@@ -311,37 +311,37 @@
       "conservative": {
         "name": "保守型现金流策略",
         "start_date": "2024-10-15",
-        "end_date": "2026-08-05",
-        "trading_days": 441,
-        "total_return_pct": 18.89,
-        "cagr_pct": 10.07,
+        "end_date": "2026-08-06",
+        "trading_days": 442,
+        "total_return_pct": 19.49,
+        "cagr_pct": 10.35,
         "annualized_volatility_pct": 8.86,
         "max_drawdown_pct": -5.48,
-        "ending_value_from_100": 118.89,
+        "ending_value_from_100": 119.49,
         "estimated_total_cost_from_100": 0.0321
       },
       "balanced": {
         "name": "均衡型增长配置",
         "start_date": "2024-10-15",
-        "end_date": "2026-08-05",
-        "trading_days": 441,
-        "total_return_pct": 25.97,
-        "cagr_pct": 13.65,
-        "annualized_volatility_pct": 11.65,
+        "end_date": "2026-08-06",
+        "trading_days": 442,
+        "total_return_pct": 26.38,
+        "cagr_pct": 13.83,
+        "annualized_volatility_pct": 11.64,
         "max_drawdown_pct": -8.6,
-        "ending_value_from_100": 125.97,
+        "ending_value_from_100": 126.38,
         "estimated_total_cost_from_100": 0.0322
       },
       "aggressive": {
         "name": "积极型成长突破",
         "start_date": "2024-10-15",
-        "end_date": "2026-08-05",
-        "trading_days": 441,
-        "total_return_pct": 36.14,
-        "cagr_pct": 18.65,
-        "annualized_volatility_pct": 14.92,
+        "end_date": "2026-08-06",
+        "trading_days": 442,
+        "total_return_pct": 36.39,
+        "cagr_pct": 18.74,
+        "annualized_volatility_pct": 14.9,
         "max_drawdown_pct": -10.79,
-        "ending_value_from_100": 136.14,
+        "ending_value_from_100": 136.39,
         "estimated_total_cost_from_100": 0.0322
       }
     }
