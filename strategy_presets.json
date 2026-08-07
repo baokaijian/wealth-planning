@@ -72,7 +72,7 @@
     }
   },
   "backtest": {
-    "generated_at": "2026-08-07T16:31:06+08:00",
+    "generated_at": "2026-08-07T09:54:22+00:00",
     "methodology": {
       "history": "public daily forward-adjusted closing prices",
       "return_scope": "adjusted-price total-return proxy before investor taxes",
@@ -89,9 +89,9 @@
         "observations": 641
       },
       "511360": {
-        "start_date": "2023-12-14",
+        "start_date": "2023-12-15",
         "end_date": "2026-08-07",
-        "observations": 641
+        "observations": 640
       },
       "512890": {
         "start_date": "2023-12-14",
@@ -188,10 +188,10 @@
         },
         "511360": {
           "history_end": "2026-08-07",
-          "history_close": 113.78,
+          "history_close": 113.775,
           "quote_price": 113.775,
           "same_trading_date": true,
-          "absolute_difference_pct": 0.0044
+          "absolute_difference_pct": 0.0
         },
         "512890": {
           "history_end": "2026-08-07",
@@ -313,11 +313,11 @@
         "start_date": "2024-10-15",
         "end_date": "2026-08-07",
         "trading_days": 443,
-        "total_return_pct": 19.73,
+        "total_return_pct": 19.72,
         "cagr_pct": 10.46,
         "annualized_volatility_pct": 8.85,
         "max_drawdown_pct": -5.48,
-        "ending_value_from_100": 119.73,
+        "ending_value_from_100": 119.72,
         "estimated_total_cost_from_100": 0.0321
       },
       "balanced": {
