@@ -1026,7 +1026,7 @@
         <div id="tab-family-view" class="tab-content active">
             <!-- 隐私声明 -->
             <div class="privacy-banner">
-                🔒 <strong>隐私声明：</strong> 本问卷仅在您的浏览器本地运行，所有输入均用于当前页面的计算，<strong>不会上传到服务器，也不会被后台保存</strong>。刷新页面后默认清空全部数据。若您希望在本机浏览器上暂存输入，必须主动点击右侧结果面板中的“保存到本机浏览器”按钮。
+                🔒 <strong>隐私声明：</strong> 您填写的家庭问卷、策略参数、资产权重和持仓等输入会自动保存在<strong>当前浏览器的本地存储（localStorage）</strong>，下次打开时自动恢复；<strong>不会上传到服务器，也不会被后台保存</strong>。如使用共享设备，请在离开前点击“清空本地缓存”。
             </div>
 
             <div class="flex-row-layouts">
@@ -1336,9 +1336,10 @@
                     <!-- 0. 控制与导出按钮 -->
                     <div class="card" style="padding: 18px; margin-bottom: 20px;">
                         <div class="btn-row">
-                            <button class="action-btn" onclick="saveFamilyToLocal()">💾 保存到本机浏览器</button>
-                            <button class="action-btn danger" onclick="clearFamilyData()">🧹 清空全部数据</button>
+                            <button class="action-btn" onclick="saveFamilyToLocal()">💾 立即保存到本机</button>
+                            <button class="action-btn danger" onclick="clearFamilyData()">🧹 清空本地缓存</button>
                         </div>
+                        <div id="local-cache-status" role="status" aria-live="polite" style="font-size:0.78rem;color:var(--text-secondary);margin:8px 0 2px;line-height:1.5;">自动保存准备中 · 数据仅保存在此浏览器</div>
                         <div class="btn-row">
                             <button class="action-btn secondary" onclick="exportFamilyJSON()">📥 导出配置 JSON</button>
                             <button class="action-btn secondary" onclick="copyFamilyMarkdown()">📋 复制 Markdown 报告</button>
@@ -2201,6 +2202,24 @@
             calculationTimer: null
         };
 
+        const LOCAL_APP_STORAGE_KEY = 'wealth_planning_inputs_v1';
+        const LEGACY_FAMILY_STORAGE_KEY = 'family_profile_data';
+        const LOCAL_APP_STORAGE_VERSION = 1;
+        const LOCAL_PERSISTED_CONTROL_IDS = [
+            'principal-input', 'monthly-target-input', 'buffer-input', 'rate-slider',
+            'strategy-preset', 't1-pie-view',
+            't2-start-month', 't2-stress-income-drop', 't2-delay-months',
+            't2-pause-year-checkbox', 't2-harvest-checkbox', 't2-harvest-scenario',
+            'base-dca-input', 't3-dca-mode', 't3-index-selector',
+            't4-incremental-mode', 't4-new-cash-input',
+            'stress-drawdown-cash', 'stress-drawdown-dividend', 'stress-drawdown-domestic',
+            'stress-drawdown-tech', 'stress-drawdown-overseas', 'stress-drawdown-hedge',
+            'stress-divdrop-cash', 'stress-divdrop-dividend', 'stress-divdrop-hedge',
+            'stress-buffer-months'
+        ];
+        let localSaveTimer = null;
+        let localPersistenceReady = false;
+
         const DEFAULT_ASSETS_CONFIG = [
             {"code": "511880", "name": "银华日利货币 ETF", "type": "ETF", "role": "cash", "target_index_code": null, "market": "CN", "volatility_level": "low", "income_type": "cash_interest", "rebalance_band": 1, "weight": 4.0, "estimated_yield": 1.8, "estimated_return": 1.8, "distribution_months": {"1": 0.083, "2": 0.083, "3": 0.083, "4": 0.083, "5": 0.083, "6": 0.083, "7": 0.083, "8": 0.083, "9": 0.083, "10": 0.083, "11": 0.083, "12": 0.083}, "strategy_note": "现金类底仓，承担日常流动性与避免被迫卖出的缓冲功能", "risk_note": "不构成投资建议；货币市场收益率会随利率下行而下降，不承诺利息或收益"},
             {"code": "511360", "name": "短融 ETF", "type": "ETF", "role": "cash", "target_index_code": null, "market": "CN", "volatility_level": "low", "income_type": "cash_interest", "rebalance_band": 1, "weight": 2.0, "estimated_yield": 2.7, "estimated_return": 2.8, "distribution_months": {"3": 0.25, "6": 0.25, "9": 0.25, "12": 0.25}, "strategy_note": "短债/短融类现金增强，用于提高闲置资金票息但仍服务流动性", "risk_note": "不构成投资建议；短债也存在利率与流动性波动，不承诺分红、票息或收益"},
@@ -2243,15 +2262,18 @@
             // 首次请求并渲染
             await loadPreferredMarketData();
             
-            // 运行首次压力测试以显示结果
-            runStressTest();
-
             // 初始化家庭资产体检与配置数据
             initFamilyProfile();
             initFamilyStepperNavigation();
 
+            // 先恢复本机输入，避免初始化计算把默认值误判为用户填写。
+            const localRestoreResult = restoreLocalAppData();
+
             // 同步一次策略控制台输入数据至其余部分
             updateCoreState();
+            updateStressTestLabels();
+            runStressTest();
+            initLocalPersistence(localRestoreResult);
             initWealthGame();
             updateContextPanels(state.currentTab);
 
@@ -3012,11 +3034,12 @@
             const presetSelect = document.getElementById('strategy-preset');
             if (presetSelect) presetSelect.value = 'custom';
             scheduleCalculationUpdate();
+            scheduleLocalAutoSave();
         }
 
-        function onHoldingChanged() { syncAssetInputs(); scheduleCalculationUpdate(); }
-        function onScenarioChanged() { scheduleCalculationUpdate(); }
-        function onCoreAssumptionChanged() { syncAssetInputs(); scheduleCalculationUpdate(); }
+        function onHoldingChanged() { syncAssetInputs(); scheduleCalculationUpdate(); scheduleLocalAutoSave(); }
+        function onScenarioChanged() { scheduleCalculationUpdate(); scheduleLocalAutoSave(); }
+        function onCoreAssumptionChanged() { syncAssetInputs(); scheduleCalculationUpdate(); scheduleLocalAutoSave(); }
         function userInputsChanged() { onCoreAssumptionChanged(); } // 旧内联调用兼容别名
 
         // 应用策略预设
@@ -3132,6 +3155,7 @@
             }
 
             scheduleCalculationUpdate();
+            scheduleLocalAutoSave();
         }
 
         function scheduleCalculationUpdate(delay = 120) {
@@ -4287,16 +4311,155 @@
         }
 
         function initFamilyProfile() {
-            const cached = localStorage.getItem('family_profile_data');
-            if (cached) {
-                try {
-                    const parsed = JSON.parse(cached);
-                    restoreFamilyFormData(parsed);
-                } catch (e) {
-                    console.error("恢复家庭资产缓存失败: ", e);
-                }
-            }
             calculateFamilyProfile();
+        }
+
+        function isPlainObject(value) {
+            return value !== null && typeof value === 'object' && !Array.isArray(value);
+        }
+
+        function readPersistedControlValues() {
+            const controls = {};
+            LOCAL_PERSISTED_CONTROL_IDS.forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                controls[id] = el.type === 'checkbox' ? el.checked : el.value;
+            });
+            return controls;
+        }
+
+        function readPersistedAssetInputs() {
+            const assets = {};
+            Object.keys(state.assets).forEach(code => {
+                const weight = document.getElementById(`w_val_${code}`)?.value;
+                const impliedYield = document.getElementById(`y_val_${code}`)?.value;
+                const holding = document.getElementById(`hold_input_${code}`)?.value;
+                assets[code] = { weight, impliedYield, holding };
+            });
+            return assets;
+        }
+
+        function collectLocalAppData() {
+            return {
+                version: LOCAL_APP_STORAGE_VERSION,
+                savedAt: new Date().toISOString(),
+                family: getFamilyFormData(),
+                controls: readPersistedControlValues(),
+                assets: readPersistedAssetInputs()
+            };
+        }
+
+        function setLocalCacheStatus(message, isError = false) {
+            const status = document.getElementById('local-cache-status');
+            if (!status) return;
+            status.textContent = message;
+            status.style.color = isError ? 'var(--accent-red)' : 'var(--text-secondary)';
+        }
+
+        function saveLocalAppData(showAlert = false) {
+            if (!localPersistenceReady && !showAlert) return false;
+            try {
+                localStorage.setItem(LOCAL_APP_STORAGE_KEY, JSON.stringify(collectLocalAppData()));
+                localStorage.removeItem(LEGACY_FAMILY_STORAGE_KEY);
+                const savedTime = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                setLocalCacheStatus(`已自动保存 ${savedTime} · 仅保存在此浏览器`);
+                if (showAlert) alert('💾 当前填写内容已保存到此浏览器，下次打开会自动恢复；数据不会上传到任何服务端。');
+                return true;
+            } catch (error) {
+                console.error('保存浏览器本地缓存失败:', error);
+                setLocalCacheStatus('自动保存失败，请检查浏览器是否允许本地存储', true);
+                if (showAlert) alert('浏览器本地保存失败，请检查隐私模式或存储权限。');
+                return false;
+            }
+        }
+
+        function scheduleLocalAutoSave(delay = 350) {
+            if (!localPersistenceReady) return;
+            if (localSaveTimer) clearTimeout(localSaveTimer);
+            setLocalCacheStatus('正在保存 · 数据仅保存在此浏览器');
+            const saveDelay = Number.isFinite(delay) ? delay : 350;
+            localSaveTimer = setTimeout(() => {
+                localSaveTimer = null;
+                saveLocalAppData(false);
+            }, saveDelay);
+        }
+
+        function restorePersistedControls(controls) {
+            if (!isPlainObject(controls)) return;
+            LOCAL_PERSISTED_CONTROL_IDS.forEach(id => {
+                if (!Object.prototype.hasOwnProperty.call(controls, id)) return;
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (el.type === 'checkbox') {
+                    el.checked = controls[id] === true;
+                } else if (controls[id] !== null && controls[id] !== undefined) {
+                    el.value = String(controls[id]);
+                }
+            });
+        }
+
+        function restorePersistedAssetInputs(assets) {
+            if (!isPlainObject(assets)) return;
+            Object.entries(assets).forEach(([code, values]) => {
+                if (!state.assets[code] || !isPlainObject(values)) return;
+                const mappings = [
+                    [`w_val_${code}`, 'weight'],
+                    [`y_val_${code}`, 'impliedYield'],
+                    [`hold_input_${code}`, 'holding']
+                ];
+                mappings.forEach(([id, key]) => {
+                    const value = Number(values[key]);
+                    const input = document.getElementById(id);
+                    if (input && Number.isFinite(value)) input.value = String(value);
+                });
+            });
+            syncAssetInputs();
+        }
+
+        function restoreLocalAppData() {
+            let payload = null;
+            let migratedLegacyData = false;
+            try {
+                const cached = localStorage.getItem(LOCAL_APP_STORAGE_KEY);
+                if (cached) {
+                    const parsed = JSON.parse(cached);
+                    if (isPlainObject(parsed) && parsed.version === LOCAL_APP_STORAGE_VERSION) payload = parsed;
+                }
+                if (!payload) {
+                    const legacy = localStorage.getItem(LEGACY_FAMILY_STORAGE_KEY);
+                    if (legacy) {
+                        const parsedLegacy = JSON.parse(legacy);
+                        if (isPlainObject(parsedLegacy)) {
+                            payload = { version: LOCAL_APP_STORAGE_VERSION, family: parsedLegacy };
+                            migratedLegacyData = true;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('恢复浏览器本地缓存失败:', error);
+                setLocalCacheStatus('未能读取本地缓存，已使用默认值', true);
+            }
+
+            if (!payload) return { restored: false, migratedLegacyData: false };
+            restoreFamilyFormData(payload.family);
+            restorePersistedControls(payload.controls);
+            restorePersistedAssetInputs(payload.assets);
+            calculateFamilyProfile();
+            return { restored: true, migratedLegacyData };
+        }
+
+        function initLocalPersistence(restoreResult = { restored: false, migratedLegacyData: false }) {
+            localPersistenceReady = true;
+            document.addEventListener('input', scheduleLocalAutoSave, true);
+            document.addEventListener('change', scheduleLocalAutoSave, true);
+            if (restoreResult.restored) {
+                setLocalCacheStatus(restoreResult.migratedLegacyData
+                    ? '已恢复旧版本地数据，并升级为自动保存'
+                    : '已从此浏览器恢复上次填写内容');
+                if (restoreResult.migratedLegacyData) saveLocalAppData(false);
+            } else {
+                setLocalCacheStatus('自动保存已开启 · 数据仅保存在此浏览器');
+            }
         }
 
         // 整理所有家庭表单数据
@@ -4962,17 +5125,18 @@
         }
 
         function saveFamilyToLocal() {
-            const data = getFamilyFormData();
-            localStorage.setItem('family_profile_data', JSON.stringify(data));
-            alert('💾 家庭财务体检数据已成功暂存在您的本地浏览器（localStorage）。下次打开时将自动加载。若要清除，请点击“清空全部数据”！');
+            saveLocalAppData(true);
         }
 
         function clearFamilyData() {
-            if (confirm('⚠️ 确定要清空家庭财务体检数据吗？这会彻底删除您在本板块填写的全部内容，以及浏览器本地缓存。')) {
-                localStorage.removeItem('family_profile_data');
+            if (confirm('⚠️ 确定要清空此浏览器保存的全部填写内容吗？家庭问卷、策略参数、权重、持仓及财富游戏进度都会恢复为默认值。')) {
+                if (localSaveTimer) clearTimeout(localSaveTimer);
+                localPersistenceReady = false;
+                localStorage.removeItem(LOCAL_APP_STORAGE_KEY);
+                localStorage.removeItem(LEGACY_FAMILY_STORAGE_KEY);
+                localStorage.removeItem(WEALTH_GAME_STORAGE_KEY);
                 resetFamilyForm();
-                calculateFamilyProfile();
-                alert('🧹 本地输入已全部重置，缓存已清空。');
+                window.location.reload();
             }
         }
 

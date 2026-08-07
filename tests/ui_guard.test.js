@@ -69,3 +69,17 @@ test('估值页面分别展示PE、PB和股息率百分位', () => {
   assert.match(html, /HSHYLV/);
   assert.match(html, /000688/);
 });
+
+test('填写内容使用版本化浏览器本地缓存并自动恢复', () => {
+  const html = fs.readFileSync(path.join(projectRoot, 'index.html'), 'utf8');
+
+  assert.match(html, /const LOCAL_APP_STORAGE_KEY = 'wealth_planning_inputs_v1'/);
+  assert.match(html, /document\.addEventListener\('input', scheduleLocalAutoSave, true\)/);
+  assert.match(html, /document\.addEventListener\('change', scheduleLocalAutoSave, true\)/);
+  assert.match(html, /localStorage\.setItem\(LOCAL_APP_STORAGE_KEY/);
+  assert.match(html, /restoreLocalAppData\(\)/);
+  assert.match(html, /localStorage\.removeItem\(LOCAL_APP_STORAGE_KEY\)/);
+  assert.match(html, /不会上传到服务器，也不会被后台保存/);
+  assert.equal(html.includes('刷新页面后默认清空全部数据'), false);
+  assert.equal(html.includes("fetch(LOCAL_APP_STORAGE_KEY"), false);
+});
