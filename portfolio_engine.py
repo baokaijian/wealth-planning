@@ -77,6 +77,13 @@ def calculate_portfolio(weights, assets, principal, buffer_seed, money_market_ra
 
     asset_details = []
 
+    # 组合费率与港股红利税：用于给出扣费扣税后的现金流口径（毛口径保持不变，向后兼容）。
+    costs = get_cost_config()
+    fee_pct = float(costs.get('portfolio_fee_bps', 0.0)) / 100.0
+    hk_tax_pct = float(costs.get('hk_dividend_tax_rate_pct', 0.0)) / 100.0
+    tax_markets = set(costs.get('dividend_tax_markets', ['HK']))
+    blended_cash_yield_after_cost = 0.0
+
     for code, asset in assets_dict.items():
         weight = float(weights.get(code, 0.0))
         total_weight += weight
@@ -89,6 +96,14 @@ def calculate_portfolio(weights, assets, principal, buffer_seed, money_market_ra
         stable_cashflow = is_stable_cashflow_asset(asset)
         expected_annual_div = allocated_amt * (current_yield / 100.0) * 10000.0 if stable_cashflow else 0.0  # 元
 
+        # 扣费（组合费率）与扣税（港股等市场红利税）后的稳定现金流收益率
+        net_yield = current_yield
+        if stable_cashflow:
+            net_yield = max(0.0, current_yield - fee_pct)
+            if asset.get('market') in tax_markets:
+                net_yield *= (1.0 - hk_tax_pct)
+            blended_cash_yield_after_cost += (weight / 100.0) * net_yield
+
         asset_details.append({
             'code': code,
             'name': asset.get('name', ''),
@@ -99,6 +114,7 @@ def calculate_portfolio(weights, assets, principal, buffer_seed, money_market_ra
             'weight': weight,
             'price': current_price,
             'yield': current_yield,
+            'netYieldAfterCost': round(net_yield, 4) if stable_cashflow else None,
             'estimated_return': est_return,
             'target_index_code': asset.get('target_index_code'),
             'rebalance_band': asset.get('rebalance_band', 3),
@@ -117,18 +133,25 @@ def calculate_portfolio(weights, assets, principal, buffer_seed, money_market_ra
         blended_total_return += (weight / 100.0) * est_return
 
     expected_annual_dividend = invest_principal * (blended_cash_yield / 100.0) * 10000.0  # 元
+    expected_annual_dividend_after_cost = invest_principal * (blended_cash_yield_after_cost / 100.0) * 10000.0  # 元
     expected_monthly_dividend = expected_annual_dividend / 12.0
+    expected_monthly_dividend_after_cost = expected_annual_dividend_after_cost / 12.0
     expected_monthly_growth = invest_principal * (blended_growth_return / 100.0) * 10000.0 / 12.0
 
     return {
         'investPrincipal': invest_principal,
         'totalWeight': total_weight,
         'blendedCashYield': blended_cash_yield,
+        'blendedCashYieldAfterCost': blended_cash_yield_after_cost,
         'blendedGrowthReturn': blended_growth_return,
         'blendedTotalReturn': blended_total_return,
         'expectedAnnualDividend': expected_annual_dividend,
+        'expectedAnnualDividendAfterCost': expected_annual_dividend_after_cost,
         'expectedMonthlyDividend': expected_monthly_dividend,
+        'expectedMonthlyDividendAfterCost': expected_monthly_dividend_after_cost,
         'expectedMonthlyGrowth': expected_monthly_growth,
+        'costNote': build_cost_note(costs),
+        'costParameters': costs,
         'assetDetails': asset_details
     }
 
@@ -156,10 +179,12 @@ def simulate_cashflow(
     start_month=1,
     stable_income_drop=0.0,
     delay_months=0,
-    pause_dividend_year=False
+    pause_dividend_year=False,
+    inflation_rate_pct=0.0
 ):
     """
     2. 36个月缓冲池流转模拟
+    inflation_rate_pct：可选年通胀率（0 表示月支取保持不变，默认关闭以保持既有行为）。
     """
     if isinstance(assets, list):
         assets_dict = {item['code']: item for item in assets}
@@ -248,8 +273,10 @@ def simulate_cashflow(
         current_interest = buffer_balance[-1] * (money_market_rate / 12.0)
         month_stable_income = month_dividend + month_cash_interest + current_interest
 
-        # 4) 缓冲池结转
-        next_balance = buffer_balance[-1] + month_stable_income + month_harvest - monthly_withdraw
+        # 4) 缓冲池结转（可选：按年通胀率逐月抬升支取额，默认关闭）
+        inflation_rate = max(0.0, float(inflation_rate_pct or 0.0))
+        effective_withdraw = monthly_withdraw * ((1.0 + inflation_rate / 100.0) ** ((t - 1) / 12.0))
+        next_balance = buffer_balance[-1] + month_stable_income + month_harvest - effective_withdraw
 
         dividend_income_history.append(month_dividend)
         cash_interest_income_history.append(month_cash_interest)
@@ -293,7 +320,8 @@ def calculate_cashflow_feasibility(
     start_month=1,
     stable_income_drop=0.0,
     delay_months=0,
-    pause_dividend_year=False
+    pause_dividend_year=False,
+    inflation_rate_pct=0.0
 ):
     """
     现金流可行性反推。所有结论只基于分红/票息/现金利息，不纳入卖出成长资产。
@@ -314,7 +342,8 @@ def calculate_cashflow_feasibility(
             start_month,
             stable_income_drop,
             delay_months,
-            pause_dividend_year
+            pause_dividend_year,
+            inflation_rate_pct
         )
         return sim['minBuffer'] > 0
 
@@ -373,6 +402,57 @@ def calculate_cashflow_feasibility(
         'minBufferMonths': min_buffer_months,
         'isTargetFeasibleWithoutHarvest': survives(target_monthly_withdraw, principal, buffer_seed) if target_monthly_withdraw > 0 else True
     }
+
+
+_DCA_ROLE_DEFAULTS = {
+    'dividend_income': {'metric': 'dividend_yield', 'low_percentile': 30.0, 'high_percentile': 70.0, 'factor_cheap': 1.3, 'factor_mid': 1.0, 'factor_expensive': 0.5, 'cap_dividend_weight': 45.0},
+    'domestic_beta': {'metric': 'pe_pb', 'low_percentile': 30.0, 'high_percentile': 70.0, 'factor_cheap': 1.2, 'factor_mid': 1.0, 'factor_expensive': 0.6},
+    'small_cap': {'metric': 'pe_pb', 'low_percentile': 30.0, 'high_percentile': 70.0, 'factor_cheap': 1.0, 'factor_mid': 0.8, 'factor_expensive': 0.3},
+    'tech_growth': {'metric': 'pe', 'low_percentile': 25.0, 'high_percentile': 75.0, 'factor_cheap': 1.0, 'factor_mid': 0.8, 'factor_expensive': 0.3},
+    'overseas_tech': {'metric': 'pe', 'low_percentile': 25.0, 'high_percentile': 75.0, 'factor_cheap': 1.0, 'factor_mid': 0.8, 'factor_expensive': 0.3},
+    'china_offshore_growth': {'metric': 'pe', 'low_percentile': 25.0, 'high_percentile': 75.0, 'factor_cheap': 1.0, 'factor_mid': 0.8, 'factor_expensive': 0.3},
+    'overseas_broad': {'metric': 'pe', 'low_percentile': 30.0, 'high_percentile': 70.0, 'factor_cheap': 1.0, 'factor_mid': 1.0, 'factor_expensive': 0.5},
+}
+
+
+def get_dca_role_config(role):
+    """读取 planning_rules.json 中的 DCA 估值分位阈值与系数，缺失时回退到内置默认值。"""
+    configured = ((RULES.get('dca') or {}).get('role_factors') or {}).get(role) or {}
+    defaults = _DCA_ROLE_DEFAULTS.get(role, {})
+    merged = dict(defaults)
+    merged.update(configured)
+    return merged
+
+
+_COST_DEFAULTS = {
+    'inflation_rate_pct': 2.0,
+    'portfolio_fee_bps': 25.0,
+    'hk_dividend_tax_rate_pct': 20.0,
+    'dividend_tax_markets': ['HK'],
+}
+
+
+def get_cost_config():
+    """读取 planning_rules.json 中的成本参数（组合费率、港股红利税率、通胀率）。"""
+    configured = RULES.get('costs') or {}
+    merged = dict(_COST_DEFAULTS)
+    merged.update(configured)
+    return merged
+
+
+def build_cost_note(costs):
+    """生成扣费扣税口径的中文说明，供界面展示。"""
+    parts = []
+    fee_bps = float(costs.get('portfolio_fee_bps', 0.0))
+    if fee_bps > 0:
+        parts.append(f"组合费率 {fee_bps / 100.0:.2f}%/年")
+    tax_rate = float(costs.get('hk_dividend_tax_rate_pct', 0.0))
+    tax_markets = costs.get('dividend_tax_markets') or []
+    if tax_rate > 0 and tax_markets:
+        parts.append(f"{'、'.join(tax_markets)}市场红利税 {tax_rate:g}%")
+    if not parts:
+        return "未启用扣费/扣税口径。"
+    return "已扣除" + " 与 ".join(parts) + "后的现金流口径。"
 
 
 def get_dca_adjustment(history_data, index_code, role, context=None):
@@ -492,71 +572,78 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
     valuation_zone = "合理估值区间 (估值适中)"
     tips = ""
     context = context or {}
+    dca_cfg = get_dca_role_config(role)
+    low_pct = float(dca_cfg.get('low_percentile', 30.0))
+    high_pct = float(dca_cfg.get('high_percentile', 70.0))
+    factor_cheap = float(dca_cfg.get('factor_cheap', 1.0))
+    factor_mid = float(dca_cfg.get('factor_mid', 1.0))
+    factor_expensive = float(dca_cfg.get('factor_expensive', 0.5))
 
     if role == 'dividend_income':
         if dy_pct is not None:
             percentile = dy_pct
-        
-        if percentile >= 70.0:
+
+        if percentile >= high_pct:
             valuation_zone = "极具性价比 (低估区域)"
-            factor = 1.3
-            tips = "提示：目前红利资产股息率处于历史较高百分位，具备优秀的派息性价比，定投系数已调升至 1.3x。"
-        elif percentile >= 30.0:
+            factor = factor_cheap
+            tips = f"提示：目前红利资产股息率处于历史较高百分位，具备优秀的派息性价比，定投系数已调升至 {factor:.1f}x。"
+        elif percentile >= low_pct:
             valuation_zone = "合理估值区间 (估值中性)"
-            factor = 1.0
-            tips = "提示：估值处于常态百分位，建议保持基础定投计划，定投系数 1.0x。"
+            factor = factor_mid
+            tips = f"提示：估值处于常态百分位，建议保持基础定投计划，定投系数 {factor:.1f}x。"
         else:
             valuation_zone = "估值偏贵区间 (高估区域)"
-            factor = 0.5
-            tips = "提示：股息率已被估值上涨稀释，性价比偏低，定投系数下调至 0.5x 以控制建仓成本。"
+            factor = factor_expensive
+            tips = f"提示：股息率已被估值上涨稀释，性价比偏低，定投系数下调至 {factor:.1f}x 以控制建仓成本。"
 
         dividend_weight = float(context.get('dividendWeight') or 0.0)
         cashflow_feasible = context.get('cashflowFeasible', True) is not False
-        if factor > 1.0 and (dividend_weight > 45.0 or not cashflow_feasible):
+        cap_weight = float(dca_cfg.get('cap_dividend_weight', 45.0))
+        if factor > 1.0 and (dividend_weight > cap_weight or not cashflow_feasible):
             factor = 1.0
-            if dividend_weight > 45.0:
-                tips += " 组合红利权重已超过 45%，即使股息率较高也不放大红利定投。"
+            if dividend_weight > cap_weight:
+                tips += f" 组合红利权重已超过 {cap_weight:g}%，即使股息率较高也不放大红利定投。"
             else:
                 tips += " 现金缓冲池默认安全测试未通过，先补现金缓冲，不要因低估强行加仓。"
 
     elif role in ['domestic_beta', 'small_cap']:
         if pe_pct is not None:
             percentile = max(pe_pct, pb_pct if pb_pct is not None else pe_pct)
-        
-        if percentile <= 30.0:
+
+        if percentile <= low_pct:
             if role == 'small_cap':
                 valuation_zone = "小盘估值低位"
-                factor = 1.0
-                tips = "提示：小盘估值处于历史低位，但波动和流动性风险较高，定投系数不超过 1.0x。"
+                factor = factor_cheap
+                tips = f"提示：小盘估值处于历史低位，但波动和流动性风险较高，定投系数不超过 {factor:.1f}x。"
             else:
                 valuation_zone = "极具性价比 (国内宽基低估)"
-                factor = 1.2
-                tips = "提示：国内宽基 PE/PB 估值处于历史低位，长期配置性价比凸显，定投系数上调至 1.2x。"
-        elif percentile <= 70.0:
+                factor = factor_cheap
+                tips = f"提示：国内宽基 PE/PB 估值处于历史低位，长期配置性价比凸显，定投系数上调至 {factor:.1f}x。"
+        elif percentile <= high_pct:
             valuation_zone = "合理估值区间 (估值中性)"
-            factor = 0.8 if role == 'small_cap' else 1.0
-            tips = "提示：小盘估值中性时保持克制的小额定投，系数 0.8x。" if role == 'small_cap' else "提示：宽基估值处于历史常态水平，建议按基础定投稳步积累，系数 1.0x。"
+            factor = factor_mid
+            tips = f"提示：小盘估值中性时保持克制的小额定投，系数 {factor:.1f}x。" if role == 'small_cap' else f"提示：宽基估值处于历史常态水平，建议按基础定投稳步积累，系数 {factor:.1f}x。"
         else:
             valuation_zone = "估值偏贵区间 (小盘估值高企)" if role == 'small_cap' else "估值偏贵区间 (宽基估值高企)"
-            factor = 0.3 if role == 'small_cap' else 0.6
-            tips = "提示：小盘风险溢价不足且估值偏高，定投系数下调至 0.3x。" if role == 'small_cap' else "提示：国内宽基 PE/PB 已进入历史高估区域，适当下调定投金额，系数 0.6x。"
+            factor = factor_expensive
+            tips = f"提示：小盘风险溢价不足且估值偏高，定投系数下调至 {factor:.1f}x。" if role == 'small_cap' else f"提示：国内宽基 PE/PB 已进入历史高估区域，适当下调定投金额，系数 {factor:.1f}x。"
 
     elif role == 'tech_growth':
         if pe_pct is not None:
             percentile = pe_pct
 
-        if percentile <= 25.0:
+        if percentile <= low_pct:
             valuation_zone = "超跌低估区间 (科技成长蓄势)"
-            factor = 1.0
-            tips = "提示：科技类资产估值进入历史低位，但波动较高，定投系数最高不超过 1.0x。"
-        elif percentile <= 75.0:
+            factor = factor_cheap
+            tips = f"提示：科技类资产估值进入历史低位，但波动较高，定投系数最高不超过 {factor:.1f}x。"
+        elif percentile <= high_pct:
             valuation_zone = "合理估值区间 (估值中性)"
-            factor = 0.8
-            tips = "提示：科技指数估值温和，但仍属于高波动资产，建议保持克制的小额定投，系数 0.8x。"
+            factor = factor_mid
+            tips = f"提示：科技指数估值温和，但仍属于高波动资产，建议保持克制的小额定投，系数 {factor:.1f}x。"
         else:
             valuation_zone = "情绪过热区间 (科技估值透支)"
-            factor = 0.3
-            tips = "提示：科技成长股情绪过热，估值高位溢价，为防范高位被套，定投系数严格下调至 0.3x。"
+            factor = factor_expensive
+            tips = f"提示：科技成长股情绪过热，估值高位溢价，为防范高位被套，定投系数严格下调至 {factor:.1f}x。"
 
     elif role in ['overseas_broad', 'overseas_tech', 'overseas_beta', 'china_offshore_growth']:
         if not pe_list:
@@ -566,32 +653,32 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
         elif role in ['overseas_tech', 'china_offshore_growth']:
             percentile = pe_pct if pe_pct is not None else 50.0
 
-            if percentile <= 25.0:
+            if percentile <= low_pct:
                 valuation_zone = "海外科技估值低位"
-                factor = 1.0
-                tips = "提示：海外科技低估时仍需控制集中度，定投系数不超过 1.0x。"
-            elif percentile <= 75.0:
+                factor = factor_cheap
+                tips = f"提示：海外科技低估时仍需控制集中度，定投系数不超过 {factor:.1f}x。"
+            elif percentile <= high_pct:
                 valuation_zone = "海外科技估值中性"
-                factor = 0.8
-                tips = "提示：纳指100偏科技成长属性，估值中性时保持克制定投，系数 0.8x。"
+                factor = factor_mid
+                tips = f"提示：纳指100偏科技成长属性，估值中性时保持克制定投，系数 {factor:.1f}x。"
             else:
                 valuation_zone = "海外科技估值偏贵"
-                factor = 0.3
-                tips = "提示：海外科技高估时严格降温，系数 0.3x，并注意汇率与溢价风险。"
+                factor = factor_expensive
+                tips = f"提示：海外科技高估时严格降温，系数 {factor:.1f}x，并注意汇率与溢价风险。"
         else:
             percentile = pe_pct if pe_pct is not None else 50.0
-            if percentile <= 30.0:
+            if percentile <= low_pct:
                 valuation_zone = "低估配置区域 (海外宽基低估)"
-                factor = 1.0
-                tips = "提示：海外宽基估值偏低，但因汇率、QDII 溢价、跟踪误差和数据覆盖限制，最高保持 1.0x。"
-            elif percentile <= 70.0:
+                factor = factor_cheap
+                tips = f"提示：海外宽基估值偏低，但因汇率、QDII 溢价、跟踪误差和数据覆盖限制，最高保持 {factor:.1f}x。"
+            elif percentile <= high_pct:
                 valuation_zone = "合理估值区间 (估值中性)"
-                factor = 1.0
-                tips = "提示：海外宽基估值合理，定投系数 1.0x。建议分批换汇以平滑汇率波动。"
+                factor = factor_mid
+                tips = f"提示：海外宽基估值合理，定投系数 {factor:.1f}x。建议分批换汇以平滑汇率波动。"
             else:
                 valuation_zone = "高估警戒区域 (海外宽基高估)"
-                factor = 0.5
-                tips = "提示：海外指数市盈率偏高，定投系数降低至 0.5x。防止高位接盘和汇率波动双重风险。"
+                factor = factor_expensive
+                tips = f"提示：海外指数市盈率偏高，定投系数降低至 {factor:.1f}x。防止高位接盘和汇率波动双重风险。"
 
     return {
         'hasHistory': True,

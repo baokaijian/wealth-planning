@@ -28,6 +28,7 @@ def main():
     rules = json.loads((ROOT / "planning_rules.json").read_text(encoding="utf-8"))
     presets = json.loads((ROOT / "strategy_presets.json").read_text(encoding="utf-8"))
     errors = []
+    warnings = []
     codes = set()
     for index, asset in enumerate(assets):
         missing = REQUIRED_ASSET_FIELDS - set(asset)
@@ -94,8 +95,20 @@ def main():
         for code in VERIFIED_VALUATION_CODES
     }
     for code, item in latest_verified.items():
-        if item.get("date") != "2026-07-20" or not VERIFIED_PERCENTILE_FIELDS <= set(item):
-            errors.append(f"{code} 缺少 2026-07-20 已验证估值或三年百分位")
+        if not item.get("date") or not VERIFIED_PERCENTILE_FIELDS <= set(item):
+            errors.append(f"{code} 缺少已核验估值日期或三年百分位")
+    # 估值新鲜度：估值历史为半手动维护，滞后要显式告警，但不要因运营滞后阻断数据正确性检查。
+    from datetime import datetime as _datetime
+    _latest_date = max((item.get("date", "") for item in history if item.get("date")), default="")
+    if _latest_date:
+        try:
+            _stale_days = (_datetime.now() - _datetime.strptime(_latest_date, "%Y-%m-%d")).days
+            if _stale_days > 21:
+                warnings.append(f"估值历史滞后 {_stale_days} 天（最新 {_latest_date}），百分位判断可能失真，请补充估值数据源/更新管线")
+            elif _stale_days > 7:
+                warnings.append(f"估值历史滞后 {_stale_days} 天（最新 {_latest_date}），建议尽快更新")
+        except (TypeError, ValueError):
+            pass
     if not rules.get("family_risk") or not rules.get("concentration"):
         errors.append("planning_rules.json 缺少 family_risk/concentration")
     if set(preset_items) != {"conservative", "balanced", "aggressive"}:
@@ -117,6 +130,9 @@ def main():
     if errors:
         print("\n".join(errors))
         return 1
+    if warnings:
+        print("数据告警（不阻断）：")
+        print("\n".join(f"  ⚠️ {warning}" for warning in warnings))
     print(f"数据校验通过：{len(assets)} 个资产，默认权重 {total_weight:.1f}%，{len(history)} 条估值历史。")
     return 0
 

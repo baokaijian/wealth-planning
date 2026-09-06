@@ -13,9 +13,45 @@ if (typeof module !== 'undefined' && module.exports) {
     try { planningRules = require('./planning_rules.json'); } catch (error) { planningRules = DEFAULT_RULES; }
 }
 
+const DCA_ROLE_DEFAULTS = {
+    dividend_income: { metric: 'dividend_yield', low_percentile: 30.0, high_percentile: 70.0, factor_cheap: 1.3, factor_mid: 1.0, factor_expensive: 0.5, cap_dividend_weight: 45.0 },
+    domestic_beta: { metric: 'pe_pb', low_percentile: 30.0, high_percentile: 70.0, factor_cheap: 1.2, factor_mid: 1.0, factor_expensive: 0.6 },
+    small_cap: { metric: 'pe_pb', low_percentile: 30.0, high_percentile: 70.0, factor_cheap: 1.0, factor_mid: 0.8, factor_expensive: 0.3 },
+    tech_growth: { metric: 'pe', low_percentile: 25.0, high_percentile: 75.0, factor_cheap: 1.0, factor_mid: 0.8, factor_expensive: 0.3 },
+    overseas_tech: { metric: 'pe', low_percentile: 25.0, high_percentile: 75.0, factor_cheap: 1.0, factor_mid: 0.8, factor_expensive: 0.3 },
+    china_offshore_growth: { metric: 'pe', low_percentile: 25.0, high_percentile: 75.0, factor_cheap: 1.0, factor_mid: 0.8, factor_expensive: 0.3 },
+    overseas_broad: { metric: 'pe', low_percentile: 30.0, high_percentile: 70.0, factor_cheap: 1.0, factor_mid: 1.0, factor_expensive: 0.5 }
+};
+
+// 读取 planning_rules.json 中的 DCA 估值分位阈值与系数，缺失时回退到内置默认值（与 Python 引擎保持一致）。
+function getDcaRoleConfig(role) {
+    const configured = ((planningRules.dca || {}).role_factors || {})[role] || {};
+    return Object.assign({}, DCA_ROLE_DEFAULTS[role] || {}, configured);
+}
+
 const portfolioEngine = {
     setRules(rules) {
         planningRules = rules || DEFAULT_RULES;
+    },
+    getCostConfig() {
+        const defaults = {
+            inflation_rate_pct: 2.0,
+            portfolio_fee_bps: 25.0,
+            hk_dividend_tax_rate_pct: 20.0,
+            dividend_tax_markets: ['HK']
+        };
+        return Object.assign({}, defaults, planningRules.costs || {});
+    },
+    buildCostNote(costs) {
+        const c = costs || this.getCostConfig();
+        const parts = [];
+        const feeBps = parseFloat(c.portfolio_fee_bps || 0.0);
+        if (feeBps > 0) parts.push(`组合费率 ${(feeBps / 100.0).toFixed(2)}%/年`);
+        const taxRate = parseFloat(c.hk_dividend_tax_rate_pct || 0.0);
+        const taxMarkets = c.dividend_tax_markets || [];
+        if (taxRate > 0 && taxMarkets.length) parts.push(`${taxMarkets.join('、')}市场红利税 ${taxRate}%`);
+        if (!parts.length) return "未启用扣费/扣税口径。";
+        return `已扣除${parts.join(" 与 ")}后的现金流口径。`;
     },
     isStableCashflowAsset(asset) {
         return asset.income_type === 'dividend' || asset.income_type === 'cash_interest';
@@ -89,6 +125,13 @@ const portfolioEngine = {
         let blendedGrowthReturn = 0.0;  // 增长预期收益率 (仅统计 capital_growth)
         let blendedTotalReturn = 0.0;   // 综合年化收益率 (统计全部)
 
+        // 组合费率与港股红利税：用于给出扣费扣税后的现金流口径（毛口径保持不变，向后兼容）。
+        const costs = this.getCostConfig();
+        const feePct = parseFloat(costs.portfolio_fee_bps || 0.0) / 100.0;
+        const hkTaxPct = parseFloat(costs.hk_dividend_tax_rate_pct || 0.0) / 100.0;
+        const taxMarkets = new Set(costs.dividend_tax_markets || ['HK']);
+        let blendedCashYieldAfterCost = 0.0;
+
         const assetDetails = [];
 
         const errors = [];
@@ -114,6 +157,14 @@ const portfolioEngine = {
             const stableCashflow = this.isStableCashflowAsset(asset);
             const expectedAnnualDiv = stableCashflow ? allocatedAmt * (currentYield / 100.0) * 10000 : 0.0; // 元
 
+            // 扣费（组合费率）与扣税（港股等市场红利税）后的稳定现金流收益率
+            let netYield = currentYield;
+            if (stableCashflow) {
+                netYield = Math.max(0.0, currentYield - feePct);
+                if (taxMarkets.has(asset.market)) netYield *= (1.0 - hkTaxPct);
+                blendedCashYieldAfterCost += (weight / 100.0) * netYield;
+            }
+
             assetDetails.push({
                 code: code,
                 name: asset.name,
@@ -124,6 +175,7 @@ const portfolioEngine = {
                 weight: weight,
                 price: currentPrice,
                 impliedYield: currentYield,
+                netYieldAfterCost: stableCashflow ? Number(netYield.toFixed(4)) : null,
                 estimated_return: estReturn,
                 target_index_code: asset.target_index_code,
                 rebalance_band: asset.rebalance_band || 3,
@@ -150,7 +202,9 @@ const portfolioEngine = {
         }
 
         const expectedAnnualDividend = investPrincipal * (blendedCashYield / 100.0) * 10000; // 元
+        const expectedAnnualDividendAfterCost = investPrincipal * (blendedCashYieldAfterCost / 100.0) * 10000; // 元
         const expectedMonthlyDividend = expectedAnnualDividend / 12.0; // 元
+        const expectedMonthlyDividendAfterCost = expectedAnnualDividendAfterCost / 12.0; // 元
         const expectedMonthlyGrowth = investPrincipal * (blendedGrowthReturn / 100.0) * 10000 / 12.0; // 元
 
         return {
@@ -160,11 +214,16 @@ const portfolioEngine = {
             investPrincipal,
             totalWeight,
             blendedCashYield,
+            blendedCashYieldAfterCost,
             blendedGrowthReturn,
             blendedTotalReturn,
             expectedAnnualDividend,
+            expectedAnnualDividendAfterCost,
             expectedMonthlyDividend,
+            expectedMonthlyDividendAfterCost,
             expectedMonthlyGrowth,
+            costNote: this.buildCostNote(costs),
+            costParameters: costs,
             assetDetails
         };
     },
@@ -190,7 +249,8 @@ const portfolioEngine = {
         startMonth = 1,
         stableIncomeDrop = 0.0,
         delayMonths = 0,
-        pauseDividendYear = false
+        pauseDividendYear = false,
+        inflationRatePct = 0.0
     ) {
         const bufferBalance = [bufferSeed * 10000.0]; // 元
         const dividendIncomeHistory = [];
@@ -286,8 +346,10 @@ const portfolioEngine = {
             const currentInterest = bufferBalance[bufferBalance.length - 1] * (moneyMarketRate / 12.0);
             const monthStableIncome = monthDividend + monthCashInterest + currentInterest;
 
-            // 4) 缓冲池结转
-            const nextBalance = bufferBalance[bufferBalance.length - 1] + monthStableIncome + monthHarvest - monthlyWithdraw;
+            // 4) 缓冲池结转（可选：按年通胀率逐月抬升支取额，默认关闭）
+            const inflationRate = Math.max(0.0, Number(inflationRatePct) || 0.0);
+            const effectiveWithdraw = monthlyWithdraw * Math.pow(1.0 + inflationRate / 100.0, (t - 1) / 12.0);
+            const nextBalance = bufferBalance[bufferBalance.length - 1] + monthStableIncome + monthHarvest - effectiveWithdraw;
 
             dividendIncomeHistory.push(monthDividend);
             cashInterestIncomeHistory.push(monthCashInterest);
@@ -333,7 +395,8 @@ const portfolioEngine = {
         startMonth = 1,
         stableIncomeDrop = 0.0,
         delayMonths = 0,
-        pauseDividendYear = false
+        pauseDividendYear = false,
+        inflationRatePct = 0.0
     ) {
         const survives = (testMonthly, testPrincipal, testBufferSeed) => {
             const investPrincipal = Math.max(testPrincipal - testBufferSeed, 0.0);
@@ -350,7 +413,8 @@ const portfolioEngine = {
                 startMonth,
                 stableIncomeDrop,
                 delayMonths,
-                pauseDividendYear
+                pauseDividendYear,
+                inflationRatePct
             );
             return sim.minBuffer > 0;
         };
@@ -399,7 +463,7 @@ const portfolioEngine = {
                 const sim = this.simulateCashflow(
                     monthsRange, targetMonthlyWithdraw, bufferSeed + additionalWan,
                     fixedInvestPrincipal, weights, assets, moneyMarketRate, false, 'neutral',
-                    startMonth, stableIncomeDrop, delayMonths, pauseDividendYear
+                    startMonth, stableIncomeDrop, delayMonths, pauseDividendYear, inflationRatePct
                 );
                 return sim.minBuffer > 0;
             };
@@ -533,30 +597,38 @@ const portfolioEngine = {
         let valuationZone = "合理估值区间 (估值适中)";
         let tips = "";
 
-        // 根据资产角色使用不同的核心估值百分位判断指标
+        // 根据资产角色使用不同的核心估值百分位判断指标（阈值与系数来自 planning_rules.json）
+        const dcaCfg = getDcaRoleConfig(role);
+        const lowPct = parseFloat(dcaCfg.low_percentile ?? 30.0);
+        const highPct = parseFloat(dcaCfg.high_percentile ?? 70.0);
+        const factorCheap = parseFloat(dcaCfg.factor_cheap ?? 1.0);
+        const factorMid = parseFloat(dcaCfg.factor_mid ?? 1.0);
+        const factorExpensive = parseFloat(dcaCfg.factor_expensive ?? 0.5);
+
         if (role === 'dividend_income') {
             // 红利看股息率高低进行加仓调节（股息率越高代表估值越便宜）
             if (dyPct !== null) percentile = dyPct;
 
-            if (percentile >= 70.0) {
+            if (percentile >= highPct) {
                 valuationZone = "极具性价比 (低估区域)";
-                factor = 1.3;
-                tips = "提示：目前红利资产股息率处于历史较高百分位，具备优秀的派息性价比，定投系数已调升至 1.3x。";
-            } else if (percentile >= 30.0) {
+                factor = factorCheap;
+                tips = `提示：目前红利资产股息率处于历史较高百分位，具备优秀的派息性价比，定投系数已调升至 ${factor.toFixed(1)}x。`;
+            } else if (percentile >= lowPct) {
                 valuationZone = "合理估值区间 (估值中性)";
-                factor = 1.0;
-                tips = "提示：估值处于常态百分位，建议保持基础定投计划，定投系数 1.0x。";
+                factor = factorMid;
+                tips = `提示：估值处于常态百分位，建议保持基础定投计划，定投系数 ${factor.toFixed(1)}x。`;
             } else {
                 valuationZone = "估值偏贵区间 (高估区域)";
-                factor = 0.5;
-                tips = "提示：股息率已被估值上涨稀释，性价比偏低，定投系数下调至 0.5x 以控制建仓成本。";
+                factor = factorExpensive;
+                tips = `提示：股息率已被估值上涨稀释，性价比偏低，定投系数下调至 ${factor.toFixed(1)}x 以控制建仓成本。`;
             }
             const dividendWeight = parseFloat(context.dividendWeight || 0.0);
             const cashflowFeasible = context.cashflowFeasible !== false;
-            if (factor > 1.0 && (dividendWeight > 45.0 || !cashflowFeasible)) {
+            const capWeight = parseFloat(dcaCfg.cap_dividend_weight ?? 45.0);
+            if (factor > 1.0 && (dividendWeight > capWeight || !cashflowFeasible)) {
                 factor = 1.0;
-                const capReason = dividendWeight > 45.0
-                    ? "组合红利权重已超过 45%，即使股息率较高也不放大红利定投。"
+                const capReason = dividendWeight > capWeight
+                    ? `组合红利权重已超过 ${capWeight}%，即使股息率较高也不放大红利定投。`
                     : "现金缓冲池默认安全测试未通过，先补现金缓冲，不要因低估强行加仓。";
                 tips += ` ${capReason}`;
             }
@@ -564,45 +636,45 @@ const portfolioEngine = {
             // 宽基看 PE/PB 估值百分位（PE 越低代表越低估，低估时定投调高）
             if (pePct !== null) percentile = Math.max(pePct, pbPct !== null ? pbPct : pePct);
 
-            if (percentile <= 30.0) {
+            if (percentile <= lowPct) {
                 if (role === 'small_cap') {
                     valuationZone = "小盘估值低位";
-                    factor = 1.0;
-                    tips = "提示：小盘估值处于历史低位，但波动和流动性风险较高，定投系数不超过 1.0x。";
+                    factor = factorCheap;
+                    tips = `提示：小盘估值处于历史低位，但波动和流动性风险较高，定投系数不超过 ${factor.toFixed(1)}x。`;
                 } else {
                     valuationZone = "极具性价比 (国内宽基低估)";
-                    factor = 1.2;
-                    tips = "提示：国内宽基 PE/PB 估值处于历史低位，长期配置性价比凸显，定投系数上调至 1.2x。";
+                    factor = factorCheap;
+                    tips = `提示：国内宽基 PE/PB 估值处于历史低位，长期配置性价比凸显，定投系数上调至 ${factor.toFixed(1)}x。`;
                 }
-            } else if (percentile <= 70.0) {
+            } else if (percentile <= highPct) {
                 valuationZone = "合理估值区间 (估值中性)";
-                factor = role === 'small_cap' ? 0.8 : 1.0;
+                factor = factorMid;
                 tips = role === 'small_cap'
-                    ? "提示：小盘估值中性时保持克制的小额定投，系数 0.8x。"
-                    : "提示：宽基估值处于历史常态水平，建议按基础定投稳步积累，系数 1.0x。";
+                    ? `提示：小盘估值中性时保持克制的小额定投，系数 ${factor.toFixed(1)}x。`
+                    : `提示：宽基估值处于历史常态水平，建议按基础定投稳步积累，系数 ${factor.toFixed(1)}x。`;
             } else {
                 valuationZone = role === 'small_cap' ? "估值偏贵区间 (小盘估值高企)" : "估值偏贵区间 (宽基估值高企)";
-                factor = role === 'small_cap' ? 0.3 : 0.6;
+                factor = factorExpensive;
                 tips = role === 'small_cap'
-                    ? "提示：小盘风险溢价不足且估值偏高，定投系数下调至 0.3x。"
-                    : "提示：国内宽基 PE/PB 已进入历史高估区域，适当下调定投金额，系数 0.6x。";
+                    ? `提示：小盘风险溢价不足且估值偏高，定投系数下调至 ${factor.toFixed(1)}x。`
+                    : `提示：国内宽基 PE/PB 已进入历史高估区域，适当下调定投金额，系数 ${factor.toFixed(1)}x。`;
             }
         } else if (role === 'tech_growth') {
             // 科技成长看估值和波动回撤区间
             if (pePct !== null) percentile = pePct;
 
-            if (percentile <= 25.0) {
+            if (percentile <= lowPct) {
                 valuationZone = "超跌低估区间 (科技成长蓄势)";
-                factor = 1.0;
-                tips = "提示：科技类资产估值进入历史低位，但波动较高，定投系数最高不超过 1.0x。";
-            } else if (percentile <= 75.0) {
+                factor = factorCheap;
+                tips = `提示：科技类资产估值进入历史低位，但波动较高，定投系数最高不超过 ${factor.toFixed(1)}x。`;
+            } else if (percentile <= highPct) {
                 valuationZone = "合理估值区间 (估值中性)";
-                factor = 0.8;
-                tips = "提示：科技指数估值温和，但仍属于高波动资产，建议保持克制的小额定投，系数 0.8x。";
+                factor = factorMid;
+                tips = `提示：科技指数估值温和，但仍属于高波动资产，建议保持克制的小额定投，系数 ${factor.toFixed(1)}x。`;
             } else {
                 valuationZone = "情绪过热区间 (科技估值透支)";
-                factor = 0.3;
-                tips = "提示：科技成长股情绪过热，估值高位溢价，为防范高位被套，定投系数严格下调至 0.3x。";
+                factor = factorExpensive;
+                tips = `提示：科技成长股情绪过热，估值高位溢价，为防范高位被套，定投系数严格下调至 ${factor.toFixed(1)}x。`;
             }
         } else if (role === 'overseas_broad' || role === 'overseas_tech' || role === 'overseas_beta' || role === 'china_offshore_growth') {
             if (peList.length === 0) {
@@ -612,34 +684,34 @@ const portfolioEngine = {
             } else if (role === 'overseas_tech' || role === 'china_offshore_growth') {
                 percentile = pePct !== null ? pePct : 50.0;
 
-                if (percentile <= 25.0) {
+                if (percentile <= lowPct) {
                     valuationZone = "海外科技估值低位";
-                    factor = 1.0;
-                    tips = "提示：海外科技低估时仍需控制集中度，定投系数不超过 1.0x。";
-                } else if (percentile <= 75.0) {
+                    factor = factorCheap;
+                    tips = `提示：海外科技低估时仍需控制集中度，定投系数不超过 ${factor.toFixed(1)}x。`;
+                } else if (percentile <= highPct) {
                     valuationZone = "海外科技估值中性";
-                    factor = 0.8;
-                    tips = "提示：纳指100偏科技成长属性，估值中性时保持克制定投，系数 0.8x。";
+                    factor = factorMid;
+                    tips = `提示：纳指100偏科技成长属性，估值中性时保持克制定投，系数 ${factor.toFixed(1)}x。`;
                 } else {
                     valuationZone = "海外科技估值偏贵";
-                    factor = 0.3;
-                    tips = "提示：海外科技高估时严格降温，系数 0.3x，并注意汇率与溢价风险。";
+                    factor = factorExpensive;
+                    tips = `提示：海外科技高估时严格降温，系数 ${factor.toFixed(1)}x，并注意汇率与溢价风险。`;
                 }
             } else {
                 percentile = pePct !== null ? pePct : 50.0;
 
-                if (percentile <= 30.0) {
+                if (percentile <= lowPct) {
                     valuationZone = "低估配置区域 (海外宽基低估)";
-                    factor = 1.0;
-                    tips = "提示：海外宽基估值偏低，但因汇率、QDII 溢价、跟踪误差和数据覆盖限制，最高保持 1.0x。";
-                } else if (percentile <= 70.0) {
+                    factor = factorCheap;
+                    tips = `提示：海外宽基估值偏低，但因汇率、QDII 溢价、跟踪误差和数据覆盖限制，最高保持 ${factor.toFixed(1)}x。`;
+                } else if (percentile <= highPct) {
                     valuationZone = "合理估值区间 (估值中性)";
-                    factor = 1.0;
-                    tips = "提示：海外宽基估值合理，定投系数 1.0x。建议分批换汇以平滑汇率波动。";
+                    factor = factorMid;
+                    tips = `提示：海外宽基估值合理，定投系数 ${factor.toFixed(1)}x。建议分批换汇以平滑汇率波动。`;
                 } else {
                     valuationZone = "高估警戒区域 (海外宽基高估)";
-                    factor = 0.5;
-                    tips = "提示：海外指数市盈率偏高，定投系数降低至 0.5x。防止高位接盘和汇率波动双重风险。";
+                    factor = factorExpensive;
+                    tips = `提示：海外指数市盈率偏高，定投系数降低至 ${factor.toFixed(1)}x。防止高位接盘和汇率波动双重风险。`;
                 }
             }
         }

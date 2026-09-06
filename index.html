@@ -1527,9 +1527,15 @@
                 </div>
             </div>
 
+            <div id="t1-cost-note" class="alert-banner alert-info" style="margin-top:0;">
+                <strong>💰 现金流口径：</strong><span id="t1-cost-note-text">—</span>
+            </div>
+
             <div id="t1-weight-warning" class="alert-banner alert-warning hidden">
                 <strong>⚠️ 配置警告：</strong>当前所有资产权重之和为 <span id="t1-weight-sum">0%</span>，配置权重必须正好等于 **100%** 测算数值方才可信。
             </div>
+
+            <div id="t1-data-quality-warning" class="alert-banner alert-warning hidden"></div>
 
             <div class="alert-banner alert-info">
                 <strong>口径与免责：</strong>本看板仅用于 ETF/指数基金/大类资产配置测算，不构成投资建议，不推荐单只股票，不承诺任何分红、票息或收益。成长资产、黄金和 REITs 备选不计入稳定现金流。
@@ -1709,6 +1715,8 @@
                         <option value="5">5个月</option>
                         <option value="6">6个月</option>
                     </select>
+                    <label for="t2-inflation-rate" style="font-size:0.86rem;font-weight:700;" title="按年通胀率逐月抬升月支取额，0 表示 36 个月支取不变">年通胀率(月支取)</label>
+                    <input type="number" id="t2-inflation-rate" value="0" min="0" max="20" step="0.5" onchange="onScenarioChanged()" style="width:76px;font-size:0.82rem;">%
                     <label class="checkbox-container" style="display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
                         <input type="checkbox" id="t2-pause-year-checkbox" onchange="onScenarioChanged()" style="width: 16px; height: 16px; cursor: pointer;">
                         <span style="font-size: 0.86rem; font-weight: 700; color: var(--text-primary);">模拟某一年分红暂停</span>
@@ -2195,6 +2203,7 @@
             fetchStatus: 'loading', // 'loading', 'success', 'fallback'
             marketDataSource: '',
             dataTimestamp: '',
+            dataQualityAlerts: [],
             lastAssetHealthScore: null,
             latestFinancialSnapshot: null,
             allowLiveQuotes: false,
@@ -2209,7 +2218,7 @@
             'principal-input', 'monthly-target-input', 'buffer-input', 'rate-slider',
             'strategy-preset', 't1-pie-view',
             't2-start-month', 't2-stress-income-drop', 't2-delay-months',
-            't2-pause-year-checkbox', 't2-harvest-checkbox', 't2-harvest-scenario',
+            't2-pause-year-checkbox', 't2-harvest-checkbox', 't2-harvest-scenario', 't2-inflation-rate',
             'base-dca-input', 't3-dca-mode', 't3-index-selector',
             't4-incremental-mode', 't4-new-cash-input',
             'stress-drawdown-cash', 'stress-drawdown-dividend', 'stress-drawdown-domestic',
@@ -2569,14 +2578,17 @@
             state.dataTimestamp = result.timestamp || formatLocalDateTime();
             state.marketDataSource = source;
             state.fetchStatus = 'success';
+            state.dataQualityAlerts = Array.isArray(result.data_quality && result.data_quality.alerts) ? result.data_quality.alerts : [];
             scheduleCalculationUpdate();
             updateClock();
+            renderDataQualityBanner();
         }
 
         function applyEstimatedMarketData() {
             state.fetchStatus = 'fallback';
             state.marketDataSource = 'estimated';
             state.dataTimestamp = formatLocalDateTime();
+            state.dataQualityAlerts = [];
 
             Object.keys(state.assets).forEach(code => {
                 if (state.assets[code]) {
@@ -2587,6 +2599,7 @@
 
             silentUpdateCalculations();
             updateClock();
+            renderDataQualityBanner();
         }
 
         // 获取行情数据：实时接口优先，本地缓存兜底，最后使用估算值
@@ -2692,8 +2705,28 @@
 
         function getCashflowAttribute(asset) {
             if (asset.role === 'hedge' || asset.income_type === 'hedge') return '对冲资产';
-            if (isStableCashflowAsset(asset)) return '稳定现金流';
+            if (isStableCashflowAsset(asset)) {
+                const verified = asset.yield_method === 'trailing_12m_cash_distributions';
+                return verified ? '稳定现金流 · 真实分红' : '稳定现金流 · 规划假设';
+            }
             return '非稳定现金流';
+        }
+
+        // 数据质量告警：声明为稳定现金流但近12个月无真实分红记录的资产，必须显式提示。
+        function renderDataQualityBanner() {
+            const banner = document.getElementById('t1-data-quality-warning');
+            if (!banner) return;
+            const warnings = (state.dataQualityAlerts || []).filter(alert => alert.severity === 'warning');
+            const errors = (state.dataQualityAlerts || []).filter(alert => alert.severity === 'error');
+            if (warnings.length || errors.length) {
+                const warnList = warnings.map(a => `${a.name}(${a.code})`).join('、');
+                const errList = errors.map(a => `${a.name}(${a.code})`).join('、');
+                const errText = errList ? `；分红数据源抓取失败：${errList}` : '';
+                banner.innerHTML = `<strong>⚠️ 现金流数据质量提示：</strong>以下标记为稳定现金流的资产近12个月在数据源中无真实现金分配记录，其收益率与现金流为<b>规划假设</b>而非可核验分红，请谨慎参考：${warnList || '（无）'}${errText}`;
+                banner.classList.remove('hidden');
+            } else {
+                banner.classList.add('hidden');
+            }
         }
 
         function getDataFreshnessMeta(kind = 'price') {
@@ -2902,8 +2935,21 @@
             if (dataNote) {
                 const windowLabel = res.percentileWindow === '3y' ? '近三年' : res.percentileWindow;
                 const sourceLabel = res.valuationSource === 'verified_index_fundamentals' ? '已验证指数基本面' : '本地估值历史';
+                let staleNote = '';
+                if (res.hasHistory && res.asOf && res.asOf !== '--') {
+                    const asOfMs = Date.parse(res.asOf);
+                    if (!isNaN(asOfMs)) {
+                        const marketMs = state.dataTimestamp ? Date.parse(state.dataTimestamp) : Date.now();
+                        const diffDays = Math.round((marketMs - asOfMs) / 86400000);
+                        if (diffDays > 21) {
+                            staleNote = `｜⚠️ 估值数据滞后 ${diffDays} 天（晚于行情快照），百分位窗口 ${windowLabel}，请留意新鲜度`;
+                        } else if (diffDays > 7) {
+                            staleNote = `｜估值数据滞后 ${diffDays} 天`;
+                        }
+                    }
+                }
                 dataNote.innerText = res.hasHistory
-                    ? `数据日期：${res.asOf}｜百分位窗口：${windowLabel}｜口径：市值加权｜来源：${sourceLabel}`
+                    ? `数据日期：${res.asOf}｜百分位窗口：${windowLabel}｜口径：市值加权｜来源：${sourceLabel}${staleNote}`
                     : '当前指数缺少可验证估值历史，因此不展示 PE/PB 百分位，也不生成估值判断。';
             }
 
@@ -3288,8 +3334,15 @@
             // 输出指标卡片
             document.getElementById('t1-blended-yield').innerText = `${(res.blendedCashYield).toFixed(2)}%`;
             document.getElementById('t1-blended-growth-return').innerText = `${(res.blendedGrowthReturn).toFixed(2)}%`;
-            document.getElementById('t1-annual-dividend').innerText = `¥${Math.round(res.expectedAnnualDividend).toLocaleString()}`;
-            document.getElementById('t1-monthly-dividend').innerText = `¥${Math.round(res.expectedMonthlyDividend).toLocaleString()}`;
+            // “预期年税后分红/利息”与“折合月均现金流”展示扣费扣税后的净额（毛额与口径说明见下方说明条）
+            const netAnnual = Number.isFinite(res.expectedAnnualDividendAfterCost) ? res.expectedAnnualDividendAfterCost : res.expectedAnnualDividend;
+            const netMonthly = Number.isFinite(res.expectedMonthlyDividendAfterCost) ? res.expectedMonthlyDividendAfterCost : res.expectedMonthlyDividend;
+            document.getElementById('t1-annual-dividend').innerText = `¥${Math.round(netAnnual).toLocaleString()}`;
+            document.getElementById('t1-monthly-dividend').innerText = `¥${Math.round(netMonthly).toLocaleString()}`;
+            const costNoteEl = document.getElementById('t1-cost-note-text');
+            if (costNoteEl) {
+                costNoteEl.textContent = `${res.costNote || ''} 毛分红 ¥${Math.round(res.expectedAnnualDividend).toLocaleString()}（年），月均 ¥${Math.round(res.expectedMonthlyDividend).toLocaleString()}。`;
+            }
 
             const gap = (state.targetMonthly * 10000) - res.expectedMonthlyDividend;
             const gapEl = document.getElementById('t1-monthly-gap');
@@ -3330,6 +3383,7 @@
             const stableIncomeDrop = parseFloat(document.getElementById('t2-stress-income-drop')?.value || '20') || 0.0;
             const delayMonths = parseInt(document.getElementById('t2-delay-months')?.value || '0', 10);
             const pauseDividendYear = document.getElementById('t2-pause-year-checkbox') ? document.getElementById('t2-pause-year-checkbox').checked : false;
+            const inflationRate = parseFloat(document.getElementById('t2-inflation-rate')?.value || '0') || 0.0;
 
             // Get weights
             const weights = {};
@@ -3368,7 +3422,8 @@
                 startMonth,
                 stableIncomeDrop,
                 delayMonths,
-                pauseDividendYear
+                pauseDividendYear,
+                inflationRate
             );
 
             const harvestDisplayRes = rebalanceHarvest ? portfolioEngine.simulateCashflow(
@@ -3384,7 +3439,8 @@
                 startMonth,
                 stableIncomeDrop,
                 delayMonths,
-                pauseDividendYear
+                pauseDividendYear,
+                inflationRate
             ) : stressRes;
 
             const feasibility = portfolioEngine.calculateCashflowFeasibility(
@@ -3398,7 +3454,8 @@
                 startMonth,
                 stableIncomeDrop,
                 delayMonths,
-                pauseDividendYear
+                pauseDividendYear,
+                inflationRate
             );
 
             let accumHarvest = 0.0;

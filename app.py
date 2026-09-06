@@ -137,6 +137,7 @@ else:
 live_data = {}
 live_data_timestamp = ""
 live_data_status = "fallback"
+live_data_quality_alerts = []
 if os.path.exists(live_data_path):
     try:
         with open(live_data_path, 'r', encoding='utf-8') as f:
@@ -145,6 +146,7 @@ if os.path.exists(live_data_path):
                 live_data = live_payload.get('data', {})
                 live_data_timestamp = live_payload.get('timestamp', '')
                 live_data_status = "cache"
+                live_data_quality_alerts = (live_payload.get('data_quality') or {}).get('alerts') or []
     except Exception as e:
         live_data_error = f"live_data.json 加载失败：{e}"
     else:
@@ -194,6 +196,7 @@ if assets_list:
             'price': price,
             'estimated_yield': item['estimated_yield'],
             'estimated_return': item.get('estimated_return', item['estimated_yield']),
+            'yield_method': live_info.get('yield_method') or 'planning_assumption',
             'months': months_int,
             'strategy_note': item.get('strategy_note', ''),
             'risk_note': item.get('risk_note', '')
@@ -287,6 +290,8 @@ if 'buffer_delay_months' not in st.session_state:
     st.session_state.buffer_delay_months = 1
 if 'buffer_pause_dividend_year' not in st.session_state:
     st.session_state.buffer_pause_dividend_year = False
+if 'buffer_inflation_rate' not in st.session_state:
+    st.session_state.buffer_inflation_rate = 0.0
 if 'buffer_rebalance_harvest_checkbox' not in st.session_state:
     st.session_state.buffer_rebalance_harvest_checkbox = False
 if 'buffer_harvest_scenario' not in st.session_state:
@@ -1050,17 +1055,19 @@ elif menu == "2. 资产配置与股息测算看板":
         </div>
         """, unsafe_allow_html=True)
     with m_col3:
+        net_annual = res.get('expectedAnnualDividendAfterCost', res['expectedAnnualDividend']) or res['expectedAnnualDividend']
         st.markdown(f"""
         <div class='card'>
-            <div class='metric-label'>预期年税后分红/利息</div>
-            <div class='metric-value'>¥{res['expectedAnnualDividend']:,.0f}</div>
+            <div class='metric-label'>预期年税后分红/利息 (扣费扣税后)</div>
+            <div class='metric-value'>¥{net_annual:,.0f}</div>
         </div>
         """, unsafe_allow_html=True)
     with m_col4:
+        net_monthly = res.get('expectedMonthlyDividendAfterCost', res['expectedMonthlyDividend']) or res['expectedMonthlyDividend']
         st.markdown(f"""
         <div class='card'>
-            <div class='metric-label'>折合月均现金流</div>
-            <div class='metric-value'>¥{res['expectedMonthlyDividend']:,.0f}</div>
+            <div class='metric-label'>折合月均现金流 (扣费扣税后)</div>
+            <div class='metric-value'>¥{net_monthly:,.0f}</div>
         </div>
         """, unsafe_allow_html=True)
     with m_col5:
@@ -1073,15 +1080,35 @@ elif menu == "2. 资产配置与股息测算看板":
             <div class='metric-value' style='color:{color}; font-size:1.6rem;'>{gap_text}</div>
         </div>
         """, unsafe_allow_html=True)
+    st.caption(
+        f"{res.get('costNote', '')} 毛分红 ¥{res['expectedAnnualDividend']:,.0f}（年），"
+        f"月均 ¥{res['expectedMonthlyDividend']:,.0f}。"
+    )
 
     # 饼图与明细表格
     st.markdown("### 📋 投资明细与比重分布")
+
+    # 数据质量告警：声明为稳定现金流但近12个月无真实分红记录的资产必须显式提示。
+    dq_warnings = [a for a in live_data_quality_alerts if a.get('severity') == 'warning']
+    dq_errors = [a for a in live_data_quality_alerts if a.get('severity') == 'error']
+    if dq_warnings or dq_errors:
+        warn_list = "、".join(f"{a.get('name', '')}({a.get('code', '')})" for a in dq_warnings)
+        err_list = "、".join(f"{a.get('name', '')}({a.get('code', '')})" for a in dq_errors)
+        err_text = f"；分红数据源抓取失败：{err_list}" if err_list else ""
+        st.warning(
+            "以下标记为稳定现金流的资产近12个月在数据源中无真实现金分配记录，"
+            "其收益率与现金流为规划假设而非可核验分红，请谨慎参考："
+            f"{warn_list if warn_list else '（无）'}{err_text}"
+        )
     
     def cashflow_attribute(detail):
         if detail.get('role') == 'hedge' or detail.get('income_type') == 'hedge':
             return '对冲资产'
         if detail.get('stableCashflow'):
-            return '稳定现金流'
+            yield_method = ASSETS_CONFIG.get(detail['code'], {}).get('yield_method')
+            if yield_method == 'trailing_12m_cash_distributions':
+                return '稳定现金流 · 真实分红'
+            return '稳定现金流 · 规划假设'
         return '非稳定现金流'
 
     # 资产角色/市场的分布统计
@@ -1201,6 +1228,17 @@ elif menu == "3. 现金缓冲池平滑模拟器":
         with ctrl_col4:
             pause_dividend_year = st.checkbox("模拟某一年分红暂停", key="buffer_pause_dividend_year")
 
+        inflation_col1, inflation_col2 = st.columns(2)
+        with inflation_col1:
+            inflation_rate = st.number_input(
+                "年通胀率（月支取逐月抬升 %）",
+                min_value=0.0, max_value=20.0, step=0.5, key="buffer_inflation_rate",
+                help="按年通胀率逐月抬升月支取额，0 表示 36 个月支取不变。开启后压力结论会偏保守。"
+            )
+        with inflation_col2:
+            st.caption(" ")
+            st.caption("36 个月内的生活支取随通胀抬升，会更快消耗缓冲池。默认 0%，仅在需要保守测算时开启。")
+
         harvest_col1, harvest_col2 = st.columns([1.2, 1.0])
         with harvest_col1:
             rebalance_harvest = st.checkbox("可选：卖出成长资产补充现金流", help="仅作为附加情景，不计入默认现金流安全结论", key="buffer_rebalance_harvest_checkbox")
@@ -1245,7 +1283,8 @@ elif menu == "3. 现金缓冲池平滑模拟器":
         start_month,
         stable_income_drop,
         delay_months,
-        pause_dividend_year
+        pause_dividend_year,
+        inflation_rate
     )
 
     sim = portfolio_engine.simulate_cashflow(
@@ -1261,7 +1300,8 @@ elif menu == "3. 现金缓冲池平滑模拟器":
         start_month,
         stable_income_drop,
         delay_months,
-        pause_dividend_year
+        pause_dividend_year,
+        inflation_rate
     ) if rebalance_harvest else stress_sim
 
     feasibility = portfolio_engine.calculate_cashflow_feasibility(
@@ -1275,7 +1315,8 @@ elif menu == "3. 现金缓冲池平滑模拟器":
         start_month,
         stable_income_drop,
         delay_months,
-        pause_dividend_year
+        pause_dividend_year,
+        inflation_rate
     )
 
     # 关键指标体检
@@ -1591,7 +1632,20 @@ elif menu == "4. 估值温度计与测算工具":
     if has_selected_valuation_history:
         window_label = "近三年" if res.get('percentileWindow') == '3y' else res.get('percentileWindow', '本地历史')
         source_label = "已验证指数基本面" if res.get('valuationSource') == 'verified_index_fundamentals' else "本地估值历史"
-        st.caption(f"数据日期：{res.get('asOf', '--')}｜百分位窗口：{window_label}｜口径：市值加权｜来源：{source_label}")
+        stale_note = ""
+        as_of_raw = res.get('asOf')
+        if as_of_raw and as_of_raw != '--':
+            try:
+                as_of_ms = datetime.strptime(as_of_raw, "%Y-%m-%d")
+                market_ms = datetime.strptime(live_data_timestamp[:10], "%Y-%m-%d") if live_data_timestamp else datetime.now()
+                diff_days = (market_ms - as_of_ms).days
+                if diff_days > 21:
+                    stale_note = f"｜⚠️ 估值数据滞后 {diff_days} 天（晚于行情快照），百分位窗口 {window_label}，请留意新鲜度"
+                elif diff_days > 7:
+                    stale_note = f"｜估值数据滞后 {diff_days} 天"
+            except (TypeError, ValueError):
+                stale_note = ""
+        st.caption(f"数据日期：{as_of_raw or '--'}｜百分位窗口：{window_label}｜口径：市值加权｜来源：{source_label}{stale_note}")
     else:
         st.caption("当前指数缺少可验证估值历史，因此不展示 PE/PB 百分位，也不生成估值判断。")
 
