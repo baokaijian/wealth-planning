@@ -1,7 +1,22 @@
 {
-  "name": "wealth-planning",
-  "private": true,
+  "name": "wealth-planning-tool",
+  "version": "1.0.0",
+  "description": "基于 React 的本地家庭财务规划工具（数据全部存储于 localStorage）",
+  "main": "index.html",
   "scripts": {
-    "test": "node --test"
-  }
+    "start": "bash run_web.sh",
+    "dev": "python3 -m http.server 3000",
+    "streamlit": "bash run.sh",
+    "test": "python3 test_calculations.py"
+  },
+  "keywords": [
+    "wealth-planning",
+    "react",
+    "financial-planning",
+    "dividend-yield",
+    "goals",
+    "localStorage"
+  ],
+  "author": "",
+  "license": "MIT"
 }
