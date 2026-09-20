@@ -1,0 +1,3232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>家庭财富规划与量化风险管理系统 (纯前端/localStorage)</title>
+  <!-- 引入 React 18、ReactDOM 以及 Babel Standalone 浏览器实时解析器 -->
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.24.4/babel.min.js"></script>
+  <style>
+    :root {
+      --bg-dark: #0B0F19;
+      --card-bg: rgba(22, 28, 45, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-hover-border: rgba(16, 185, 129, 0.35);
+      --text-main: #F1F5F9;
+      --text-muted: #94A3B8;
+      --primary: #10B981;
+      --primary-hover: #059669;
+      --primary-bg: rgba(16, 185, 129, 0.12);
+      --amber: #F59E0B;
+      --amber-bg: rgba(245, 158, 11, 0.15);
+      --rose: #F43F5E;
+      --rose-bg: rgba(244, 63, 94, 0.15);
+      --blue: #38BDF8;
+      --blue-bg: rgba(56, 189, 248, 0.12);
+      --purple: #A855F7;
+      --purple-bg: rgba(168, 85, 247, 0.15);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      line-height: 1.5;
+      min-height: 100vh;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(16, 185, 129, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(56, 189, 248, 0.05) 0%, transparent 40%);
+    }
+
+    /* 滚动条美化 */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0F172A;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    .container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    /* 顶部导航 */
+    header {
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo-badge {
+      background: linear-gradient(135deg, #10B981, #06B6D4);
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+    }
+    .brand-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #FFF;
+      letter-spacing: -0.02em;
+    }
+    .brand-subtitle {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+    }
+    .nav-tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 7px 14px;
+      border-radius: 7px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .nav-tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .nav-tab-btn.active {
+      color: #FFF;
+      background: var(--primary);
+      box-shadow: 0 2px 10px rgba(16, 185, 129, 0.35);
+    }
+
+    /* 卡片与网格系统 */
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .grid-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+
+    @media (max-width: 1100px) {
+      .grid-6 { grid-template-columns: repeat(3, 1fr); }
+      .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 768px) {
+      .grid-6, .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
+      .header-inner { flex-direction: column; gap: 12px; }
+      .nav-tabs { flex-wrap: wrap; justify-content: center; }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+      margin-bottom: 20px;
+      transition: border-color 0.2s ease;
+    }
+    .card:hover {
+      border-color: var(--card-hover-border);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #FFF;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* 指标卡片 */
+    .metric-card {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .metric-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .metric-val {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: #FFF;
+      letter-spacing: -0.01em;
+    }
+    .metric-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* 按钮 */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #FFF;
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+    }
+    .btn-outline {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--card-border);
+      color: var(--text-main);
+    }
+    .btn-outline:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .btn-danger {
+      background: rgba(244, 63, 94, 0.2);
+      border-color: rgba(244, 63, 94, 0.4);
+      color: #FB7185;
+    }
+    .btn-danger:hover {
+      background: rgba(244, 63, 94, 0.35);
+    }
+    .btn-sm {
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      border-radius: 6px;
+    }
+
+    /* 表格样式 */
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      text-align: left;
+    }
+    th {
+      background: rgba(15, 23, 42, 0.6);
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--card-border);
+      white-space: nowrap;
+    }
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text-main);
+    }
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* 徽章与标签 */
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+    .tag-green { background: rgba(16, 185, 129, 0.15); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .tag-yellow { background: rgba(245, 158, 11, 0.15); color: #FBBF24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .tag-red { background: rgba(244, 63, 94, 0.15); color: #F87171; border: 1px solid rgba(244, 63, 94, 0.3); }
+    .tag-blue { background: rgba(56, 189, 248, 0.15); color: #38BDF8; border: 1px solid rgba(56, 189, 248, 0.3); }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 0 8px var(--primary);
+      display: inline-block;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.4); opacity: 0.6; }
+    }
+
+    .storage-tag {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      color: #34D399;
+      background: rgba(16, 185, 129, 0.1);
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    /* 表单控件 */
+    .form-group {
+      margin-bottom: 14px;
+    }
+    .form-label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+    .input-control {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid var(--card-border);
+      color: #FFF;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .input-control:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+    }
+    .input-control.error {
+      border-color: #EF4444;
+      background: rgba(239, 68, 68, 0.08);
+    }
+
+    /* 弹窗遮罩 */
+    .modal-backdrop {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+    .modal-box {
+      background: #111827;
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      width: 90%;
+      max-width: 580px;
+      padding: 24px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    /* 红黄绿灯总览卡片 */
+    .traffic-card {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .traffic-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.2);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+    }
+    .traffic-card.red { border-left: 4px solid #EF4444; background: rgba(239, 68, 68, 0.08); }
+    .traffic-card.yellow { border-left: 4px solid #F59E0B; background: rgba(245, 158, 11, 0.08); }
+    .traffic-card.green { border-left: 4px solid #10B981; background: rgba(16, 185, 129, 0.08); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    const STORAGE_KEY = 'WEALTH_PLANNING_LOCAL_STORAGE_V1';
+
+    // ==========================================
+    // 常量与配置数据
+    // ==========================================
+    const DEFAULT_ASSETS = {
+      '512890': { name: '中证红利低波 ETF', type: 'ETF', weight: 20.0, yield: 4.5, months: { 7: 0.5, 12: 0.5 }, market: 'A股', category: 'Equity', style: '红利低波' },
+      '515450': { name: '标普大盘红利低波 ETF', type: 'ETF', weight: 15.0, yield: 4.2, months: { 7: 1.0 }, market: 'A股', category: 'Equity', style: '红利低波' },
+      '513530': { name: '恒生红利低波 ETF', type: 'ETF', weight: 15.0, yield: 4.8, months: { 7: 0.5, 12: 0.5 }, market: '港股', category: 'Equity', style: '红利低波' },
+      '600941': { name: '中国移动 (个股)', type: 'Stock', weight: 10.0, yield: 6.0, months: { 6: 0.6, 9: 0.4 }, market: 'A股', category: 'Equity', style: '红利低波' },
+      '600900': { name: '长江电力 (个股)', type: 'Stock', weight: 10.0, yield: 3.71, months: { 7: 1.0 }, market: 'A股', category: 'Equity', style: '红利低波' },
+      '601398': { name: '工商银行 (个股)', type: 'Stock', weight: 10.0, yield: 5.5, months: { 7: 0.7, 12: 0.3 }, market: 'A股', category: 'Equity', style: '红利低波' },
+      '601088': { name: '中国神华 (个股)', type: 'Stock', weight: 10.0, yield: 4.77, months: { 7: 1.0 }, market: 'A股', category: 'Equity', style: '红利低波' },
+      '601668': { name: '中国建筑 (个股)', type: 'Stock', weight: 10.0, yield: 5.52, months: { 6: 1.0 }, market: 'A股', category: 'Equity', style: '红利低波' }
+    };
+
+    const GOAL_TYPES = ['子女教育金', '养老储备', '买房首付', '提前退休', '自定义'];
+    const GOAL_PRIORITIES = ['刚性', '弹性'];
+
+    const DEBT_RATE_BRACKETS = {
+      '<3.5%': { label: '<3.5% (公积金/超低息)', median: 3.0 },
+      '3.5-4.5%': { label: '3.5-4.5% (主流商贷/优质消费贷)', median: 4.0 },
+      '4.5-6%': { label: '4.5-6% (早期商贷/一般消费贷)', median: 5.25 },
+      '>6%': { label: '>6% (高息网贷/信用卡分期)', median: 7.2 }
+    };
+
+    const INSURANCE_STABILITY_CONFIG = {
+      high: { years: 3, medical: 300000, label: '高稳定 (体制内/大型垄断国企)' },
+      medium: { years: 4, medical: 400000, label: '中等稳定 (成熟实业/常规外企)' },
+      low: { years: 5, medical: 500000, label: '波动大 (互联网/金融/初创/销售佣金)' }
+    };
+
+    const INSURANCE_COVERAGE_TIERS = [
+      { id: 'none', label: '极低/空白 (仅基本医保或无商业险)' },
+      { id: 'insufficient', label: '基础不足 (仅少量单位团险或低保额意外)' },
+      { id: 'moderate', label: '基本齐备 (常规寿险/重疾但保额一般)' },
+      { id: 'complete', label: '充足全面 (高额寿险+重疾+百万医疗兜底)' }
+    ];
+
+    const PENSION_ANNUAL_MAX = 12000;
+    const PENSION_TAX_BRACKETS = [
+      { rate: 0.0, label: '不达起征点 (0%)' },
+      { rate: 0.03, label: '3% (年应税所得 ≤ 3.6万)' },
+      { rate: 0.10, label: '10% (3.6万 - 14.4万)' },
+      { rate: 0.20, label: '20% (14.4万 - 30万)' },
+      { rate: 0.25, label: '25% (30万 - 42万)' },
+      { rate: 0.30, label: '30% (42万 - 66万)' },
+      { rate: 0.35, label: '35% (66万 - 96万)' },
+      { rate: 0.45, label: '45% (年应税所得 > 96万)' }
+    ];
+
+    const PROPERTY_THRESHOLDS = { greenMax: 0.60, yellowMax: 0.75, defaultStressDropPct: 20 };
+
+    const STRESS_PRESETS = {
+      standard: {
+        id: 'standard',
+        name: '标准复合情景',
+        description: '失业 6 个月 + 组合分红降 30% + 权益市值同步回撤 20%',
+        unemploymentMonths: 6,
+        dividendDropRate: 0.30,
+        equityDrawdownRate: 0.20,
+        medicalExpense: 0,
+        medicalMonth: 0,
+        delayMonths: 0,
+        inflationRate: 0.0
+      },
+      severe: {
+        id: 'severe',
+        name: '严重复合情景',
+        description: '失业 12 个月 + 组合分红降 50% + 权益市值回撤 35% + 第 6 个月突发一次性医疗 20 万元',
+        unemploymentMonths: 12,
+        dividendDropRate: 0.50,
+        equityDrawdownRate: 0.35,
+        medicalExpense: 200000,
+        medicalMonth: 6,
+        delayMonths: 0,
+        inflationRate: 0.0
+      },
+      stagflation: {
+        id: 'stagflation',
+        name: '滞胀情景',
+        description: '年通胀 5% (刚性生活支出逐月递增) + 分红延迟 4 个月到账 + 分红永久下降 20%',
+        unemploymentMonths: 0,
+        dividendDropRate: 0.20,
+        equityDrawdownRate: 0.15,
+        medicalExpense: 0,
+        medicalMonth: 0,
+        delayMonths: 4,
+        inflationRate: 0.05
+      }
+    };
+
+    const HISTORICAL_REPLAYS = {
+      replay_2018: {
+        id: 'replay_2018',
+        name: '2018 式阴跌回放',
+        description: '宏观去杠杆与外部冲击，12 个月逐月阴跌累计回撤 25%，分红保持平稳发放。',
+        monthlyDrawdown: [-0.02, -0.04, -0.07, -0.09, -0.12, -0.15, -0.18, -0.20, -0.22, -0.23, -0.24, -0.25],
+        dividendFactor: 1.0
+      },
+      replay_2022: {
+        id: 'replay_2022',
+        name: '2022 式股债双杀回放',
+        description: '全球加息周期与流动性收紧，权益回撤 20%，债券资产阶段回调 3%，分红下调 10%。',
+        monthlyDrawdown: [-0.05, -0.08, -0.12, -0.16, -0.18, -0.20, -0.19, -0.18, -0.20, -0.20, -0.18, -0.18],
+        dividendFactor: 0.90
+      },
+      replay_2015: {
+        id: 'replay_2015',
+        name: '2015 式急跌回放',
+        description: '杠杆资金踩踏出清，前 3 个月急速暴跌 40%，随后低位宽幅剧烈震荡。',
+        monthlyDrawdown: [-0.15, -0.32, -0.40, -0.38, -0.39, -0.37, -0.38, -0.36, -0.36, -0.35, -0.36, -0.35],
+        dividendFactor: 0.95
+      }
+    };
+
+    const BEHAVIOR_DRAWDOWN_MAP = { '<5%': 20, '5-10%': 35, '10-20%': 55, '20-30%': 70, '>30%': 85 };
+    const BEHAVIOR_RULES = {
+      panicReactionDeduction: { 'panic_sell': 15, 'pause_watch': 5, 'buy_more': 0 },
+      cashflowRelianceDeduction: 10,
+      industryVolatileDeduction: 10,
+      floorProtection: 15,
+      extremeEquityDrawdown: 0.40
+    };
+
+    const THERMOMETER_TIERS = [
+      { min: 0, max: 20, code: 'deep_low', label: '深度低估', color: '#10B981', action: '定投倍数放大至 1.5-2.0x；若缓冲池储备超额，可将盈余资金一次性转入' },
+      { min: 20, max: 40, code: 'low', label: '低估', color: '#34D399', action: '按 1.2x 步长积极定投建仓，持续累积低成本份额' },
+      { min: 40, max: 60, code: 'neutral', label: '中性平衡', color: '#38BDF8', action: '估值处于合理中枢，保持既定配置目标权重，常规基准定投' },
+      { min: 60, max: 80, code: 'warm', label: '估值偏热', color: '#FBBF24', action: '停止增量资金加仓，将新增可结余资金导向现金缓冲池或债券防守桶' },
+      { min: 80, max: 100, code: 'overheat', label: '极度过热', color: '#F87171', action: '启动卖出侧纪律：建议按月度 3 次分批将成长类持仓再平衡回目标权重' }
+    ];
+
+    const LIQUIDITY_DISCOUNT_FACTOR = 0.5;
+    const LIQUIDITY_SAFE_COVERAGE_RATIO = 1.5;
+
+    const CONCENTRATION_LIMITS = {
+      singleAssetYellow: 40,
+      top3AssetsRed: 70,
+      marketCurrencyAlert: 60,
+      dividendStyleClusterAlert: 50
+    };
+
+    const INITIAL_STATE = {
+      board: {
+        principal: 50.0,
+        bufferSeed: 5.0,
+        targetMonthly: 0.2,
+        growthRate: 6.5,
+        moneyMarketRate: 2.0,
+        assets: DEFAULT_ASSETS
+      },
+      health: {
+        monthlyIncome: 30000,
+        monthlyExpense: 18000,
+        essentialMonthlyExpense: 12000,
+        monthlySurplus: 12000,
+        bucket1y: 100000,
+        bucket1To3y: 150000,
+        bucket3To5y: 200000,
+        bucket5yPlus: 500000,
+        hasHousePlan: false,
+        expectedDownPayment: 600000
+      },
+      insurance: {
+        coverageTier: 'insufficient',
+        stabilityTier: 'medium',
+        childEduTarget: 500000,
+        existingLifeCover: 500000,
+        existingCritCover: 200000,
+        existingAccidentCover: 500000,
+        hasMillionMedical: false
+      },
+      debt: {
+        mortgageBalance: 800000,
+        carLoanBalance: 0,
+        consumerLoanBalance: 0,
+        businessLoanBalance: 0,
+        monthlyDebtPayment: 4500,
+        debtRateBracket: '4.5-6%',
+        customDebtRate: 5.5,
+        highInterestDebtBalance: 0,
+        availableFundX: 200000
+      },
+      pension: {
+        hasAccount: true,
+        currentYearDeposited: 4000,
+        marginalTaxRate: 0.20
+      },
+      property: {
+        totalEstimatedValue: 2800000,
+        stressDropPct: 20
+      },
+      stress: {
+        scenarioType: 'preset',
+        selectedPresetId: 'standard',
+        selectedReplayId: 'replay_2018'
+      },
+      behavior: {
+        drawdownBracket: '10-20%',
+        marketDropReaction: 'panic_sell',
+        cashflowRelianceHigh: true,
+        industryVolatileHigh: false
+      },
+      thermometer: {
+        selectedIndex: 'csi_div_low_vol',
+        percentile: 85,
+        userHoldings: {
+          '512890': 15.0,
+          '515450': 10.0,
+          '513530': 8.0,
+          '600941': 5.0,
+          '600900': 4.0,
+          '601398': 4.0,
+          '601088': 3.0,
+          '601668': 3.0
+        }
+      },
+      goals: [
+        {
+          id: 'goal-edu-2035',
+          name: '2035 年子女教育金',
+          type: '子女教育金',
+          targetAmount: 1000000,
+          targetYear: 2035,
+          priority: '刚性',
+          reservedAmount: 0,
+          linkTo1To3y: false,
+          retireConfig: { currentAge: 35, retireAge: 50, retireMonthlyExpense: 10000 }
+        },
+        {
+          id: 'goal-fire-2040',
+          name: '2040 提前退休计划',
+          type: '提前退休',
+          targetAmount: 2500000,
+          targetYear: 2040,
+          priority: '弹性',
+          reservedAmount: 150000,
+          linkTo1To3y: true,
+          retireConfig: { currentAge: 35, retireAge: 50, retireMonthlyExpense: 12000 }
+        }
+      ]
+    };
+
+    const DISCLAIMER_TEXT = "免责声明：所有财务推演与量化模型均基于用户输入的数据及假设性收益率，不代表任何历史业绩保证或未来投资收益承诺，不构成具体金融产品推荐。市场有风险，投资决策需审慎。";
+
+    // ==========================================
+    // 纯函数计算工具引擎
+    // ==========================================
+    function calculateBoardMetrics(boardState) {
+      const { principal, bufferSeed, targetMonthly, growthRate, assets } = boardState;
+      const investPrincipal = Math.max(0, principal - bufferSeed);
+      let totalWeight = 0;
+      let blendedYield = 0;
+      Object.values(assets).forEach(a => {
+        const w = (a.weight || 0) / 100.0;
+        const y = (a.yield || 0) / 100.0;
+        totalWeight += w;
+        blendedYield += w * y;
+      });
+      const expectedAnnualDividend = investPrincipal * blendedYield * 10000;
+      const expectedMonthlyAvg = expectedAnnualDividend / 12.0;
+      const targetMonthlyYuan = targetMonthly * 10000;
+      const gapMonthly = targetMonthlyYuan - expectedMonthlyAvg;
+      return {
+        investPrincipal,
+        totalWeight: totalWeight * 100,
+        blendedYield: blendedYield * 100,
+        growthRate,
+        expectedAnnualDividend,
+        expectedMonthlyAvg,
+        targetMonthlyYuan,
+        gapMonthly,
+        isWeightValid: Math.abs(totalWeight - 1.0) < 0.001
+      };
+    }
+
+    function calculateBufferSimulation(boardState, monthsRange = 36) {
+      const { principal, bufferSeed, targetMonthly, moneyMarketRate, assets } = boardState;
+      const investPrincipalYuan = Math.max(0, principal - bufferSeed) * 10000;
+      const targetMonthlyWithdraw = targetMonthly * 10000;
+      const mmRate = (moneyMarketRate || 2.0) / 100.0;
+
+      let currentBuffer = bufferSeed * 10000;
+      const timeline = [];
+      let minBuffer = currentBuffer;
+      let mostFragileMonth = 1;
+      let totalDividends = 0;
+
+      for (let t = 1; t <= monthsRange; t++) {
+        const calendarMonth = ((t - 1) % 12) + 1;
+        let monthDividend = 0;
+        Object.values(assets).forEach(a => {
+          const distRatio = (a.months && a.months[calendarMonth]) || 0;
+          if (distRatio > 0) {
+            const val = investPrincipalYuan * ((a.weight || 0) / 100.0);
+            monthDividend += val * ((a.yield || 0) / 100.0) * distRatio;
+          }
+        });
+        const monthInterest = Math.max(0, currentBuffer) * (mmRate / 12.0);
+        const nextBuffer = currentBuffer + monthDividend + monthInterest - targetMonthlyWithdraw;
+
+        if (currentBuffer < minBuffer) {
+          minBuffer = currentBuffer;
+          mostFragileMonth = t;
+        }
+
+        timeline.push({
+          month: t,
+          calendarMonth,
+          startBuffer: currentBuffer,
+          dividend: monthDividend,
+          interest: monthInterest,
+          withdraw: targetMonthlyWithdraw,
+          endBuffer: nextBuffer
+        });
+        totalDividends += monthDividend;
+        currentBuffer = nextBuffer;
+      }
+
+      return {
+        timeline,
+        minBuffer,
+        mostFragileMonth,
+        totalDividends,
+        isBufferSafe: minBuffer >= 0
+      };
+    }
+
+    function calculateGoalProjection({
+      currentYear = 2026,
+      targetYear,
+      targetAmount,
+      monthlySurplus,
+      growthRate,
+      currentPrincipal,
+      reservedAmount = 0,
+      safeRate = 2.0
+    }) {
+      const years = Math.max(1, targetYear - currentYear);
+      const months = years * 12;
+      const rAnnual = (growthRate || 6.5) / 100.0;
+      const rMonthly = rAnnual / 12.0;
+      const rSafe = (safeRate || 2.0) / 100.0;
+
+      const fvPrincipal = currentPrincipal * Math.pow(1 + rAnnual, years);
+      let fvMonthly = 0;
+      if (rMonthly > 0) {
+        fvMonthly = monthlySurplus * ((Math.pow(1 + rMonthly, months) - 1) / rMonthly) * (1 + rMonthly);
+      } else {
+        fvMonthly = monthlySurplus * months;
+      }
+      const fvReserved = reservedAmount * Math.pow(1 + rSafe, years);
+      const fvTotal = fvPrincipal + fvMonthly + fvReserved;
+      const diff = fvTotal - targetAmount;
+      const isAchieved = diff >= 0;
+      const gap = isAchieved ? 0 : Math.abs(diff);
+
+      let levers = null;
+      if (!isAchieved && gap > 0) {
+        let extraMonthly = 0;
+        if (rMonthly > 0) {
+          const annuityFactor = ((Math.pow(1 + rMonthly, months) - 1) / rMonthly) * (1 + rMonthly);
+          extraMonthly = gap / annuityFactor;
+        } else {
+          extraMonthly = gap / months;
+        }
+
+        let reqRate = rAnnual;
+        for (let iter = 0; iter < 100; iter++) {
+          const mRate = reqRate / 12.0;
+          const fvP = currentPrincipal * Math.pow(1 + reqRate, years);
+          let fvM = 0;
+          if (mRate > 0) {
+            fvM = monthlySurplus * ((Math.pow(1 + mRate, months) - 1) / mRate) * (1 + mRate);
+          } else {
+            fvM = monthlySurplus * months;
+          }
+          const curFv = fvP + fvM + fvReserved;
+          const fvDiff = curFv - targetAmount;
+          if (Math.abs(fvDiff) < 1.0) break;
+          const dfvP = currentPrincipal * years * Math.pow(1 + reqRate, Math.max(0, years - 1));
+          const dfvM = monthlySurplus * months * Math.pow(1 + mRate, Math.max(0, months - 1));
+          const dfv = dfvP + dfvM / 12.0;
+          if (Math.abs(dfv) < 1e-6) break;
+          reqRate = reqRate - fvDiff / dfv;
+          if (reqRate < -0.5) { reqRate = -0.5; break; }
+          if (reqRate > 2.0) { reqRate = 2.0; break; }
+        }
+
+        const reqRatePct = parseFloat((reqRate * 100).toFixed(2));
+        const rateDiffPct = parseFloat(((reqRate - rAnnual) * 100).toFixed(2));
+        const isRateSafe = reqRate <= 0.08;
+
+        const loosenAmount = Math.round(gap);
+        let delayYears = 0;
+        for (let extraY = 1; extraY <= 30; extraY++) {
+          const newY = years + extraY;
+          const newM = newY * 12;
+          const fvP = currentPrincipal * Math.pow(1 + rAnnual, newY);
+          let fvM = 0;
+          if (rMonthly > 0) {
+            fvM = monthlySurplus * ((Math.pow(1 + rMonthly, newM) - 1) / rMonthly) * (1 + rMonthly);
+          } else {
+            fvM = monthlySurplus * newM;
+          }
+          const fvR = reservedAmount * Math.pow(1 + rSafe, newY);
+          if (fvP + fvM + fvR >= targetAmount) {
+            delayYears = extraY;
+            break;
+          }
+        }
+        if (delayYears === 0) delayYears = 30;
+
+        levers = {
+          extraMonthly: Math.round(extraMonthly),
+          reqRatePct,
+          rateDiffPct,
+          isRateSafe,
+          loosenAmount,
+          delayYears,
+          delayedTargetYear: targetYear + delayYears
+        };
+      }
+
+      return { years, months, fvPrincipal, fvMonthly, fvReserved, fvTotal, diff, isAchieved, gap, levers };
+    }
+
+    function simulateEarlyRetirement({
+      currentAge = 35,
+      retireAge = 50,
+      targetAmount,
+      projectedCapitalAtRetire,
+      monthlyExpense = 10000,
+      dividendYield = 4.8,
+      bufferInterestRate = 2.0,
+      endAge = 85
+    }) {
+      const totalYears = Math.max(1, endAge - retireAge);
+      const totalMonths = totalYears * 12;
+      let capital = (projectedCapitalAtRetire && projectedCapitalAtRetire > 0) ? projectedCapitalAtRetire : targetAmount;
+      let lowestCapital = capital;
+      let mostFragileMonth = 1;
+      let depletionMonth = null;
+      let depletionAge = null;
+
+      const seasonality = {
+        1: 0.02, 2: 0.02, 3: 0.03, 4: 0.05,
+        5: 0.15, 6: 0.25, 7: 0.30, 8: 0.10,
+        9: 0.03, 10: 0.02, 11: 0.01, 12: 0.02
+      };
+
+      const annualDivRate = (dividendYield || 4.8) / 100.0;
+      const mmRate = (bufferInterestRate || 2.0) / 100.0;
+
+      for (let m = 1; m <= totalMonths; m++) {
+        const calendarMonth = ((m - 1) % 12) + 1;
+        const currentAgeApprox = retireAge + (m - 1) / 12.0;
+
+        const divWeight = seasonality[calendarMonth] || (1 / 12.0);
+        const monthlyDiv = capital * annualDivRate * divWeight;
+        const monthlyInterest = Math.max(0, capital) * (mmRate / 12.0);
+
+        capital = capital + monthlyDiv + monthlyInterest - monthlyExpense;
+
+        if (capital < lowestCapital) {
+          lowestCapital = capital;
+          mostFragileMonth = m;
+        }
+
+        if (capital <= 0 && depletionMonth === null) {
+          depletionMonth = m;
+          depletionAge = parseFloat(currentAgeApprox.toFixed(1));
+        }
+      }
+
+      return {
+        isSustainable: depletionMonth === null,
+        finalCapital: Math.max(0, capital),
+        depletionAge,
+        depletionMonth,
+        lowestCapital: Math.round(lowestCapital),
+        mostFragileMonth,
+        mostFragileAge: parseFloat((retireAge + (mostFragileMonth - 1) / 12.0).toFixed(1))
+      };
+    }
+
+    function calculateDebtDecisionMetrics(debtState = {}, growthRate = 6.5) {
+      const bracketMedians = { '<3.5%': 3.0, '3.5-4.5%': 4.0, '4.5-6%': 5.25, '>6%': 7.2 };
+      const bracket = debtState.debtRateBracket || '4.5-6%';
+      const bracketMedian = bracketMedians[bracket] || 5.25;
+      const effectiveDebtRate = typeof debtState.customDebtRate === 'number' && debtState.customDebtRate > 0
+        ? debtState.customDebtRate
+        : bracketMedian;
+
+      const conservativeYield = parseFloat(((growthRate || 6.5) * 0.7).toFixed(2));
+      let decisionType = 'neutral';
+      let decisionText = '';
+
+      if (effectiveDebtRate > conservativeYield + 2.0) {
+        decisionType = 'repay_first';
+        decisionText = '优先清偿高息债务（相当于获得无风险的利差收益）';
+      } else if (effectiveDebtRate < conservativeYield - 2.0) {
+        decisionType = 'invest_first';
+        decisionText = '保持贷款、优先投资，但需确认现金流稳定性';
+      } else {
+        decisionType = 'neutral';
+        decisionText = '两者皆可，优先级取决于风险偏好与流动性需求';
+      }
+
+      const hasHighInterestAlert = (debtState.highInterestDebtBalance > 0) || (bracket === '>6%') || (effectiveDebtRate > 6.0);
+      const fundX = typeof debtState.availableFundX === 'number' && debtState.availableFundX > 0 ? debtState.availableFundX : 200000;
+      const rDebt = effectiveDebtRate / 100.0;
+      const rInvest = conservativeYield / 100.0;
+
+      const horizons = [3, 5, 10];
+      const comparisonTable = horizons.map(years => {
+        const fvRepay = fundX * Math.pow(1 + rDebt, years);
+        const fvInvest = fundX * Math.pow(1 + rInvest, years);
+        const diff = fvRepay - fvInvest;
+        const diffPct = ((fvRepay - fvInvest) / fundX) * 100.0;
+
+        let advantage = '持平';
+        if (diff > 1) advantage = '提前还贷更优';
+        else if (diff < -1) advantage = '坚持投资更优';
+
+        return {
+          years,
+          fundX,
+          fvRepay: Math.round(fvRepay),
+          fvInvest: Math.round(fvInvest),
+          diff: Math.round(diff),
+          diffPct: parseFloat(diffPct.toFixed(2)),
+          advantage
+        };
+      });
+
+      const totalDebtBalance = (debtState.mortgageBalance || 0) + (debtState.carLoanBalance || 0) + (debtState.consumerLoanBalance || 0) + (debtState.businessLoanBalance || 0);
+
+      return {
+        bracket,
+        bracketMedian,
+        effectiveDebtRate,
+        growthRate,
+        conservativeYield,
+        decisionType,
+        decisionText,
+        hasHighInterestAlert,
+        fundX,
+        comparisonTable,
+        totalDebtBalance
+      };
+    }
+
+    function calculateInsuranceGap(healthState = {}, insuranceState = {}, totalDebtBalance = 0) {
+      const monthlyEssential = healthState.essentialMonthlyExpense || (healthState.monthlyExpense ? healthState.monthlyExpense * 0.7 : 12000);
+      const future10yExpense = monthlyEssential * 120;
+      const childEdu = insuranceState.childEduTarget !== undefined ? insuranceState.childEduTarget : 500000;
+      const liquidAssets = (healthState.bucket1y || 0) + (healthState.bucket1To3y || 0) + (healthState.bucket3To5y || 0) + (healthState.bucket5yPlus || 0);
+      
+      const lifeTarget = Math.max(0, totalDebtBalance + future10yExpense + childEdu - liquidAssets);
+      const existingLife = insuranceState.existingLifeCover || 0;
+      const lifeGap = Math.max(0, lifeTarget - existingLife);
+
+      const annualIncome = (healthState.monthlyIncome || 30000) * 12;
+      const lifeGapIncomeMultiple = annualIncome > 0 ? parseFloat((lifeGap / annualIncome).toFixed(1)) : 0;
+
+      const stability = insuranceState.stabilityTier || 'medium';
+      const stabConfig = INSURANCE_STABILITY_CONFIG[stability] || INSURANCE_STABILITY_CONFIG.medium;
+      const critTarget = stabConfig.years * annualIncome + stabConfig.medical;
+      const existingCrit = insuranceState.existingCritCover || 0;
+      const critGap = Math.max(0, critTarget - existingCrit);
+      const critGapIncomeMultiple = annualIncome > 0 ? parseFloat((critGap / annualIncome).toFixed(1)) : 0;
+
+      const accidentTarget = Math.round(lifeTarget * 0.5);
+      const existingAccident = insuranceState.existingAccidentCover || 0;
+      const accidentGap = Math.max(0, accidentTarget - existingAccident);
+      const accidentGapIncomeMultiple = annualIncome > 0 ? parseFloat((accidentGap / annualIncome).toFixed(1)) : 0;
+
+      const hasMillionMedical = Boolean(insuranceState.hasMillionMedical);
+      const coverageTier = insuranceState.coverageTier || 'insufficient';
+
+      const hasNetGap = (lifeGap > 0) || (critGap > 0) || (accidentGap > 0) || (!hasMillionMedical);
+      const shouldWarnAndDowngrade = (coverageTier === 'none' || coverageTier === 'insufficient') && hasNetGap;
+
+      return {
+        lifeTarget, existingLife, lifeGap, lifeGapIncomeMultiple,
+        critTarget, existingCrit, critGap, critGapIncomeMultiple,
+        accidentTarget, existingAccident, accidentGap, accidentGapIncomeMultiple,
+        hasMillionMedical, coverageTier, shouldWarnAndDowngrade, stabConfig, annualIncome
+      };
+    }
+
+    function calculatePensionTaxBenefit(pensionState = {}) {
+      const hasAccount = Boolean(pensionState.hasAccount);
+      const deposited = Math.min(PENSION_ANNUAL_MAX, Math.max(0, Number(pensionState.currentYearDeposited) || 0));
+      const taxRate = typeof pensionState.marginalTaxRate === 'number' ? pensionState.marginalTaxRate : 0.20;
+      const remainingQuota = Math.max(0, PENSION_ANNUAL_MAX - deposited);
+      const isTaxBenefitLimited = taxRate <= 0.001;
+      const annualTaxSavingsForegone = Math.round(remainingQuota * taxRate);
+      const cumulative20ySavings = annualTaxSavingsForegone * 20;
+
+      return {
+        hasAccount, deposited, remainingQuota, taxRate,
+        annualTaxSavingsForegone, cumulative20ySavings, isTaxBenefitLimited,
+        guidanceText: "红利低波类基金的长期持有属性与养老金账户封闭期匹配，可优先在该账户内承载（不构成产品推荐）。"
+      };
+    }
+
+    function calculateRealEstateRisk(propertyState = {}, healthState = {}, debtState = {}) {
+      const propertyVal = Number(propertyState.totalEstimatedValue) || 0;
+      const mortgage = Number(debtState.mortgageBalance) || 0;
+      const propertyNet = Math.max(0, propertyVal - mortgage);
+
+      const financialAssets = (healthState.bucket1y || 0) + (healthState.bucket1To3y || 0) + (healthState.bucket3To5y || 0) + (healthState.bucket5yPlus || 0);
+      const totalAssets = propertyVal + financialAssets;
+      const totalDebt = (debtState.mortgageBalance || 0) + (debtState.carLoanBalance || 0) + (debtState.consumerLoanBalance || 0) + (debtState.businessLoanBalance || 0);
+
+      const totalNetWorth = Math.max(1, totalAssets - totalDebt);
+      const realEstateRatio = parseFloat(((propertyNet / totalNetWorth) * 100).toFixed(1));
+
+      let tier = 'green';
+      let tierAdvice = '房产净资产比处于健康合理区间（<60%），流动性防线稳固。';
+      if (realEstateRatio > PROPERTY_THRESHOLDS.yellowMax * 100) {
+        tier = 'red';
+        tierAdvice = '房产集中度过高（>75%），严重挤压流动性资产。不宜再增配房产，且需充分评估极端情况下二手房流动性折价与变现摩擦风险！';
+      } else if (realEstateRatio >= PROPERTY_THRESHOLDS.greenMax * 100) {
+        tier = 'yellow';
+        tierAdvice = '房产净资产比偏高（60-75%），建议家庭新增储蓄优先流向高流动性金融资产，优化净资产抗风险弹性。';
+      }
+
+      const hasHousePlan = Boolean(healthState.hasHousePlan);
+      const expectedDownPayment = Number(healthState.expectedDownPayment) || 0;
+      const readyFunds = (healthState.bucket1To3y || 0) + (healthState.bucket1y || 0);
+      const downPaymentGap = Math.max(0, expectedDownPayment - readyFunds);
+      const isDownPaymentShort = hasHousePlan && (downPaymentGap > 0);
+
+      const stressDropPct = typeof propertyState.stressDropPct === 'number' ? propertyState.stressDropPct : PROPERTY_THRESHOLDS.defaultStressDropPct;
+      const propertyStressVal = propertyVal * (1 - stressDropPct / 100.0);
+      const stressTotalAssets = propertyStressVal + financialAssets;
+      const stressTotalNetWorth = Math.max(0, stressTotalAssets - totalDebt);
+      const normalDebtToAsset = parseFloat(((totalDebt / Math.max(1, totalAssets)) * 100).toFixed(1));
+      const stressDebtToAsset = parseFloat(((totalDebt / Math.max(1, stressTotalAssets)) * 100).toFixed(1));
+
+      return {
+        propertyVal, mortgage, propertyNet, financialAssets, totalAssets, totalDebt, totalNetWorth,
+        realEstateRatio, tier, tierAdvice, hasHousePlan, expectedDownPayment, readyFunds,
+        downPaymentGap, isDownPaymentShort, downPaymentWarning: "首付储备不足，请勿动用中长期投资组合本金博取短期首付！",
+        stressDropPct, propertyStressVal, stressTotalAssets, stressTotalNetWorth, normalDebtToAsset, stressDebtToAsset
+      };
+    }
+
+    function checkLiquiditySegregation(healthState = {}, boardPrincipalTenThousand = 50) {
+      const boardPrincipalYuan = boardPrincipalTenThousand * 10000;
+      const bucket1y = healthState.bucket1y || 0;
+      const bucket1To3y = healthState.bucket1To3y || 0;
+      const bucket3To5y = healthState.bucket3To5y || 0;
+      const bucket5yPlus = healthState.bucket5yPlus || 0;
+      
+      const liquidFinancialAssets = bucket1y + bucket1To3y + bucket3To5y + bucket5yPlus;
+      const discountFactor = LIQUIDITY_DISCOUNT_FACTOR;
+
+      const investableCeiling = Math.max(0, liquidFinancialAssets - (bucket1y * 1.0) - (bucket1To3y * discountFactor));
+      const isViolated = boardPrincipalYuan > investableCeiling;
+      const excessAmount = Math.max(0, boardPrincipalYuan - investableCeiling);
+
+      const shortTermExpenses = bucket1y + bucket1To3y;
+      const coverageRatio = shortTermExpenses > 0 ? parseFloat((liquidFinancialAssets / shortTermExpenses).toFixed(2)) : 99.0;
+      const isCoverageInsufficient = coverageRatio < LIQUIDITY_SAFE_COVERAGE_RATIO;
+
+      return {
+        boardPrincipalYuan, liquidFinancialAssets, bucket1y, bucket1To3y, discountFactor,
+        investableCeiling, isViolated, excessAmount, coverageRatio, isCoverageInsufficient,
+        warningText: "已侵入未来确定性支出，请先单独预留短期资金！",
+        distinctionNote: "缓冲池平滑分红淡季与月度支取波动，流动性硬隔离保障未来 1-3 年刚性确定性支出，二者职责分明不可混用。"
+      };
+    }
+
+    function checkTripleConcentration(assets = {}) {
+      const assetList = Object.entries(assets).map(([code, item]) => ({
+        code, name: item.name, weight: item.weight || 0, market: item.market || 'A股', style: item.style || '其他'
+      }));
+
+      const sorted = [...assetList].sort((a, b) => b.weight - a.weight);
+      const maxSingle = sorted[0] || { name: '无', weight: 0 };
+      const top3Weight = sorted.slice(0, 3).reduce((acc, cur) => acc + cur.weight, 0);
+
+      const isSingleWarn = maxSingle.weight > CONCENTRATION_LIMITS.singleAssetYellow;
+      const isTop3Danger = top3Weight > CONCENTRATION_LIMITS.top3AssetsRed;
+
+      let targetStatus = 'green';
+      let targetAdvice = '标的权重分布分散均匀，单一资产黑天鹅风险可控。';
+      if (isTop3Danger) {
+        targetStatus = 'red';
+        targetAdvice = `前三大标的合计权重达到 ${top3Weight.toFixed(1)}% (红灯>70%)，需防范极端踩踏，建议分批再平衡分流。`;
+      } else if (isSingleWarn) {
+        targetStatus = 'yellow';
+        targetAdvice = `单一标的【${maxSingle.name}】权重达 ${maxSingle.weight.toFixed(1)}% (黄灯>40%)，个股/单基金黑天鹅对组合冲击显著。`;
+      }
+
+      const marketSums = {};
+      assetList.forEach(a => { marketSums[a.market] = (marketSums[a.market] || 0) + a.weight; });
+      let maxMarket = { market: 'A股', weight: 0 };
+      Object.entries(marketSums).forEach(([m, w]) => {
+        if (w > maxMarket.weight) maxMarket = { market: m, weight: w };
+      });
+
+      const isMarketAlert = maxMarket.weight > CONCENTRATION_LIMITS.marketCurrencyAlert;
+      let marketStatus = isMarketAlert ? 'yellow' : 'green';
+      let marketAdvice = isMarketAlert 
+        ? `【${maxMarket.market}】资产占比高达 ${maxMarket.weight.toFixed(1)}% (>60%)，建议适度配置跨市场/跨币种标的以平抑单一主权风险。`
+        : '市场分布处于多市场均衡阶段，宏观流动性冲击分散性良好。';
+
+      let dividendStyleWeight = 0;
+      assetList.forEach(a => { if (a.style === '红利低波') dividendStyleWeight += a.weight; });
+
+      const isStyleAlert = dividendStyleWeight > CONCENTRATION_LIMITS.dividendStyleClusterAlert;
+      let styleStatus = isStyleAlert ? 'yellow' : 'green';
+      let styleAdvice = isStyleAlert
+        ? `红利低波类标的权重合计达 ${dividendStyleWeight.toFixed(1)}% (>50%)，需注意银行/煤炭/交运等底层重仓行业的景气周期共振风险！`
+        : '策略风格保持多元，红利低波与成长防守资产比例平衡。';
+
+      return {
+        targetStatus, targetAdvice, maxSingle, top3Weight,
+        marketStatus, marketAdvice, maxMarket,
+        styleStatus, styleAdvice, dividendStyleWeight
+      };
+    }
+
+    function calculateBehavioralEquityCeiling(behaviorState = {}, assets = {}) {
+      const bracket = behaviorState.drawdownBracket || '10-20%';
+      const baseCeiling = BEHAVIOR_DRAWDOWN_MAP[bracket] || 55;
+
+      const reaction = behaviorState.marketDropReaction || 'panic_sell';
+      const panicDeduction = BEHAVIOR_RULES.panicReactionDeduction[reaction] || 0;
+      const cashflowDeduction = behaviorState.cashflowRelianceHigh ? BEHAVIOR_RULES.cashflowRelianceDeduction : 0;
+      const industryDeduction = behaviorState.industryVolatileHigh ? BEHAVIOR_RULES.industryVolatileDeduction : 0;
+
+      const rawCeiling = baseCeiling - panicDeduction - cashflowDeduction - industryDeduction;
+      const finalCeiling = Math.max(BEHAVIOR_RULES.floorProtection, rawCeiling);
+
+      let actualEquityWeight = 0;
+      Object.values(assets).forEach(a => {
+        if (a.category === 'Equity' || a.type === 'ETF' || a.type === 'Stock') {
+          actualEquityWeight += (a.weight || 0);
+        }
+      });
+
+      const isExceeded = actualEquityWeight > finalCeiling;
+      const excessWeight = Math.max(0, actualEquityWeight - finalCeiling);
+      const implicitDrawdown = parseFloat((finalCeiling * BEHAVIOR_RULES.extremeEquityDrawdown).toFixed(1));
+
+      const breakdownList = [
+        { label: `自评回撤档位 (${bracket}) 基础权益上限`, delta: `+${baseCeiling}%` }
+      ];
+      if (panicDeduction > 0) breakdownList.push({ label: '市场大跌第一反应 (恐慌卖出/观望)', delta: `-${panicDeduction}%` });
+      if (cashflowDeduction > 0) breakdownList.push({ label: '日常现金流高度依赖投资收益', delta: `-${cashflowDeduction}%` });
+      if (industryDeduction > 0) breakdownList.push({ label: '行业波动大且失业恢复期预期>6个月', delta: `-${industryDeduction}%` });
+      if (rawCeiling < BEHAVIOR_RULES.floorProtection) breakdownList.push({ label: `触发工具安全保护底线 (${BEHAVIOR_RULES.floorProtection}%)`, delta: '兜底提升' });
+
+      return {
+        bracket, baseCeiling, panicDeduction, cashflowDeduction, industryDeduction,
+        finalCeiling, actualEquityWeight, isExceeded, excessWeight, implicitDrawdown,
+        breakdownList, warningText: "超出您的行为风险约束！您自评的心理抗跌能力与家庭现金流刚性，无法承载当前高比例权益波动。"
+      };
+    }
+
+    function calculateThermometerSignal(percentile = 50) {
+      const val = Math.min(100, Math.max(0, percentile));
+      let tier = THERMOMETER_TIERS[2];
+      for (const t of THERMOMETER_TIERS) {
+        if (val >= t.min && val <= t.max) { tier = t; break; }
+      }
+      const isDeepLow = tier.code === 'deep_low';
+      const isOverheated = tier.code === 'overheat';
+      const isWarm = tier.code === 'warm';
+
+      return {
+        percentile: val, tier, isDeepLow, isOverheated, isWarm,
+        actionAdvice: tier.action,
+        rebalanceAdvice: isOverheated 
+          ? '【过热卖出信号】建议按月度 3 次分批将成长类与过热标的再平衡回目标权重。'
+          : (isWarm ? '【偏热信号】暂停增量追高，新增资金导向现金缓冲池。' : '【定投/持有信号】估值安全边际充裕，执行既定买入与持有纪律。')
+      };
+    }
+
+    function runCompoundStressTest(boardState = {}, stressScenario = {}, healthState = {}, monthsRange = 36) {
+      const { principal, bufferSeed, targetMonthly, moneyMarketRate, assets } = boardState;
+      const investPrincipalYuan = Math.max(0, principal - bufferSeed) * 10000;
+      const mmRate = (moneyMarketRate || 2.0) / 100.0;
+
+      const unemploymentMonths = stressScenario.unemploymentMonths || 0;
+      const dividendDropRate = stressScenario.dividendDropRate || 0;
+      const equityDrawdownRate = stressScenario.equityDrawdownRate || 0;
+      const delayMonths = stressScenario.delayMonths || 0;
+      const medicalExpense = stressScenario.medicalExpense || 0;
+      const medicalMonth = stressScenario.medicalMonth || 6;
+      const inflationRate = stressScenario.inflationRate || 0;
+
+      let currentBuffer = bufferSeed * 10000;
+      const timeline = [];
+      let minBuffer = currentBuffer;
+      let exhaustionMonth = null;
+      let maxDeficit = 0;
+
+      for (let t = 1; t <= monthsRange; t++) {
+        const calendarMonth = ((t - 1) % 12) + 1;
+        let monthlyWithdraw = targetMonthly * 10000;
+        if (inflationRate > 0) {
+          monthlyWithdraw = monthlyWithdraw * Math.pow(1 + inflationRate / 12.0, t);
+        }
+
+        let extraOutflow = 0;
+        if (medicalExpense > 0 && t === medicalMonth) {
+          extraOutflow = medicalExpense;
+        }
+
+        let monthDividend = 0;
+        const effectiveCalMonth = delayMonths > 0 ? ((((calendarMonth - 1 - delayMonths) % 12) + 12) % 12) + 1 : calendarMonth;
+
+        Object.values(assets).forEach(asset => {
+          const distRatio = (asset.months && asset.months[effectiveCalMonth]) || 0;
+          if (distRatio > 0) {
+            const assetVal = investPrincipalYuan * ((asset.weight || 0) / 100.0);
+            const baseDiv = assetVal * ((asset.yield || 0) / 100.0) * distRatio;
+            monthDividend += baseDiv * (1 - dividendDropRate);
+          }
+        });
+
+        const monthInterest = Math.max(0, currentBuffer) * (mmRate / 12.0);
+        const nextBuffer = currentBuffer + monthDividend + monthInterest - monthlyWithdraw - extraOutflow;
+
+        if (currentBuffer < minBuffer) minBuffer = currentBuffer;
+        if (nextBuffer < 0 && exhaustionMonth === null) exhaustionMonth = t;
+        if (nextBuffer < 0 && Math.abs(nextBuffer) > maxDeficit) maxDeficit = Math.abs(nextBuffer);
+
+        timeline.push({
+          month: t,
+          calendarMonth,
+          startBuffer: Math.round(currentBuffer),
+          dividend: Math.round(monthDividend),
+          interest: parseFloat(monthInterest.toFixed(1)),
+          withdraw: Math.round(monthlyWithdraw + extraOutflow),
+          endBuffer: Math.round(nextBuffer)
+        });
+
+        currentBuffer = nextBuffer;
+      }
+
+      const discountMultiplier = Math.max(0.1, 1 - equityDrawdownRate);
+      const minAssetToSell = exhaustionMonth ? Math.round(maxDeficit / discountMultiplier) : 0;
+      const monthlySurplusYuan = healthState.monthlySurplus || 10000;
+      const targetBufferTarget = bufferSeed * 10000;
+      const deficitToFill = exhaustionMonth ? (targetBufferTarget + maxDeficit) : 0;
+      const monthsToRecover = deficitToFill > 0 ? Math.ceil(deficitToFill / Math.max(1000, monthlySurplusYuan)) : 0;
+
+      return {
+        timeline,
+        minBuffer: Math.round(minBuffer),
+        exhaustionMonth,
+        isExhausted: exhaustionMonth !== null,
+        minAssetToSell,
+        monthsToRecover,
+        maxDeficit: Math.round(maxDeficit),
+        equityDrawdownRate
+      };
+    }
+
+    function calculateExplainableScores(state = {}) {
+      const { board = {}, health = {}, debt = {}, insurance = {}, behavior = {} } = state;
+      const bufferSim = calculateBufferSimulation(board);
+      const debtMetrics = calculateDebtDecisionMetrics(debt, board.growthRate);
+      const insGap = calculateInsuranceGap(health, insurance, debtMetrics.totalDebtBalance);
+      const liqCheck = checkLiquiditySegregation(health, board.principal);
+      const behCheck = calculateBehavioralEquityCeiling(behavior, board.assets);
+
+      let debtScore = 0;
+      if (debtMetrics.hasHighInterestAlert) debtScore = 30;
+      else if (debtMetrics.totalDebtBalance > 1000000) debtScore = 20;
+      else if (debtMetrics.totalDebtBalance > 0) debtScore = 10;
+
+      let liqScore = 0;
+      if (liqCheck.isViolated) liqScore = 30;
+      else if (liqCheck.isCoverageInsufficient) liqScore = 18;
+      else liqScore = 5;
+
+      let insScore = 0;
+      if (insGap.shouldWarnAndDowngrade) insScore = 25;
+      else if (insGap.lifeGap > 0 || insGap.critGap > 0) insScore = 15;
+      else insScore = 0;
+
+      let bufScore = 0;
+      if (!bufferSim.isBufferSafe) bufScore = 15;
+      else if (bufferSim.minBuffer < 20000) bufScore = 8;
+      else bufScore = 0;
+
+      const totalVulnerability = debtScore + liqScore + insScore + bufScore;
+      const vulnFactors = [
+        { name: '高息与综合债务杠杆', score: debtScore, max: 30 },
+        { name: '流动性硬隔离与短期覆盖', score: liqScore, max: 30 },
+        { name: '家庭保障缺口与医疗兜底', score: insScore, max: 25 },
+        { name: '现金缓冲池淡旺季平滑', score: bufScore, max: 15 }
+      ];
+      vulnFactors.sort((a, b) => (b.score / b.max) - (a.score / a.max));
+      const worstVulnFactor = vulnFactors[0];
+
+      const equityWeight = behCheck.actualEquityWeight;
+      const eqScore = Math.min(40, Math.round((equityWeight / 100.0) * 40));
+      const gRate = board.growthRate || 6.5;
+      const growthScore = Math.min(30, Math.round((Math.max(0, gRate - 3.0) / 7.0) * 30));
+      const behExceedScore = behCheck.isExceeded ? Math.min(30, Math.round(behCheck.excessWeight * 1.5)) : 5;
+
+      const totalAggressiveness = Math.min(100, eqScore + growthScore + behExceedScore);
+
+      return {
+        totalVulnerability,
+        vulnerabilityLevel: totalVulnerability > 60 ? '高危脆弱' : (totalVulnerability > 35 ? '中度脆弱' : '稳健安全'),
+        vulnFactors,
+        worstVulnConclusion: `本期【${worstVulnFactor.name}】得分为 ${worstVulnFactor.score}分 (满分${worstVulnFactor.max}分)，是推高家庭财务脆弱性的主要短板。`,
+        totalAggressiveness,
+        aggressivenessLevel: totalAggressiveness > 70 ? '激进进攻' : (totalAggressiveness > 40 ? '平衡进取' : '谨慎保守'),
+        aggFactors: [
+          { name: '权益类持仓权重', score: eqScore, max: 40 },
+          { name: '增长预期收益率目标', score: growthScore, max: 30 },
+          { name: '超越行为约束博取度', score: behExceedScore, max: 30 }
+        ]
+      };
+    }
+
+    function calculateUnifiedRiskDashboard(state = {}) {
+      const { board = {}, health = {}, debt = {}, insurance = {}, behavior = {} } = state;
+      const debtMetrics = calculateDebtDecisionMetrics(debt, board.growthRate);
+      const insGap = calculateInsuranceGap(health, insurance, debtMetrics.totalDebtBalance);
+      const liqCheck = checkLiquiditySegregation(health, board.principal);
+      const bufferSim = calculateBufferSimulation(board);
+      const concentration = checkTripleConcentration(board.assets);
+      const behCheck = calculateBehavioralEquityCeiling(behavior, board.assets);
+
+      const lights = [
+        {
+          id: 'high_interest_debt',
+          name: '高息与综合债务',
+          targetTab: 'health',
+          targetAnchor: 'debt-decision-card',
+          level: debtMetrics.hasHighInterestAlert ? 'red' : (debtMetrics.totalDebtBalance > 0 ? 'yellow' : 'green'),
+          desc: debtMetrics.hasHighInterestAlert ? '存在高息借贷或利率>6%' : (debtMetrics.totalDebtBalance > 0 ? '常规负债利差可控' : '零负债，资产轻盈'),
+          advice: debtMetrics.decisionText
+        },
+        {
+          id: 'liquidity_isolation',
+          name: '流动性硬隔离',
+          targetTab: 'board',
+          targetAnchor: 'liquidity-isolation-card',
+          level: liqCheck.isViolated ? 'red' : (liqCheck.isCoverageInsufficient ? 'yellow' : 'green'),
+          desc: liqCheck.isViolated ? `本金超限 ¥${Math.round(liqCheck.excessAmount).toLocaleString()}元` : `覆盖倍数 ${liqCheck.coverageRatio}x`,
+          advice: liqCheck.isViolated ? liqCheck.warningText : '保持短期资金硬隔离'
+        },
+        {
+          id: 'insurance_protection',
+          name: '家庭基础保障',
+          targetTab: 'health',
+          targetAnchor: 'insurance-gap-card',
+          level: insGap.shouldWarnAndDowngrade ? 'red' : ((insGap.lifeGap > 0 || insGap.critGap > 0) ? 'yellow' : 'green'),
+          desc: insGap.shouldWarnAndDowngrade ? '自评不足且有重疾/寿险净敞口' : (!insGap.hasMillionMedical ? '缺少百万医疗大额兜底' : '保障较为齐备'),
+          advice: insGap.shouldWarnAndDowngrade ? '先补保障再配置，配置降级为参考' : '按需补齐保额'
+        },
+        {
+          id: 'buffer_safety',
+          name: '缓冲池平滑',
+          targetTab: 'buffer',
+          targetAnchor: 'buffer-simulation-card',
+          level: !bufferSim.isBufferSafe ? 'red' : (bufferSim.minBuffer < 20000 ? 'yellow' : 'green'),
+          desc: !bufferSim.isBufferSafe ? `第 ${bufferSim.mostFragileMonth} 个月出现亏空！` : `最低水位 ¥${Math.round(bufferSim.minBuffer).toLocaleString()}`,
+          advice: !bufferSim.isBufferSafe ? '需增加初始种子金或减少提取' : '现金流平滑成功'
+        },
+        {
+          id: 'portfolio_concentration',
+          name: '三重集中度',
+          targetTab: 'board',
+          targetAnchor: 'concentration-card',
+          level: (concentration.targetStatus === 'red' || concentration.marketStatus === 'red' || concentration.styleStatus === 'red') ? 'red' : (
+            (concentration.targetStatus === 'yellow' || concentration.marketStatus === 'yellow' || concentration.styleStatus === 'yellow') ? 'yellow' : 'green'
+          ),
+          desc: concentration.targetStatus === 'red' ? `前三标的高达 ${concentration.top3Weight.toFixed(1)}%` : `红利风格 ${concentration.dividendStyleWeight.toFixed(1)}%`,
+          advice: concentration.targetAdvice
+        },
+        {
+          id: 'behavior_constraint',
+          name: '行为风险约束',
+          targetTab: 'board',
+          targetAnchor: 'behavior-constraint-card',
+          level: behCheck.isExceeded ? 'red' : 'green',
+          desc: behCheck.isExceeded ? `权益 ${behCheck.actualEquityWeight.toFixed(1)}% 超出上限 (${behCheck.finalCeiling}%)` : `符合心理与刚性约束 (上限 ${behCheck.finalCeiling}%)`,
+          advice: behCheck.isExceeded ? behCheck.warningText : '仓位与情绪抗性相匹配'
+        }
+      ];
+
+      const redCount = lights.filter(l => l.level === 'red').length;
+      const yellowCount = lights.filter(l => l.level === 'yellow').length;
+      const greenCount = lights.filter(l => l.level === 'green').length;
+
+      return { lights, redCount, yellowCount, greenCount, overallHealth: redCount === 0 ? (yellowCount <= 1 ? '健康' : '关注') : '高风险' };
+    }
+
+    function generateMarkdownReport(state) {
+      const { board = {}, health = {}, insurance = {}, debt = {}, pension = {}, property = {}, behavior = {}, goals = [] } = state;
+      const boardMetrics = calculateBoardMetrics(board);
+      const bufferMetrics = calculateBufferSimulation(board);
+      const debtMetrics = calculateDebtDecisionMetrics(debt, board.growthRate);
+      const insGap = calculateInsuranceGap(health, insurance, debtMetrics.totalDebtBalance);
+      const pensionBenefit = calculatePensionTaxBenefit(pension);
+      const reRisk = calculateRealEstateRisk(property, health, debt);
+      const liqCheck = checkLiquiditySegregation(health, board.principal);
+      const concentration = checkTripleConcentration(board.assets);
+      const behCheck = calculateBehavioralEquityCeiling(behavior, board.assets);
+      const scores = calculateExplainableScores(state);
+      const stdStress = runCompoundStressTest(board, STRESS_PRESETS.standard, health, 36);
+      const currentYear = 2026;
+
+      let highDebtAlertSection = '';
+      if (debtMetrics.hasHighInterestAlert) {
+        highDebtAlertSection = `> [!CAUTION]\n> **🚨 【高息债务警报】**：检测到家庭当前存在年化 >6.0% 的高息借贷或自报高息债务余额 ¥${Number(debt.highInterestDebtBalance || 0).toLocaleString()} 元！高息借贷利息成本极高，对家庭净资产侵蚀严重，建议将其列为最高优先级偿还事项。\n\n---\n`;
+      }
+
+      let liqAlertSection = '';
+      if (liqCheck.isViolated) {
+        liqAlertSection = `> [!WARNING]\n> **💧 【流动性硬隔离超限警告】**：当前可用投资本金 (¥${(board.principal * 10000).toLocaleString()} 元) 已超出安全可投资资金上限 (¥${Math.round(liqCheck.investableCeiling).toLocaleString()} 元)，超限 ¥${Math.round(liqCheck.excessAmount).toLocaleString()} 元！**${liqCheck.warningText}**\n\n---\n`;
+      }
+
+      let insAlertSection = '';
+      if (insGap.shouldWarnAndDowngrade) {
+        insAlertSection = `> [!CAUTION]\n> **🛡️ 【先补保障再配置警告】**：家庭自评保障水平处于脆弱档位，且存在寿险或重疾重大净敞口（缺少百万医疗大额兜底）。基础抗风险兜底不足时，大额医疗或极端意外将直接击穿资产组合，**当前三桶资产配置方案结论降级为“参考值”**！\n\n---\n`;
+      }
+
+      const debtComparisonRows = debtMetrics.comparisonTable.map(row => {
+        const diffSign = row.diff > 0 ? `+¥${row.diff.toLocaleString()}` : `-¥${Math.abs(row.diff).toLocaleString()}`;
+        return `| ${row.years} 年期 | ¥${row.fundX.toLocaleString()} | ¥${row.fvRepay.toLocaleString()} | ¥${row.fvInvest.toLocaleString()} | ${diffSign} | **${row.advantage}** |`;
+      }).join('\n');
+
+      const goalRows = goals.map((goal, idx) => {
+        const currentPrincipalYuan = (board.principal || 50) * 10000;
+        const reservedYuan = goal.linkTo1To3y ? (health.bucket1To3y || 0) : (goal.reservedAmount || 0);
+        const monthlySurplusYuan = health.monthlySurplus || 0;
+
+        const proj = calculateGoalProjection({
+          currentYear, targetYear: goal.targetYear, targetAmount: goal.targetAmount,
+          monthlySurplus: monthlySurplusYuan, growthRate: board.growthRate,
+          currentPrincipal: currentPrincipalYuan, reservedAmount: reservedYuan, safeRate: 2.0
+        });
+
+        const statusBadge = proj.isAchieved ? `🟢 预计富余 ¥${Math.round(proj.diff).toLocaleString()}` : `🔴 预计缺口 ¥${Math.round(proj.gap).toLocaleString()}`;
+        let leverText = '已达成，无需调控';
+        if (!proj.isAchieved && proj.levers) {
+          const { extraMonthly, reqRatePct, rateDiffPct, isRateSafe, loosenAmount, delayYears, delayedTargetYear } = proj.levers;
+          const rateLabel = isRateSafe ? `提升至 ${reqRatePct}% (+${rateDiffPct}%, 稳健区间内)` : `提升至 ${reqRatePct}% (+${rateDiffPct}%, ⚠️超稳健上限8%)`;
+          leverText = `①每月多储 ¥${extraMonthly.toLocaleString()}<br>②收益率${rateLabel}<br>③降目标至 ¥${(goal.targetAmount - loosenAmount).toLocaleString()} 或延至 ${delayedTargetYear}年 (+${delayYears}年)`;
+        }
+
+        return `| ${idx + 1} | ${goal.name} | ${goal.type} | ${goal.priority} | ${goal.targetYear}年 | ¥${Number(goal.targetAmount).toLocaleString()} | ¥${Math.round(proj.fvTotal).toLocaleString()} | ${statusBadge} | ${leverText} |`;
+      }).join('\n');
+
+      return `# 📋 家庭财富规划与量化风险综合体检报告
+
+**生成时间**：${new Date().toLocaleDateString('zh-CN')}  
+**推演工具**：纯前端静态本地家庭财务规划与量化风险系统 (数据全部保存在本地浏览器 localStorage)
+
+---
+
+${highDebtAlertSection}${liqAlertSection}${insAlertSection}## 一、 家庭收支、流动性硬隔离与资产体检
+
+### 1.1 收支与短期资金布局
+- **家庭月收入**：¥${Number(health.monthlyIncome || 0).toLocaleString()} 元
+- **月支出（常规总额）**：¥${Number(health.monthlyExpense || 0).toLocaleString()} 元
+- **月必要支出底线**：¥${Number(health.essentialMonthlyExpense || 12000).toLocaleString()} 元
+- **月可结余**：**¥${Number(health.monthlySurplus || 0).toLocaleString()} 元**
+- **流动金融资产总额**：¥${liqCheck.liquidFinancialAssets.toLocaleString()} 元
+
+### 1.2 流动性硬隔离检查
+- **未来 12 个月确定性支出 (100% 隔离)**：¥${liqCheck.bucket1y.toLocaleString()} 元
+- **未来 1-3 年确定性支出 (50% 折减隔离)**：¥${(liqCheck.bucket1To3y * liqCheck.discountFactor).toLocaleString()} 元
+- **可投资资金上限**：**¥${Math.round(liqCheck.investableCeiling).toLocaleString()} 元**
+- **当前实际可用本金**：¥${liqCheck.boardPrincipalYuan.toLocaleString()} 元（${liqCheck.isViolated ? '⚠️ **已超限**' : '✅ **在安全限额内**'}）
+- **短期支出覆盖倍数**：**${liqCheck.coverageRatio} 倍**（${liqCheck.isCoverageInsufficient ? '⚠️ 低于 1.5 倍安全底线，应急流动性不足' : '✅ 流动性储备充裕'}）
+- *架构口径说明：${liqCheck.distinctionNote}*
+
+### 1.3 房产集中度与购房首付核验
+- **房产当前总估值**：¥${reRisk.propertyVal.toLocaleString()} 元（房贷余额：¥${reRisk.mortgage.toLocaleString()} 元）
+- **房产净资产占比**：**${reRisk.realEstateRatio}%**（评级：**${reRisk.tier === 'green' ? '🟢 绿色健康' : (reRisk.tier === 'yellow' ? '🟡 黄色偏高' : '🔴 红色高危')}**）
+- **房产集中度分析提示**：${reRisk.tierAdvice}
+- **首付储备核验**：${reRisk.hasHousePlan ? (reRisk.isDownPaymentShort ? `⚠️ 计划购房首付 ¥${reRisk.expectedDownPayment.toLocaleString()} 元，确定资金存在 ¥${reRisk.downPaymentGap.toLocaleString()} 元缺口！**${reRisk.downPaymentWarning}**` : '✅ 购房首付资金已足额预留') : '无近期买房/换房计划'}
+
+---
+
+## 二、 家庭保障缺口测算 (责任缺口法)
+
+- **寿险保障测算**：总需求 ¥${Math.round(insGap.lifeTarget).toLocaleString()} 元，已有保额 ¥${insGap.existingLife.toLocaleString()} 元，**寿险净缺口 ¥${insGap.lifeGap.toLocaleString()} 元**（折合家庭年收入 **${insGap.lifeGapIncomeMultiple} 倍**）。
+- **重疾保障测算**：建议保额 ¥${Math.round(insGap.critTarget).toLocaleString()} 元（${insGap.stabConfig.years}年收入+${insGap.stabConfig.medical/10000}万康复金），已有 ¥${insGap.existingCrit.toLocaleString()} 元，**重疾净缺口 ¥${insGap.critGap.toLocaleString()} 元**（折合家庭年收入 **${insGap.critGapIncomeMultiple} 倍**）。
+- **意外险建议额**：建议额 ¥${insGap.accidentTarget.toLocaleString()} 元，已有 ¥${insGap.existingAccident.toLocaleString()} 元，净缺口 **¥${insGap.accidentGap.toLocaleString()} 元**。
+- **百万医疗兜底**：${insGap.hasMillionMedical ? '✅ 已配置百万医疗险（大额自费风险已兜底）' : '⚠️ **未配置百万医疗险**（大额住院费用可能击穿储蓄防线）'}
+
+---
+
+## 三、 债务决策对照与个人养老金税优
+
+### 3.1 债务决策对照
+- **综合贷款利率档位**：**${debtMetrics.bracket}** (测算利率: **${debtMetrics.effectiveDebtRate}%**，按档位中值估算，请以实际合同利率为准)
+- **组合保守预期收益率**：**${debtMetrics.conservativeYield}%** (取增长预期收益率 ${debtMetrics.growthRate}% 的 70% 作为保守口径)
+- **决策矩阵研判结论**：**${debtMetrics.decisionText}**
+
+#### 路径模拟对比（模拟资金 X = ¥${debtMetrics.fundX.toLocaleString()} 元）
+| 模拟周期 | 模拟资金本金 | 路径A: 提前还贷终值效应 | 路径B: 坚持投资推演终值 | 净资产差额 (A - B) | 策略对比建议 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+${debtComparisonRows}
+
+### 3.2 个人养老金税优检查
+- **开户状态**：${pensionBenefit.hasAccount ? '已开户' : '尚未开户'}，本年已缴存 ¥${pensionBenefit.deposited.toLocaleString()} 元 / 限额 ¥12,000 元。
+- **边际个税档位**：${(pensionBenefit.taxRate * 100).toFixed(0)}%
+- **放弃的当期税收抵扣额**：**¥${pensionBenefit.annualTaxSavingsForegone.toLocaleString()} 元 / 年**（20 年累计预计放弃 ¥${pensionBenefit.cumulative20ySavings.toLocaleString()} 元）。
+- *标的指引建议：${pensionBenefit.guidanceText}*
+
+---
+
+## 四、 资产配置、行为约束与三重集中度
+
+- **总可用本金**：¥${(board.principal * 10000).toLocaleString()} 元（加权现金流收益率 **${boardMetrics.blendedYield.toFixed(2)}%**，增长预期 **${boardMetrics.growthRate.toFixed(2)}%**）
+- **您的行为约束权益上限**：**${behCheck.finalCeiling}%**（当前实际权益持仓 **${behCheck.actualEquityWeight.toFixed(1)}%**，${behCheck.isExceeded ? `⚠️ 超限 ${behCheck.excessWeight.toFixed(1)}%！${behCheck.warningText}` : '✅ 处于安全心理耐受区间'}）
+- **三重集中度**：
+  - 标的集中度：单一最大【${concentration.maxSingle.name}】(${concentration.maxSingle.weight.toFixed(1)}%)，前三合计 (${concentration.top3Weight.toFixed(1)}%)。${concentration.targetAdvice}
+  - 市场集中度：最大板块【${concentration.maxMarket.market}】(${concentration.maxMarket.weight.toFixed(1)}%)。${concentration.marketAdvice}
+  - 风格集中度：红利低波风格簇占比 **${concentration.dividendStyleWeight.toFixed(1)}%**。${concentration.styleAdvice}
+
+---
+
+## 五、 缓冲池平滑与复合情景压力测试 (36个月)
+
+- **基准平滑**：36个月最低水位 ¥${Math.round(bufferMetrics.minBuffer).toLocaleString()} 元（最脆弱月份：第 ${bufferMetrics.mostFragileMonth} 个月）
+- **标准复合情景**（失业6个月+分红降30%+回撤20%）：${stdStress.isExhausted ? `⚠️ 缓冲池在**第 ${stdStress.exhaustionMonth} 个月枯竭**，需折价变现资产 ¥${stdStress.minAssetToSell.toLocaleString()} 元，恢复需约 ${stdStress.monthsToRecover} 个月。` : '✅ 成功抵抗标准复合压力冲击，缓冲池未枯竭。'}
+
+---
+
+## 六、 🎯 目标达成总览明细表
+
+| 序号 | 目标名称 | 目标类型 | 优先级 | 目标年份 | 目标金额 | 简化推演终值 | 达成状态 | 缺口调控对策 (三大可调杠杆) |
+| :---: | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :--- |
+${goalRows}
+
+---
+
+## 七、 综合财务评分与可解释归因明细
+
+- **财务脆弱性评分**：**${scores.totalVulnerability} 分**（评级：**${scores.vulnerabilityLevel}**）
+  - 核心短板归因：${scores.worstVulnConclusion}
+- **理财进攻性评分**：**${scores.totalAggressiveness} 分**（评级：**${scores.aggressivenessLevel}**）
+
+---
+
+> [!NOTE]
+> **${DISCLAIMER_TEXT}**
+`;
+    }
+
+    // ==========================================
+    // React 主应用组件
+    // ==========================================
+    function App() {
+      const [state, setState] = useState(() => {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            return {
+              board: { ...INITIAL_STATE.board, ...(parsed.board || {}) },
+              health: { ...INITIAL_STATE.health, ...(parsed.health || {}) },
+              insurance: { ...INITIAL_STATE.insurance, ...(parsed.insurance || {}) },
+              debt: { ...INITIAL_STATE.debt, ...(parsed.debt || {}) },
+              pension: { ...INITIAL_STATE.pension, ...(parsed.pension || {}) },
+              property: { ...INITIAL_STATE.property, ...(parsed.property || {}) },
+              stress: { ...INITIAL_STATE.stress, ...(parsed.stress || {}) },
+              behavior: { ...INITIAL_STATE.behavior, ...(parsed.behavior || {}) },
+              thermometer: { ...INITIAL_STATE.thermometer, ...(parsed.thermometer || {}) },
+              goals: Array.isArray(parsed.goals) ? parsed.goals : INITIAL_STATE.goals
+            };
+          }
+        } catch (e) {
+          console.error('Failed to load state from localStorage:', e);
+        }
+        return INITIAL_STATE;
+      });
+
+      const [activeTab, setActiveTab] = useState('goals');
+      const [editingGoal, setEditingGoal] = useState(null);
+      const [isModalOpen, setIsModalOpen] = useState(false);
+      const [copySuccess, setCopySuccess] = useState(false);
+      const [showBehaviorBreakdown, setShowBehaviorBreakdown] = useState(false);
+      const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
+
+      useEffect(() => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (e) {
+          console.error('Failed to save state to localStorage:', e);
+        }
+      }, [state]);
+
+      // 派生量化指标
+      const boardMetrics = useMemo(() => calculateBoardMetrics(state.board), [state.board]);
+      const bufferMetrics = useMemo(() => calculateBufferSimulation(state.board), [state.board]);
+      const debtMetrics = useMemo(() => calculateDebtDecisionMetrics(state.debt, state.board.growthRate), [state.debt, state.board.growthRate]);
+      const insuranceMetrics = useMemo(() => calculateInsuranceGap(state.health, state.insurance, debtMetrics.totalDebtBalance), [state.health, state.insurance, debtMetrics.totalDebtBalance]);
+      const pensionMetrics = useMemo(() => calculatePensionTaxBenefit(state.pension), [state.pension]);
+      const realEstateMetrics = useMemo(() => calculateRealEstateRisk(state.property, state.health, state.debt), [state.property, state.health, state.debt]);
+      const liquidityMetrics = useMemo(() => checkLiquiditySegregation(state.health, state.board.principal), [state.health, state.board.principal]);
+      const concentrationMetrics = useMemo(() => checkTripleConcentration(state.board.assets), [state.board.assets]);
+      const behaviorMetrics = useMemo(() => calculateBehavioralEquityCeiling(state.behavior, state.board.assets), [state.behavior, state.board.assets]);
+      const thermometerMetrics = useMemo(() => calculateThermometerSignal(state.thermometer.percentile), [state.thermometer.percentile]);
+      
+      const currentStressScenario = useMemo(() => {
+        if (state.stress.scenarioType === 'preset') {
+          return STRESS_PRESETS[state.stress.selectedPresetId] || STRESS_PRESETS.standard;
+        } else {
+          const rep = HISTORICAL_REPLAYS[state.stress.selectedReplayId] || HISTORICAL_REPLAYS.replay_2018;
+          return {
+            id: rep.id,
+            name: rep.name,
+            description: rep.description,
+            unemploymentMonths: 0,
+            dividendDropRate: 1 - rep.dividendFactor,
+            equityDrawdownRate: Math.abs(Math.min(...rep.monthlyDrawdown)),
+            medicalExpense: 0,
+            medicalMonth: 0,
+            delayMonths: 0,
+            inflationRate: 0.0
+          };
+        }
+      }, [state.stress]);
+
+      const stressMetrics = useMemo(() => {
+        return runCompoundStressTest(state.board, currentStressScenario, state.health, 36);
+      }, [state.board, currentStressScenario, state.health]);
+
+      const explainableScores = useMemo(() => calculateExplainableScores(state), [state]);
+      const unifiedDashboard = useMemo(() => calculateUnifiedRiskDashboard(state), [state]);
+
+      // 目标统计
+      const goalStats = useMemo(() => {
+        const currentPrincipalYuan = (state.board.principal || 50) * 10000;
+        let achievedCount = 0;
+        let gapCount = 0;
+        let totalTargetAmt = 0;
+        let totalFv = 0;
+
+        state.goals.forEach(g => {
+          totalTargetAmt += Number(g.targetAmount || 0);
+          const reserved = g.linkTo1To3y ? (state.health.bucket1To3y || 0) : (g.reservedAmount || 0);
+          const proj = calculateGoalProjection({
+            currentYear: 2026,
+            targetYear: g.targetYear,
+            targetAmount: g.targetAmount,
+            monthlySurplus: state.health.monthlySurplus || 0,
+            growthRate: state.board.growthRate,
+            currentPrincipal: currentPrincipalYuan,
+            reservedAmount: reserved
+          });
+          totalFv += proj.fvTotal;
+          if (proj.isAchieved) achievedCount++;
+          else gapCount++;
+        });
+
+        return { achievedCount, gapCount, totalTargetAmt, totalFv };
+      }, [state.goals, state.board, state.health]);
+
+      // 重置所有数据
+      const handleResetAll = () => {
+        if (window.confirm("确定要重置所有财务数据并恢复系统演示初始配置吗？此操作无法撤销。")) {
+          localStorage.removeItem(STORAGE_KEY);
+          setState(INITIAL_STATE);
+        }
+      };
+
+      // 快速载入验收示例
+      const handleLoadAcceptanceGoal = () => {
+        const newGoal = {
+          id: 'goal-edu-' + Date.now(),
+          name: '2035 年子女教育金 (验收示例)',
+          type: '子女教育金',
+          targetAmount: 1000000,
+          targetYear: 2035,
+          priority: '刚性',
+          reservedAmount: 0,
+          linkTo1To3y: false,
+          retireConfig: { currentAge: 35, retireAge: 50, retireMonthlyExpense: 10000 }
+        };
+        setState({
+          ...state,
+          goals: [newGoal, ...state.goals]
+        });
+        setActiveTab('goals');
+      };
+
+      // 统一风险卡片跳转
+      const handleJumpToModule = (tab, anchorId) => {
+        setActiveTab(tab);
+        setTimeout(() => {
+          const el = document.getElementById(anchorId);
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      };
+
+      // 目标增删改操作
+      const handleOpenCreate = () => {
+        setEditingGoal({
+          id: 'goal-' + Date.now(),
+          name: '',
+          type: '子女教育金',
+          targetAmount: 500000,
+          targetYear: 2035,
+          priority: '刚性',
+          reservedAmount: 0,
+          linkTo1To3y: false,
+          retireConfig: { currentAge: 35, retireAge: 50, retireMonthlyExpense: 10000 }
+        });
+        setIsModalOpen(true);
+      };
+
+      const handleOpenEdit = (goal) => {
+        setEditingGoal({ ...goal });
+        setIsModalOpen(true);
+      };
+
+      const handleDeleteGoal = (id) => {
+        if (window.confirm("确定删除该规划目标吗？")) {
+          setState({
+            ...state,
+            goals: state.goals.filter(g => g.id !== id)
+          });
+        }
+      };
+
+      const handleSaveGoal = (e) => {
+        e.preventDefault();
+        if (!editingGoal.name.trim()) {
+          alert("请输入目标名称！");
+          return;
+        }
+        const exists = state.goals.some(g => g.id === editingGoal.id);
+        if (exists) {
+          setState({
+            ...state,
+            goals: state.goals.map(g => g.id === editingGoal.id ? editingGoal : g)
+          });
+        } else {
+          setState({
+            ...state,
+            goals: [editingGoal, ...state.goals]
+          });
+        }
+        setIsModalOpen(false);
+      };
+
+      return (
+        <div>
+          {/* 顶部导航 */}
+          <header>
+            <div className="header-inner">
+              <div className="logo-area">
+                <div className="logo-badge">🛡️</div>
+                <div>
+                  <div className="brand-title">家庭财富规划与量化风险管理系统</div>
+                  <div className="brand-subtitle">流动性硬隔离 · 保障缺口 · 行为约束 · 复合情景压力测试</div>
+                </div>
+              </div>
+
+              <div className="nav-tabs">
+                <button className={`nav-tab-btn ${activeTab === 'goals' ? 'active' : ''}`} onClick={() => setActiveTab('goals')}>
+                  🎯 目标规划 <span className="tag tag-blue" style={{ marginLeft: 4 }}>{state.goals.length}</span>
+                </button>
+                <button className={`nav-tab-btn ${activeTab === 'board' ? 'active' : ''}`} onClick={() => setActiveTab('board')}>
+                  📊 资产看板
+                </button>
+                <button className={`nav-tab-btn ${activeTab === 'health' ? 'active' : ''}`} onClick={() => setActiveTab('health')}>
+                  🩺 资产体检与保障
+                </button>
+                <button className={`nav-tab-btn ${activeTab === 'buffer' ? 'active' : ''}`} onClick={() => setActiveTab('buffer')}>
+                  ⏱️ 缓冲池与压力测试
+                </button>
+                <button className={`nav-tab-btn ${activeTab === 'thermometer' ? 'active' : ''}`} onClick={() => setActiveTab('thermometer')}>
+                  🌡️ 估值温度计与再平衡
+                </button>
+                <button className={`nav-tab-btn ${activeTab === 'report' ? 'active' : ''}`} onClick={() => setActiveTab('report')}>
+                  📋 体检报告导出
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div className="storage-tag">
+                  <span className="pulse-dot"></span>
+                  localStorage 纯本地存储
+                </div>
+                <button className="btn btn-outline btn-sm" onClick={handleResetAll} title="重置回初始示范数据">
+                  🔄 重置
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {/* 顶部流动性硬隔离超限警告条 (持久置顶) */}
+          {liquidityMetrics.isViolated && (
+            <div style={{
+              background: 'rgba(239, 68, 68, 0.92)',
+              color: '#FFF',
+              padding: '10px 20px',
+              fontWeight: 600,
+              fontSize: '0.86rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              boxShadow: '0 4px 15px rgba(239, 68, 68, 0.4)',
+              zIndex: 90
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '1.2rem' }}>🚨</span>
+                <span>
+                  <strong>【流动性硬隔离严重超限】</strong>当前可用投资本金 ¥{(state.board.principal * 10000).toLocaleString()} 元，超出安全可投资上限 (¥{Math.round(liquidityMetrics.investableCeiling).toLocaleString()} 元) 达 ¥{Math.round(liquidityMetrics.excessAmount).toLocaleString()} 元！<strong>{liquidityMetrics.warningText}</strong>
+                </span>
+              </div>
+              <button 
+                className="btn btn-sm" 
+                style={{ background: '#FFF', color: '#B91C1C' }}
+                onClick={() => handleJumpToModule('board', 'liquidity-isolation-card')}
+              >
+                立即修正
+              </button>
+            </div>
+          )}
+
+          <main className="container">
+            {/* 统一风险仪表盘 (一屏 6 大红黄绿灯总览卡) */}
+            <div className="card" style={{ marginBottom: '20px', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(255,255,255,0.12)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '1.2rem' }}>🚦</span>
+                  <span style={{ fontSize: '1rem', fontWeight: 700, color: '#FFF' }}>统一风险仪表盘 (6大核心红灯源实时监控)</span>
+                  <span className={`tag ${unifiedDashboard.overallHealth === '健康' ? 'tag-green' : (unifiedDashboard.overallHealth === '关注' ? 'tag-yellow' : 'tag-red')}`}>
+                    状态：{unifiedDashboard.overallHealth} (红灯 {unifiedDashboard.redCount} / 黄灯 {unifiedDashboard.yellowCount} / 绿灯 {unifiedDashboard.greenCount})
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#94A3B8' }}>
+                  点击任一卡片可直达对应模块调整优化
+                </div>
+              </div>
+
+              <div className="grid-6">
+                {unifiedDashboard.lights.map(item => (
+                  <div 
+                    key={item.id} 
+                    className={`traffic-card ${item.level}`}
+                    onClick={() => handleJumpToModule(item.targetTab, item.targetAnchor)}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#FFF' }}>{item.name}</span>
+                        <span style={{ fontSize: '14px' }}>
+                          {item.level === 'red' ? '🔴' : (item.level === 'yellow' ? '🟡' : '🟢')}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: item.level === 'red' ? '#FCA5A5' : (item.level === 'yellow' ? '#FDE68A' : '#A7F3D0'), marginBottom: '6px' }}>
+                        {item.desc}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: '#94A3B8', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '4px' }}>
+                      {item.advice}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* TAB 1: 🎯 目标导向规划 */}
+            {activeTab === 'goals' && (
+              <div>
+                <div className="grid-4" style={{ marginBottom: '20px' }}>
+                  <div className="metric-card">
+                    <div className="metric-label">规划目标总数</div>
+                    <div className="metric-val">{state.goals.length} <span style={{ fontSize: '1rem', color: '#94A3B8' }}>个</span></div>
+                    <div className="metric-sub">
+                      <span style={{ color: '#34D399' }}>{goalStats.achievedCount} 已达成</span> · 
+                      <span style={{ color: '#FB7185', marginLeft: '4px' }}>{goalStats.gapCount} 待弥补</span>
+                    </div>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-label">月可结余 (体检输入)</div>
+                    <div className="metric-val" style={{ color: '#38BDF8' }}>¥{Number(state.health.monthlySurplus).toLocaleString()}</div>
+                    <div className="metric-sub">看板增长年化预期: {state.board.growthRate}%</div>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-label">目标资金需求总额</div>
+                    <div className="metric-val">¥{(goalStats.totalTargetAmt / 10000).toFixed(0)} <span style={{ fontSize: '1rem', color: '#94A3B8' }}>万</span></div>
+                    <div className="metric-sub">名义金额需求加总</div>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-label">简化推演终值总和</div>
+                    <div className="metric-val" style={{ color: '#10B981' }}>¥{(goalStats.totalFv / 10000).toFixed(0)} <span style={{ fontSize: '1rem', color: '#94A3B8' }}>万</span></div>
+                    <div className="metric-sub">本金与定投复利累积期望</div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 600 }}>目标列表 ({state.goals.length})</div>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button className="btn btn-outline" onClick={handleLoadAcceptanceGoal}>
+                      ⚡ 快速载入验收示例 (2035 子女教育金 100 万)
+                    </button>
+                    <button className="btn btn-primary" onClick={handleOpenCreate}>
+                      ➕ 新增规划目标
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
+                  {state.goals.map(goal => {
+                    const currentPrincipalYuan = (state.board.principal || 50) * 10000;
+                    const reserved = goal.linkTo1To3y ? (state.health.bucket1To3y || 0) : (goal.reservedAmount || 0);
+                    const proj = calculateGoalProjection({
+                      currentYear: 2026,
+                      targetYear: goal.targetYear,
+                      targetAmount: goal.targetAmount,
+                      monthlySurplus: state.health.monthlySurplus || 0,
+                      growthRate: state.board.growthRate,
+                      currentPrincipal: currentPrincipalYuan,
+                      reservedAmount: reserved
+                    });
+
+                    const isFire = goal.type === '提前退休';
+                    let fireSim = null;
+                    if (isFire) {
+                      const retCfg = goal.retireConfig || { currentAge: 35, retireAge: 50, retireMonthlyExpense: 10000 };
+                      fireSim = simulateEarlyRetirement({
+                        currentAge: retCfg.currentAge,
+                        retireAge: retCfg.retireAge,
+                        targetAmount: goal.targetAmount,
+                        projectedCapitalAtRetire: proj.fvTotal,
+                        monthlyExpense: retCfg.retireMonthlyExpense,
+                        dividendYield: boardMetrics.blendedYield,
+                        bufferInterestRate: state.board.moneyMarketRate,
+                        endAge: 85
+                      });
+                    }
+
+                    return (
+                      <div key={goal.id} className="card" style={{ marginBottom: '0', border: proj.isAchieved ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(244, 63, 94, 0.3)' }}>
+                        <div className="card-header" style={{ marginBottom: '12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ fontSize: '1.2rem' }}>
+                              {goal.type === '子女教育金' ? '🎓' : (goal.type === '养老储备' ? '👵' : (goal.type === '买房首付' ? '🏠' : (goal.type === '提前退休' ? '🌴' : '🎯')))}
+                            </span>
+                            <div>
+                              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#FFF' }}>{goal.name}</div>
+                              <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                                <span className="tag tag-blue">{goal.type}</span>
+                                <span className={`tag ${goal.priority === '刚性' ? 'tag-red' : 'tag-green'}`}>
+                                  {goal.priority === '刚性' ? '🔴 刚性优先级' : '🔵 弹性优先级'}
+                                </span>
+                                <span className="tag" style={{ background: 'rgba(255,255,255,0.06)' }}>目标时点: {goal.targetYear} 年 (还剩 {proj.years} 年)</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <span className={`tag ${proj.isAchieved ? 'tag-green' : 'tag-red'}`} style={{ fontSize: '0.85rem', padding: '4px 10px' }}>
+                              {proj.isAchieved ? `🟢 预计富余 ¥${Math.round(proj.diff).toLocaleString()} 元` : `🔴 预计缺口 ¥${Math.round(proj.gap).toLocaleString()} 元`}
+                            </span>
+                            <button className="btn btn-outline btn-sm" onClick={() => handleOpenEdit(goal)}>✏️ 编辑</button>
+                            <button className="btn btn-danger btn-sm" onClick={() => handleDeleteGoal(goal.id)}>🗑️ 删除</button>
+                          </div>
+                        </div>
+
+                        {/* 指标展示 */}
+                        <div className="grid-4" style={{ marginBottom: '16px' }}>
+                          <div className="metric-card">
+                            <div className="metric-label">目标设定金额</div>
+                            <div className="metric-val">¥{Number(goal.targetAmount).toLocaleString()}</div>
+                            <div className="metric-sub">需在 {goal.targetYear} 年达成</div>
+                          </div>
+                          <div className="metric-card">
+                            <div className="metric-label">简化推演终值 (FV)</div>
+                            <div className="metric-val" style={{ color: proj.isAchieved ? '#10B981' : '#FBBF24' }}>
+                              ¥{Math.round(proj.fvTotal).toLocaleString()}
+                            </div>
+                            <div className="metric-sub">本金+定投+单独预留</div>
+                          </div>
+                          <div className="metric-card">
+                            <div className="metric-label">本金贡献终值</div>
+                            <div className="metric-val" style={{ fontSize: '1.15rem' }}>¥{Math.round(proj.fvPrincipal).toLocaleString()}</div>
+                            <div className="metric-sub">现有总本金按 {state.board.growthRate}% 复利</div>
+                          </div>
+                          <div className="metric-card">
+                            <div className="metric-label">月定投累积终值</div>
+                            <div className="metric-val" style={{ fontSize: '1.15rem', color: '#38BDF8' }}>¥{Math.round(proj.fvMonthly).toLocaleString()}</div>
+                            <div className="metric-sub">每月 ¥{Number(state.health.monthlySurplus).toLocaleString()} 定投</div>
+                          </div>
+                        </div>
+
+                        {/* 三大杠杆反解 */}
+                        {!proj.isAchieved && proj.levers && (
+                          <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '10px', padding: '14px', marginBottom: '12px' }}>
+                            <div style={{ fontWeight: 700, color: '#F87171', marginBottom: '8px', fontSize: '0.9rem' }}>
+                              ⚖️ 缺口弥补方案（三大可调杠杆反解测算）：
+                            </div>
+                            <div className="grid-3">
+                              <div style={{ background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '8px' }}>
+                                <div style={{ fontSize: '0.8rem', color: '#CBD5E1', fontWeight: 600 }}>杠杆 1：储蓄端 (开源节流)</div>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#FBBF24', margin: '4px 0' }}>
+                                  每月多储蓄 ¥{proj.levers.extraMonthly.toLocaleString()} 元
+                                </div>
+                                <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>
+                                  目标月储蓄调增至 ¥{(Number(state.health.monthlySurplus || 0) + proj.levers.extraMonthly).toLocaleString()} 元即可闭环
+                                </div>
+                              </div>
+
+                              <div style={{ background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '8px' }}>
+                                <div style={{ fontSize: '0.8rem', color: '#CBD5E1', fontWeight: 600 }}>杠杆 2：收益端 (组合提效)</div>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: proj.levers.isRateSafe ? '#10B981' : '#F87171', margin: '4px 0' }}>
+                                  收益率需提至 {proj.levers.reqRatePct}% (+{proj.levers.rateDiffPct}%)
+                                </div>
+                                <div style={{ fontSize: '0.72rem', color: proj.levers.isRateSafe ? '#34D399' : '#F87171' }}>
+                                  {proj.levers.isRateSafe ? '✅ 仍处于家庭稳健理财区间 (≤8%)' : '⚠️ 超过稳健上限 8%，存在本金波动风险，不建议盲目博取'}
+                                </div>
+                              </div>
+
+                              <div style={{ background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '8px' }}>
+                                <div style={{ fontSize: '0.8rem', color: '#CBD5E1', fontWeight: 600 }}>杠杆 3：目标端 (放宽诉求)</div>
+                                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#38BDF8', margin: '4px 0' }}>
+                                  下调至 ¥{(goal.targetAmount - proj.levers.loosenAmount).toLocaleString()} 元
+                                </div>
+                                <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>
+                                  或时点延后 {proj.levers.delayYears} 年至 {proj.levers.delayedTargetYear} 年自然达成
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 提前退休持久性 */}
+                        {isFire && fireSim && (
+                          <div style={{ background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '10px', padding: '14px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                              <div style={{ fontWeight: 700, color: '#38BDF8', fontSize: '0.9rem' }}>
+                                🌴 提前退休模式：85 岁全生命周期持久性检验 (分红支取与本金平滑)
+                              </div>
+                              <span className={`tag ${fireSim.isSustainable ? 'tag-green' : 'tag-red'}`}>
+                                {fireSim.isSustainable ? '✅ 资本永续至85岁 (未耗尽)' : `⚠️ 资产在 ${fireSim.depletionAge} 岁将耗尽`}
+                              </span>
+                            </div>
+                            <div className="grid-3" style={{ fontSize: '0.8rem' }}>
+                              <div>退休期初本金推演: <strong>¥{Math.round(proj.fvTotal).toLocaleString()}</strong></div>
+                              <div>退休月度生活费: <strong>¥{Number(goal.retireConfig?.retireMonthlyExpense || 10000).toLocaleString()}/月</strong></div>
+                              <div>
+                                最脆弱月份: <strong>第 {fireSim.mostFragileMonth} 个月</strong> (约 {fireSim.mostFragileAge} 岁, 水位: ¥{fireSim.lowestCapital.toLocaleString()})
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: 📊 资产配置与股息看板 */}
+            {activeTab === 'board' && (
+              <div>
+                {/* 保障缺口警告条 (若保障自评不足且有净缺口) */}
+                {insuranceMetrics.shouldWarnAndDowngrade && (
+                  <div style={{
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    border: '2px solid #EF4444',
+                    borderRadius: '10px',
+                    padding: '14px 18px',
+                    marginBottom: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span style={{ fontSize: '28px' }}>🛡️</span>
+                      <div>
+                        <div style={{ color: '#F87171', fontWeight: 700, fontSize: '0.95rem' }}>
+                          先补保障再配置：当前家庭抗风险兜底严重不足！
+                        </div>
+                        <div style={{ color: '#FECACA', fontSize: '0.82rem' }}>
+                          您的保障自评为“{insuranceMetrics.coverageTier === 'none' ? '极低/空白' : '基础不足'}”，存在寿险/重疾净缺口且缺少百万医疗大额兜底。大额医疗或极端意外将直接击穿资产组合，<strong>当前资产配置结论降级为【参考值】</strong>，请优先补齐消费型保障！
+                        </div>
+                      </div>
+                    </div>
+                    <button className="btn btn-danger btn-sm" onClick={() => handleJumpToModule('health', 'insurance-gap-card')}>
+                      去补齐保障
+                    </button>
+                  </div>
+                )}
+
+                {/* 1. 流动性硬隔离控制卡片 */}
+                <div className="card" id="liquidity-isolation-card" style={{ border: liquidityMetrics.isViolated ? '2px solid #EF4444' : '1px solid var(--card-border)' }}>
+                  <div className="card-header">
+                    <div className="card-title">
+                      <span>💧 流动性硬隔离校验：防止投资本金侵入短期确定性刚需</span>
+                      <span className={`tag ${liquidityMetrics.isViolated ? 'tag-red' : 'tag-green'}`}>
+                        {liquidityMetrics.isViolated ? '⚠️ 超限预警' : '✅ 安全合规'}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '0.78rem', color: '#94A3B8' }}>
+                      短期支出覆盖倍数: <strong style={{ color: liquidityMetrics.isCoverageInsufficient ? '#F87171' : '#34D399' }}>{liquidityMetrics.coverageRatio}x</strong> (安全底线 1.5x)
+                    </span>
+                  </div>
+
+                  <div className="grid-4" style={{ marginBottom: '16px' }}>
+                    <div className="metric-card">
+                      <div className="metric-label">流动金融资产总额</div>
+                      <div className="metric-val">¥{liquidityMetrics.liquidFinancialAssets.toLocaleString()}</div>
+                      <div className="metric-sub">活期+短债+基金+黄金等 (不含房产)</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-label">12个月确定性支出 (100%隔离)</div>
+                      <div className="metric-val" style={{ color: '#FBBF24' }}>¥{liquidityMetrics.bucket1y.toLocaleString()}</div>
+                      <div className="metric-sub">未来1年绝对刚需，禁止投资博取</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-label">1-3年确定支出 (50%折减)</div>
+                      <div className="metric-val" style={{ color: '#38BDF8' }}>¥{(liquidityMetrics.bucket1To3y * liquidityMetrics.discountFactor).toLocaleString()}</div>
+                      <div className="metric-sub">¥{liquidityMetrics.bucket1To3y.toLocaleString()} × 折减系数 50%</div>
+                    </div>
+                    <div className="metric-card" style={{ background: liquidityMetrics.isViolated ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)' }}>
+                      <div className="metric-label">可投资资金上限</div>
+                      <div className="metric-val" style={{ color: liquidityMetrics.isViolated ? '#F87171' : '#10B981' }}>
+                        ¥{Math.round(liquidityMetrics.investableCeiling).toLocaleString()}
+                      </div>
+                      <div className="metric-sub">
+                        {liquidityMetrics.isViolated ? `已超限 ¥${Math.round(liquidityMetrics.excessAmount).toLocaleString()} 元！` : '可用本金安全上限'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px 16px', borderRadius: '8px', fontSize: '0.82rem', color: '#CBD5E1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      💡 <strong>职责辨析</strong>：{liquidityMetrics.distinctionNote}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <label style={{ fontSize: '0.8rem', color: '#94A3B8' }}>总可用本金 (万元):</label>
+                      <input 
+                        type="number" 
+                        className={`input-control ${liquidityMetrics.isViolated ? 'error' : ''}`}
+                        style={{ width: '110px', padding: '4px 8px' }}
+                        value={state.board.principal}
+                        step="5"
+                        onChange={e => setState({ ...state, board: { ...state.board, principal: parseFloat(e.target.value) || 0 } })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. 行为约束引擎卡片 */}
+                <div className="card" id="behavior-constraint-card" style={{ border: behaviorMetrics.isExceeded ? '2px solid #EF4444' : '1px solid var(--card-border)' }}>
+                  <div className="card-header">
+                    <div className="card-title">
+                      <span>🧠 行为约束引擎：将自评风险承受力化为硬约束</span>
+                      <span className={`tag ${behaviorMetrics.isExceeded ? 'tag-red' : 'tag-green'}`}>
+                        {behaviorMetrics.isExceeded ? '⚠️ 实际持仓超限' : '✅ 符合心理耐受'}
+                      </span>
+                    </div>
+                    <button className="btn btn-outline btn-sm" onClick={() => setShowBehaviorBreakdown(!showBehaviorBreakdown)}>
+                      {showBehaviorBreakdown ? '收起扣减明细' : '为什么是这个数？'}
+                    </button>
+                  </div>
+
+                  <div className="grid-3" style={{ marginBottom: '14px' }}>
+                    <div className="metric-card">
+                      <div className="metric-label">您的行为约束权益上限</div>
+                      <div className="metric-val" style={{ color: '#10B981' }}>{behaviorMetrics.finalCeiling}%</div>
+                      <div className="metric-sub">自评回撤 {behaviorMetrics.bracket} 经行为扣减后底线</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-label">当前组合实际权益占比</div>
+                      <div className="metric-val" style={{ color: behaviorMetrics.isExceeded ? '#F87171' : '#38BDF8' }}>
+                        {behaviorMetrics.actualEquityWeight.toFixed(1)}%
+                      </div>
+                      <div className="metric-sub">
+                        {behaviorMetrics.isExceeded ? `超出行为约束 ${behaviorMetrics.excessWeight.toFixed(1)}%！` : '处于合规安全水位'}
+                      </div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-label">隐含极端权益回撤承受力</div>
+                      <div className="metric-val" style={{ color: '#FBBF24' }}>约 {behaviorMetrics.implicitDrawdown}%</div>
+                      <div className="metric-sub">上限 × 历史极端权益回撤 (40%)</div>
+                    </div>
+                  </div>
+
+                  {/* 问卷微调 */}
+                  <div className="grid-4" style={{ background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px', marginBottom: '12px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">自评最大承受回撤</label>
+                      <select 
+                        className="input-control"
+                        value={state.behavior.drawdownBracket}
+                        onChange={e => setState({ ...state, behavior: { ...state.behavior, drawdownBracket: e.target.value } })}
+                      >
+                        {Object.keys(BEHAVIOR_DRAWDOWN_MAP).map(k => <option key={k} value={k}>{k}</option>)}
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">大跌第一反应</label>
+                      <select 
+                        className="input-control"
+                        value={state.behavior.marketDropReaction}
+                        onChange={e => setState({ ...state, behavior: { ...state.behavior, marketDropReaction: e.target.value } })}
+                      >
+                        <option value="panic_sell">恐慌卖出 (-15%)</option>
+                        <option value="pause_watch">暂停观望 (-5%)</option>
+                        <option value="buy_more">逆势加仓 (0%)</option>
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">生活费高度依赖投资现金流</label>
+                      <select 
+                        className="input-control"
+                        value={state.behavior.cashflowRelianceHigh ? 'yes' : 'no'}
+                        onChange={e => setState({ ...state, behavior: { ...state.behavior, cashflowRelianceHigh: e.target.value === 'yes' } })}
+                      >
+                        <option value="yes">是 (扣减10%)</option>
+                        <option value="no">否 (有稳定职业收入)</option>
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">行业波动大且失业恢复>6月</label>
+                      <select 
+                        className="input-control"
+                        value={state.behavior.industryVolatileHigh ? 'yes' : 'no'}
+                        onChange={e => setState({ ...state, behavior: { ...state.behavior, industryVolatileHigh: e.target.value === 'yes' } })}
+                      >
+                        <option value="yes">是 (扣减10%)</option>
+                        <option value="no">否 (收入连续性强)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {showBehaviorBreakdown && (
+                    <div style={{ background: 'rgba(255,255,255,0.04)', padding: '12px', borderRadius: '8px', fontSize: '0.8rem', color: '#CBD5E1' }}>
+                      <div style={{ fontWeight: 600, marginBottom: '6px', color: '#38BDF8' }}>📋 透明化扣减过程：</div>
+                      {behaviorMetrics.breakdownList.map((item, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                          <span>{item.label}</span>
+                          <strong style={{ color: item.delta.startsWith('-') ? '#F87171' : '#34D399' }}>{item.delta}</strong>
+                        </div>
+                      ))}
+                      <div style={{ marginTop: '6px', color: '#94A3B8', fontSize: '0.72rem' }}>
+                        *注：保底 15% 为系统工具安全保护下限，非投资推荐。
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. 三重集中度检查面板 */}
+                <div className="card" id="concentration-card">
+                  <div className="card-header">
+                    <div className="card-title">
+                      <span>🎯 三重集中度检查：标的、市场与风格共振监控</span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '18px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', borderLeft: `4px solid ${concentrationMetrics.targetStatus === 'red' ? '#EF4444' : (concentrationMetrics.targetStatus === 'yellow' ? '#F59E0B' : '#10B981')}` }}>
+                      <div>
+                        <strong>1. 标的集中度</strong>：单一最大【{concentrationMetrics.maxSingle.name}】占比 {concentrationMetrics.maxSingle.weight.toFixed(1)}%，前三标的合计 {concentrationMetrics.top3Weight.toFixed(1)}%
+                      </div>
+                      <span className={`tag ${concentrationMetrics.targetStatus === 'red' ? 'tag-red' : (concentrationMetrics.targetStatus === 'yellow' ? 'tag-yellow' : 'tag-green')}`}>
+                        {concentrationMetrics.targetAdvice}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', borderLeft: `4px solid ${concentrationMetrics.marketStatus === 'yellow' ? '#F59E0B' : '#10B981'}` }}>
+                      <div>
+                        <strong>2. 市场与币种集中度</strong>：最大板块【{concentrationMetrics.maxMarket.market}】占比 {concentrationMetrics.maxMarket.weight.toFixed(1)}%
+                      </div>
+                      <span className={`tag ${concentrationMetrics.marketStatus === 'yellow' ? 'tag-yellow' : 'tag-green'}`}>
+                        {concentrationMetrics.marketAdvice}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', borderLeft: `4px solid ${concentrationMetrics.styleStatus === 'yellow' ? '#F59E0B' : '#10B981'}` }}>
+                      <div>
+                        <strong>3. 策略风格集中度</strong>：红利低波类标的权重合计达 {concentrationMetrics.dividendStyleWeight.toFixed(1)}%
+                      </div>
+                      <span className={`tag ${concentrationMetrics.styleStatus === 'yellow' ? 'tag-yellow' : 'tag-green'}`}>
+                        {concentrationMetrics.styleAdvice}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 资产权重列表 */}
+                  <div className="table-container">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>代码</th>
+                          <th>资产名称</th>
+                          <th>市场</th>
+                          <th>风格</th>
+                          <th>配置权重 (%)</th>
+                          <th>预期股息率 (%)</th>
+                          <th>折合年分红 (元)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(state.board.assets).map(([code, asset]) => {
+                          const annualDiv = (boardMetrics.investPrincipal * 10000) * ((asset.weight || 0) / 100.0) * ((asset.yield || 0) / 100.0);
+                          return (
+                            <tr key={code}>
+                              <td><code>{code}</code></td>
+                              <td><strong>{asset.name}</strong></td>
+                              <td><span className="tag tag-blue">{asset.market}</span></td>
+                              <td><span className="tag">{asset.style}</span></td>
+                              <td>
+                                <input 
+                                  type="number" 
+                                  className="input-control" 
+                                  style={{ width: '80px', padding: '4px 8px' }}
+                                  value={asset.weight}
+                                  step="1"
+                                  onChange={e => {
+                                    const val = parseFloat(e.target.value) || 0;
+                                    setState({
+                                      ...state,
+                                      board: {
+                                        ...state.board,
+                                        assets: {
+                                          ...state.board.assets,
+                                          [code]: { ...asset, weight: val }
+                                        }
+                                      }
+                                    });
+                                  }}
+                                />
+                              </td>
+                              <td>{asset.yield}%</td>
+                              <td style={{ color: '#38BDF8' }}>¥{Math.round(annualDiv).toLocaleString()}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* 个人养老金承载引导 */}
+                  {state.pension.hasAccount && (
+                    <div style={{ marginTop: '16px', padding: '12px 16px', background: 'rgba(16, 185, 129, 0.08)', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)', fontSize: '0.82rem', color: '#6EE7B7' }}>
+                      💡 <strong>养老金税优账户标的匹配</strong>：{pensionMetrics.guidanceText}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: 🩺 家庭资产体检与保障 */}
+            {activeTab === 'health' && (
+              <div>
+                {/* 置顶高息债务警报 */}
+                {debtMetrics.hasHighInterestAlert && (
+                  <div style={{
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    border: '2px solid #EF4444',
+                    borderRadius: '12px',
+                    padding: '16px 20px',
+                    marginBottom: '20px',
+                    boxShadow: '0 0 25px rgba(239, 68, 68, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                      <span style={{ fontSize: '32px' }}>🚨</span>
+                      <div>
+                        <div style={{ color: '#F87171', fontWeight: 700, fontSize: '1.05rem', marginBottom: '4px' }}>
+                          【置顶健康警报】检测到家庭存在高息债务风险！
+                        </div>
+                        <div style={{ color: '#FECACA', fontSize: '0.86rem' }}>
+                          当前自报高息债务余额 ¥{Number(state.debt?.highInterestDebtBalance || 0).toLocaleString()} 元，或综合贷款利率达到 &gt;6.0% (测算利率 {debtMetrics.effectiveDebtRate}%)。高息借贷利息支出具有极高刚性损耗，严重侵蚀净资产，建议列为最高优先级偿还事项！
+                        </div>
+                      </div>
+                    </div>
+                    <button className="btn btn-danger btn-sm" onClick={() => handleJumpToModule('health', 'debt-decision-card')}>
+                      直达债务决策
+                    </button>
+                  </div>
+                )}
+
+                {/* 1. 家庭保障缺口测算 (责任缺口法) */}
+                <div className="card" id="insurance-gap-card">
+                  <div className="card-header">
+                    <div className="card-title">
+                      <span>🛡️ 家庭保障缺口测算 (责任缺口法模型)</span>
+                      <span className={`tag ${insuranceMetrics.shouldWarnAndDowngrade ? 'tag-red' : 'tag-green'}`}>
+                        {insuranceMetrics.shouldWarnAndDowngrade ? '⚠️ 基础保障严重缺位' : '✅ 保障底线健全'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 基础参数录入 */}
+                  <div className="grid-4" style={{ marginBottom: '16px' }}>
+                    <div className="form-group">
+                      <label className="form-label">行业收入稳定性</label>
+                      <select 
+                        className="input-control"
+                        value={state.insurance.stabilityTier}
+                        onChange={e => setState({ ...state, insurance: { ...state.insurance, stabilityTier: e.target.value } })}
+                      >
+                        <option value="high">高稳定 (体制内/垄断国企: 3年+30万)</option>
+                        <option value="medium">中等稳定 (成熟实业/外企: 4年+40万)</option>
+                        <option value="low">波动大 (互联网/初创/销售: 5年+50万)</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">保障覆盖程度自评</label>
+                      <select 
+                        className="input-control"
+                        value={state.insurance.coverageTier}
+                        onChange={e => setState({ ...state, insurance: { ...state.insurance, coverageTier: e.target.value } })}
+                      >
+                        {INSURANCE_COVERAGE_TIERS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">月必要生活底线 (元)</label>
+                      <input 
+                        type="number" 
+                        className="input-control"
+                        value={state.health.essentialMonthlyExpense}
+                        step="1000"
+                        onChange={e => setState({ ...state, health: { ...state.health, essentialMonthlyExpense: parseFloat(e.target.value) || 0 } })}
+                      />
+                      <small style={{ color: '#94A3B8', fontSize: '0.72rem' }}>10年生活费 = ¥{(state.health.essentialMonthlyExpense*120).toLocaleString()}</small>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">百万医疗险兜底检查</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '38px' }}>
+                        <input 
+                          type="checkbox" 
+                          id="has-mil-med"
+                          checked={state.insurance.hasMillionMedical}
+                          onChange={e => setState({ ...state, insurance: { ...state.insurance, hasMillionMedical: e.target.checked } })}
+                          style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                        />
+                        <label htmlFor="has-mil-med" style={{ cursor: 'pointer', fontSize: '0.85rem' }}>
+                          {state.insurance.hasMillionMedical ? '✅ 已配置 (大额住院自费兜底)' : '❌ 未配置 (大额自费高风险)'}
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 责任缺口法明细表格 */}
+                  <div className="table-container">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>保障险种</th>
+                          <th>量化责任需求目标</th>
+                          <th>已有商业保额</th>
+                          <th>净保障缺口</th>
+                          <th>年收入倍数</th>
+                          <th>配置建议</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td><strong>定期寿险</strong></td>
+                          <td>¥{Math.round(insuranceMetrics.lifeTarget).toLocaleString()} 元</td>
+                          <td>
+                            <input 
+                              type="number" 
+                              className="input-control" 
+                              style={{ width: '120px', padding: '4px 8px' }}
+                              value={state.insurance.existingLifeCover}
+                              step="100000"
+                              onChange={e => setState({ ...state, insurance: { ...state.insurance, existingLifeCover: parseFloat(e.target.value) || 0 } })}
+                            />
+                          </td>
+                          <td style={{ fontWeight: 700, color: insuranceMetrics.lifeGap > 0 ? '#F87171' : '#34D399' }}>
+                            ¥{insuranceMetrics.lifeGap.toLocaleString()} 元
+                          </td>
+                          <td>{insuranceMetrics.lifeGapIncomeMultiple}x 年收入</td>
+                          <td>{insuranceMetrics.lifeGap > 0 ? '覆盖负债与10年刚需生活费' : '寿险额度充足'}</td>
+                        </tr>
+                        <tr>
+                          <td><strong>重疾险</strong></td>
+                          <td>¥{Math.round(insuranceMetrics.critTarget).toLocaleString()} 元</td>
+                          <td>
+                            <input 
+                              type="number" 
+                              className="input-control" 
+                              style={{ width: '120px', padding: '4px 8px' }}
+                              value={state.insurance.existingCritCover}
+                              step="50000"
+                              onChange={e => setState({ ...state, insurance: { ...state.insurance, existingCritCover: parseFloat(e.target.value) || 0 } })}
+                            />
+                          </td>
+                          <td style={{ fontWeight: 700, color: insuranceMetrics.critGap > 0 ? '#F87171' : '#34D399' }}>
+                            ¥{insuranceMetrics.critGap.toLocaleString()} 元
+                          </td>
+                          <td>{insuranceMetrics.critGapIncomeMultiple}x 年收入</td>
+                          <td>{insuranceMetrics.critGap > 0 ? `补偿${insuranceMetrics.stabConfig.years}年收入损失+康复备用` : '重疾防线达标'}</td>
+                        </tr>
+                        <tr>
+                          <td><strong>意外险</strong></td>
+                          <td>¥{insuranceMetrics.accidentTarget.toLocaleString()} 元</td>
+                          <td>
+                            <input 
+                              type="number" 
+                              className="input-control" 
+                              style={{ width: '120px', padding: '4px 8px' }}
+                              value={state.insurance.existingAccidentCover}
+                              step="100000"
+                              onChange={e => setState({ ...state, insurance: { ...state.insurance, existingAccidentCover: parseFloat(e.target.value) || 0 } })}
+                            />
+                          </td>
+                          <td style={{ fontWeight: 700, color: insuranceMetrics.accidentGap > 0 ? '#F87171' : '#34D399' }}>
+                            ¥{insuranceMetrics.accidentGap.toLocaleString()} 元
+                          </td>
+                          <td>{insuranceMetrics.accidentGapIncomeMultiple}x 年收入</td>
+                          <td>保费低杠杆高，寿险缺口 50% 基准</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* 2. 房产集中度强化与买房首付核验 */}
+                <div className="card" id="property-card">
+                  <div className="card-header">
+                    <div className="card-title">
+                      <span>🏠 房产集中度分析、首付校验与极端压力冲击</span>
+                      <span className={`tag ${realEstateMetrics.tier === 'green' ? 'tag-green' : (realEstateMetrics.tier === 'yellow' ? 'tag-yellow' : 'tag-red')}`}>
+                        房产占比: {realEstateMetrics.realEstateRatio}%
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid-3" style={{ marginBottom: '16px' }}>
+                    <div className="form-group">
+                      <label className="form-label">房产当前总估值 (元)</label>
+                      <input 
+                        type="number" 
+                        className="input-control"
+                        value={state.property.totalEstimatedValue}
+                        step="100000"
+                        onChange={e => setState({ ...state, property: { ...state.property, totalEstimatedValue: parseFloat(e.target.value) || 0 } })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">房贷余额 (元)</label>
+                      <input 
+                        type="number" 
+                        className="input-control"
+                        value={state.debt.mortgageBalance}
+                        step="50000"
+                        onChange={e => setState({ ...state, debt: { ...state.debt, mortgageBalance: parseFloat(e.target.value) || 0 } })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">房产下跌压力参数 (%)</label>
+                      <input 
+                        type="number" 
+                        className="input-control"
+                        value={state.property.stressDropPct}
+                        min="0" max="40" step="5"
+                        onChange={e => setState({ ...state, property: { ...state.property, stressDropPct: parseFloat(e.target.value) || 0 } })}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'rgba(0,0,0,0.2)', padding: '12px 16px', borderRadius: '8px', marginBottom: '14px', fontSize: '0.85rem' }}>
+                    💡 <strong>集中度治理提示</strong>：{realEstateMetrics.tierAdvice}
+                  </div>
+
+                  {/* 购房首付核验 */}
+                  <div style={{ background: realEstateMetrics.isDownPaymentShort ? 'rgba(239, 68, 68, 0.12)' : 'rgba(255,255,255,0.03)', border: `1px solid ${realEstateMetrics.isDownPaymentShort ? '#EF4444' : 'var(--card-border)'}`, padding: '14px', borderRadius: '8px', marginBottom: '14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input 
+                          type="checkbox"
+                          id="has-house-plan"
+                          checked={state.health.hasHousePlan}
+                          onChange={e => setState({ ...state, health: { ...state.health, hasHousePlan: e.target.checked } })}
+                          style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                        />
+                        <label htmlFor="has-house-plan" style={{ fontWeight: 600, color: '#FFF', cursor: 'pointer' }}>
+                          近期有买房/换房首付储备计划
+                        </label>
+                      </div>
+                      {state.health.hasHousePlan && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '0.8rem', color: '#94A3B8' }}>预计首付 (元):</span>
+                          <input 
+                            type="number"
+                            className="input-control"
+                            style={{ width: '140px', padding: '4px 8px' }}
+                            value={state.health.expectedDownPayment}
+                            step="50000"
+                            onChange={e => setState({ ...state, health: { ...state.health, expectedDownPayment: parseFloat(e.target.value) || 0 } })}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {state.health.hasHousePlan && realEstateMetrics.isDownPaymentShort && (
+                      <div style={{ color: '#F87171', fontSize: '0.82rem', marginTop: '8px', fontWeight: 600 }}>
+                        ⚠️ 可用短期确定性资金 (¥{realEstateMetrics.readyFunds.toLocaleString()} 元) 低于预计首付 (¥{realEstateMetrics.expectedDownPayment.toLocaleString()} 元)，缺口 ¥{realEstateMetrics.downPaymentGap.toLocaleString()} 元！{realEstateMetrics.downPaymentWarning}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 3. 个人养老金税优检查卡片 */}
+                <div className="card" id="pension-card">
+                  <div className="card-header">
+                    <div className="card-title">
+                      <span>👵 个人养老金税优检查与递延省税推演</span>
+                    </div>
+                  </div>
+
+                  <div className="grid-3" style={{ marginBottom: '14px' }}>
+                    <div className="form-group">
+                      <label className="form-label">个人养老金开户状态</label>
+                      <select 
+                        className="input-control"
+                        value={state.pension.hasAccount ? 'yes' : 'no'}
+                        onChange={e => setState({ ...state, pension: { ...state.pension, hasAccount: e.target.value === 'yes' } })}
+                      >
+                        <option value="yes">已开立资金账户</option>
+                        <option value="no">尚未开户</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">本年已缴存金额 (元, 每年上限1.2万)</label>
+                      <input 
+                        type="number" 
+                        className="input-control"
+                        value={state.pension.currentYearDeposited}
+                        min="0" max="12000" step="1000"
+                        onChange={e => setState({ ...state, pension: { ...state.pension, currentYearDeposited: parseFloat(e.target.value) || 0 } })}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">个人边际税率档位</label>
+                      <select 
+                        className="input-control"
+                        value={state.pension.marginalTaxRate}
+                        onChange={e => setState({ ...state, pension: { ...state.pension, marginalTaxRate: parseFloat(e.target.value) } })}
+                      >
+                        {PENSION_TAX_BRACKETS.map(b => (
+                          <option key={b.rate} value={b.rate}>{b.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid-3">
+                    <div className="metric-card">
+                      <div className="metric-label">本年度剩余可用额度</div>
+                      <div className="metric-val">¥{pensionMetrics.remainingQuota.toLocaleString()}</div>
+                      <div className="metric-sub">额度跨年作废，无法累计</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-label">放弃的当期税收抵扣额</div>
+                      <div className="metric-val" style={{ color: '#FBBF24' }}>¥{pensionMetrics.annualTaxSavingsForegone.toLocaleString()} /年</div>
+                      <div className="metric-sub">按边际税率 {(pensionMetrics.taxRate*100).toFixed(0)}% 估算节税</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-label">20年累计放弃节税估算</div>
+                      <div className="metric-val" style={{ color: '#38BDF8' }}>¥{pensionMetrics.cumulative20ySavings.toLocaleString()}</div>
+                      <div className="metric-sub">长线递延抵税收益</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. 债务决策对照卡片 */}
+                <div className="card" id="debt-decision-card">
+                  <div className="card-header">
+                    <div className="card-title">
+                      <span>⚖️ 债务决策对照：提前还贷 vs 组合投资路径模拟</span>
+                    </div>
+                    <span style={{ fontSize: '0.78rem', color: '#94A3B8' }}>
+                      按档位中值估算，请以实际合同利率为准
+                    </span>
+                  </div>
+
+                  <div className="grid-3" style={{ marginBottom: '14px' }}>
+                    <div className="metric-card">
+                      <div className="metric-label">综合贷款利率 (档位中值)</div>
+                      <div className="metric-val" style={{ color: debtMetrics.effectiveDebtRate > 6 ? '#F87171' : '#FBBF24' }}>
+                        {debtMetrics.effectiveDebtRate.toFixed(2)}%
+                      </div>
+                      <div className="metric-sub">当前档位: {debtMetrics.bracket}</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-label">组合加权预期收益率 (保守口径)</div>
+                      <div className="metric-val" style={{ color: '#10B981' }}>
+                        {debtMetrics.conservativeYield.toFixed(2)}%
+                      </div>
+                      <div className="metric-sub">取增长预期 {debtMetrics.growthRate}% 的 70% 作为保守基准</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-label">利差对比 (贷款利率 − 保守收益率)</div>
+                      <div className="metric-val" style={{ color: (debtMetrics.effectiveDebtRate - debtMetrics.conservativeYield) > 0 ? '#FB7185' : '#34D399' }}>
+                        {debtMetrics.effectiveDebtRate >= debtMetrics.conservativeYield ? '+' : ''}
+                        {(debtMetrics.effectiveDebtRate - debtMetrics.conservativeYield).toFixed(2)}%
+                      </div>
+                      <div className="metric-sub">
+                        {debtMetrics.effectiveDebtRate > debtMetrics.conservativeYield ? '负利差 (贷款成本高于投资)' : '正利差 (投资回报覆盖贷款)'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 决策研判 */}
+                  <div style={{
+                    background: debtMetrics.decisionType === 'repay_first' ? 'rgba(239, 68, 68, 0.12)' : (debtMetrics.decisionType === 'invest_first' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(56, 189, 248, 0.12)'),
+                    border: `1px solid ${debtMetrics.decisionType === 'repay_first' ? '#EF4444' : (debtMetrics.decisionType === 'invest_first' ? '#10B981' : '#38BDF8')}`,
+                    borderRadius: '8px', padding: '14px', marginBottom: '16px'
+                  }}>
+                    <div style={{ fontWeight: 700, color: '#FFF', marginBottom: '4px' }}>
+                      💡 决策矩阵研判结论：<span style={{ color: debtMetrics.decisionType === 'repay_first' ? '#F87171' : (debtMetrics.decisionType === 'invest_first' ? '#34D399' : '#38BDF8') }}>{debtMetrics.decisionText}</span>
+                    </div>
+                  </div>
+
+                  {/* 路径对比表格 */}
+                  <div className="table-container">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>模拟周期</th>
+                          <th>模拟资金本金</th>
+                          <th>路径A: 提前还贷累计终值</th>
+                          <th>路径B: 坚持投资推演终值</th>
+                          <th>净资产差额 (A - B)</th>
+                          <th>策略对比建议</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {debtMetrics.comparisonTable.map(row => (
+                          <tr key={row.years}>
+                            <td><strong>{row.years} 年期</strong></td>
+                            <td>¥{row.fundX.toLocaleString()} 元</td>
+                            <td style={{ color: '#38BDF8', fontWeight: 600 }}>¥{row.fvRepay.toLocaleString()} 元</td>
+                            <td style={{ color: '#10B981', fontWeight: 600 }}>¥{row.fvInvest.toLocaleString()} 元</td>
+                            <td style={{ fontWeight: 700, color: row.diff > 0 ? '#34D399' : '#FB7185' }}>
+                              {row.diff > 0 ? `+¥${row.diff.toLocaleString()}` : `-¥${Math.abs(row.diff).toLocaleString()}`} 元
+                            </td>
+                            <td>
+                              <span className={`tag ${row.advantage === '提前还贷更优' ? 'tag-green' : 'tag-blue'}`}>
+                                {row.advantage}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 4: ⏱️ 缓冲池与复合压力测试 */}
+            {activeTab === 'buffer' && (
+              <div>
+                {/* 常规缓冲池指标 */}
+                <div className="grid-3" style={{ marginBottom: '20px' }}>
+                  <div className="metric-card">
+                    <div className="metric-label">缓冲池初始预留储备</div>
+                    <div className="metric-val">¥{(state.board.bufferSeed * 10000).toLocaleString()}</div>
+                    <div className="metric-sub">闲置年化利率: {state.board.moneyMarketRate}%</div>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-label">36 个月基准最低水位</div>
+                    <div className="metric-val" style={{ color: bufferMetrics.isBufferSafe ? '#10B981' : '#F43F5E' }}>
+                      ¥{Math.round(bufferMetrics.minBuffer).toLocaleString()}
+                    </div>
+                    <div className="metric-sub">{bufferMetrics.isBufferSafe ? '✅ 安全平滑 (无亏空)' : '⚠️ 出现负余额断流'}</div>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-label">最脆弱月份</div>
+                    <div className="metric-val" style={{ color: '#FBBF24' }}>第 {bufferMetrics.mostFragileMonth} 个月</div>
+                    <div className="metric-sub">全周期内资金压力最大时点</div>
+                  </div>
+                </div>
+
+                {/* 复合压力测试核心面板 */}
+                <div className="card" id="buffer-simulation-card">
+                  <div className="card-header">
+                    <div className="card-title">
+                      <span>⚡ 复合情景风险压力测试 (扩展 36 个月推演引擎)</span>
+                      <span className={`tag ${!stressMetrics.isExhausted ? 'tag-green' : (state.stress.selectedPresetId === 'severe' ? 'tag-yellow' : 'tag-red')}`}>
+                        {!stressMetrics.isExhausted ? '🟢 全情景通过' : (state.stress.selectedPresetId === 'severe' ? '🟡 严重情景需卖资产' : '🔴 标准情景即枯竭')}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 情景选择器 */}
+                  <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+                    <button 
+                      className={`btn ${state.stress.scenarioType === 'preset' && state.stress.selectedPresetId === 'standard' ? 'btn-primary' : 'btn-outline'}`}
+                      onClick={() => setState({ ...state, stress: { ...state.stress, scenarioType: 'preset', selectedPresetId: 'standard' } })}
+                    >
+                      标准复合 (失业6月+分红降30%+回撤20%)
+                    </button>
+                    <button 
+                      className={`btn ${state.stress.scenarioType === 'preset' && state.stress.selectedPresetId === 'severe' ? 'btn-primary' : 'btn-outline'}`}
+                      onClick={() => setState({ ...state, stress: { ...state.stress, scenarioType: 'preset', selectedPresetId: 'severe' } })}
+                    >
+                      严重复合 (失业12月+分红降50%+回撤35%+医疗20万)
+                    </button>
+                    <button 
+                      className={`btn ${state.stress.scenarioType === 'preset' && state.stress.selectedPresetId === 'stagflation' ? 'btn-primary' : 'btn-outline'}`}
+                      onClick={() => setState({ ...state, stress: { ...state.stress, scenarioType: 'preset', selectedPresetId: 'stagflation' } })}
+                    >
+                      滞胀情景 (通胀5%+延迟4月+分红降20%)
+                    </button>
+                    <button 
+                      className={`btn ${state.stress.scenarioType === 'replay' ? 'btn-primary' : 'btn-outline'}`}
+                      onClick={() => setState({ ...state, stress: { ...state.stress, scenarioType: 'replay', selectedReplayId: 'replay_2018' } })}
+                    >
+                      历史回放模板 (2018/2022/2015)
+                    </button>
+                  </div>
+
+                  {/* 压力测试推演指标卡 */}
+                  <div className="grid-4" style={{ marginBottom: '16px' }}>
+                    <div className="metric-card">
+                      <div className="metric-label">缓冲池最早枯竭月份</div>
+                      <div className="metric-val" style={{ color: stressMetrics.isExhausted ? '#F87171' : '#10B981' }}>
+                        {stressMetrics.isExhausted ? `第 ${stressMetrics.exhaustionMonth} 个月` : '全程未枯竭'}
+                      </div>
+                      <div className="metric-sub">{stressMetrics.isExhausted ? '备用金耗尽断流' : '缓冲池全程平滑'}</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-label">枯竭时需变现资产 (折后折算)</div>
+                      <div className="metric-val" style={{ color: stressMetrics.isExhausted ? '#FB7185' : '#CBD5E1' }}>
+                        ¥{stressMetrics.minAssetToSell.toLocaleString()} 元
+                      </div>
+                      <div className="metric-sub">按回撤后贬值市值折算</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-label">恢复目标安全储备月数</div>
+                      <div className="metric-val" style={{ color: '#FBBF24' }}>
+                        {stressMetrics.isExhausted ? `约 ${stressMetrics.monthsToRecover} 个月` : '0 个月 (无需恢复)'}
+                      </div>
+                      <div className="metric-sub">压力解除后月结余回填</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-label">压力情景最低谷水位</div>
+                      <div className="metric-val" style={{ color: stressMetrics.minBuffer >= 0 ? '#10B981' : '#F87171' }}>
+                        ¥{stressMetrics.minBuffer.toLocaleString()} 元
+                      </div>
+                      <div className="metric-sub">36 个月全周期极限</div>
+                    </div>
+                  </div>
+
+                  {/* 抽样明细 */}
+                  <div className="table-container">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>月份</th>
+                          <th>期初缓冲池余额</th>
+                          <th>当月分红到账 (已折减)</th>
+                          <th>月生活支出 (含突发/通胀)</th>
+                          <th>期末缓冲池余额 (压力下)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stressMetrics.timeline.slice(0, 12).map(row => (
+                          <tr key={row.month}>
+                            <td>第 {row.month} 个月 ({row.calendarMonth}月)</td>
+                            <td>¥{row.startBuffer.toLocaleString()}</td>
+                            <td style={{ color: '#38BDF8' }}>¥{row.dividend.toLocaleString()}</td>
+                            <td style={{ color: '#FB7185' }}>-¥{row.withdraw.toLocaleString()}</td>
+                            <td style={{ fontWeight: 700, color: row.endBuffer >= 0 ? '#34D399' : '#F87171' }}>
+                              ¥{row.endBuffer.toLocaleString()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 5: 🌡️ 估值温度计与再平衡 */}
+            {activeTab === 'thermometer' && (
+              <div>
+                <div className="card" id="thermometer-card">
+                  <div className="card-header">
+                    <div className="card-title">
+                      <span>🌡️ 估值温度计与卖出侧纪律闭环</span>
+                      <span className="tag" style={{ background: thermometerMetrics.tier.color, color: '#FFF' }}>
+                        当前状态：{thermometerMetrics.tier.label} ({thermometerMetrics.percentile}%)
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '20px' }}>
+                    <label className="form-label">模拟跟踪指数估值历史百分位：{state.thermometer.percentile}%</label>
+                    <input 
+                      type="range" 
+                      min="0" max="100" 
+                      value={state.thermometer.percentile}
+                      onChange={e => setState({ ...state, thermometer: { ...state.thermometer, percentile: parseInt(e.target.value) || 0 } })}
+                      style={{ width: '100%', height: '8px', cursor: 'pointer' }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#94A3B8', marginTop: '4px' }}>
+                      <span>0% 深度低估</span>
+                      <span>20% 低估</span>
+                      <span>40% 中性</span>
+                      <span>60% 偏热</span>
+                      <span>80% 极度过热 100%</span>
+                    </div>
+                  </div>
+
+                  {/* 纪律指导卡 */}
+                  <div style={{ background: 'rgba(255,255,255,0.04)', padding: '16px', borderRadius: '10px', border: `1px solid ${thermometerMetrics.tier.color}`, marginBottom: '20px' }}>
+                    <div style={{ fontSize: '1rem', fontWeight: 700, color: thermometerMetrics.tier.color, marginBottom: '6px' }}>
+                      📢 操作纪律指导：{thermometerMetrics.tier.label}
+                    </div>
+                    <div style={{ fontSize: '0.88rem', color: '#CBD5E1', lineHeight: '1.6' }}>
+                      {thermometerMetrics.actionAdvice}
+                    </div>
+                    <div style={{ marginTop: '8px', fontSize: '0.82rem', color: '#FBBF24', fontWeight: 600 }}>
+                      {thermometerMetrics.rebalanceAdvice}
+                    </div>
+                  </div>
+
+                  {/* 年度持仓再平衡表格 */}
+                  <div style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '10px' }}>
+                    ⚖️ 个人持仓账本与温度计再平衡联动提示表
+                  </div>
+                  <div className="table-container">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>代码</th>
+                          <th>资产名称</th>
+                          <th>目标比例</th>
+                          <th>实际持仓 (万元)</th>
+                          <th>温度计信号</th>
+                          <th>再平衡操作指导</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(state.board.assets).map(([code, asset]) => {
+                          const holding = state.thermometer.userHoldings?.[code] || 10.0;
+                          return (
+                            <tr key={code}>
+                              <td><code>{code}</code></td>
+                              <td><strong>{asset.name}</strong></td>
+                              <td>{asset.weight}%</td>
+                              <td>
+                                <input 
+                                  type="number"
+                                  className="input-control"
+                                  style={{ width: '80px', padding: '4px 8px' }}
+                                  value={holding}
+                                  step="1"
+                                  onChange={e => {
+                                    const val = parseFloat(e.target.value) || 0;
+                                    setState({
+                                      ...state,
+                                      thermometer: {
+                                        ...state.thermometer,
+                                        userHoldings: { ...state.thermometer.userHoldings, [code]: val }
+                                      }
+                                    });
+                                  }}
+                                />
+                              </td>
+                              <td>
+                                <span className="tag" style={{ background: thermometerMetrics.tier.color, color: '#FFF' }}>
+                                  {thermometerMetrics.tier.label}
+                                </span>
+                              </td>
+                              <td>
+                                {thermometerMetrics.isOverheated ? (
+                                  <span style={{ color: '#F87171', fontWeight: 600 }}>建议分 3 次减仓再平衡回目标</span>
+                                ) : (thermometerMetrics.isDeepLow ? (
+                                  <span style={{ color: '#34D399', fontWeight: 600 }}>定投倍数放大 1.5-2.0x</span>
+                                ) : '保持既定仓位定投')}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 6: 📋 体检报告导出 */}
+            {activeTab === 'report' && (
+              <div>
+                <div className="card">
+                  <div className="card-header">
+                    <div className="card-title">
+                      <span>📋 Markdown 体检报告实时导出 (全模块整合)</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button 
+                        className="btn btn-outline btn-sm"
+                        onClick={() => {
+                          const md = generateMarkdownReport(state);
+                          navigator.clipboard.writeText(md).then(() => {
+                            setCopySuccess(true);
+                            setTimeout(() => setCopySuccess(false), 2000);
+                          });
+                        }}
+                      >
+                        {copySuccess ? '✅ 已复制 Markdown' : '📋 复制报告文本'}
+                      </button>
+                      <button 
+                        className="btn btn-primary btn-sm"
+                        onClick={() => {
+                          const md = generateMarkdownReport(state);
+                          const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+                          const url = URL.createObjectURL(blob);
+                          const link = document.createElement('a');
+                          link.href = url;
+                          link.download = `家庭财富规划量化体检报告_2026.md`;
+                          link.click();
+                        }}
+                      >
+                        📥 下载 .md 报告
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'rgba(0,0,0,0.3)', padding: '18px', borderRadius: '10px', maxHeight: '650px', overflowY: 'auto' }}>
+                    <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '0.82rem', color: '#E2E8F0' }}>
+                      {generateMarkdownReport(state)}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+            )}
+          </main>
+
+          {/* 目标编辑弹窗 */}
+          {isModalOpen && editingGoal && (
+            <div className="modal-backdrop">
+              <div className="modal-box">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#FFF' }}>
+                    {state.goals.some(g => g.id === editingGoal.id) ? '✏️ 编辑规划目标' : '➕ 新增规划目标'}
+                  </div>
+                  <button className="btn btn-outline btn-sm" onClick={() => setIsModalOpen(false)}>✕</button>
+                </div>
+
+                <form onSubmit={handleSaveGoal}>
+                  <div className="form-group">
+                    <label className="form-label">目标名称</label>
+                    <input 
+                      type="text" 
+                      className="input-control" 
+                      value={editingGoal.name}
+                      placeholder="例如：2035 年子女海外留学金"
+                      onChange={e => setEditingGoal({ ...editingGoal, name: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="grid-2">
+                    <div className="form-group">
+                      <label className="form-label">目标类型</label>
+                      <select 
+                        className="input-control"
+                        value={editingGoal.type}
+                        onChange={e => setEditingGoal({ ...editingGoal, type: e.target.value })}
+                      >
+                        {GOAL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">优先级</label>
+                      <select 
+                        className="input-control"
+                        value={editingGoal.priority}
+                        onChange={e => setEditingGoal({ ...editingGoal, priority: e.target.value })}
+                      >
+                        {GOAL_PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid-2">
+                    <div className="form-group">
+                      <label className="form-label">目标金额 (元)</label>
+                      <input 
+                        type="number" 
+                        className="input-control" 
+                        value={editingGoal.targetAmount}
+                        step="50000"
+                        onChange={e => setEditingGoal({ ...editingGoal, targetAmount: parseFloat(e.target.value) || 0 })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">目标时点年份</label>
+                      <input 
+                        type="number" 
+                        className="input-control" 
+                        value={editingGoal.targetYear}
+                        min="2026" max="2070"
+                        onChange={e => setEditingGoal({ ...editingGoal, targetYear: parseInt(e.target.value) || 2026 })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">已单独预留金额 (元)</label>
+                    <input 
+                      type="number" 
+                      className="input-control" 
+                      value={editingGoal.linkTo1To3y ? (state.health.bucket1To3y || 0) : (editingGoal.reservedAmount || 0)}
+                      disabled={editingGoal.linkTo1To3y}
+                      onChange={e => setEditingGoal({ ...editingGoal, reservedAmount: parseFloat(e.target.value) || 0 })}
+                    />
+                    <div style={{ marginTop: '6px' }}>
+                      <label style={{ fontSize: '0.8rem', color: '#38BDF8', display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={editingGoal.linkTo1To3y}
+                          onChange={e => setEditingGoal({ ...editingGoal, linkTo1To3y: e.target.checked })}
+                        />
+                        一键关联体检“未来 1-3 年确定要用的钱” (¥{(state.health.bucket1To3y || 0).toLocaleString()} 元)
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* 提前退休配置 */}
+                  {editingGoal.type === '提前退休' && (
+                    <div style={{ background: 'rgba(56, 189, 248, 0.08)', padding: '12px', borderRadius: '8px', marginBottom: '14px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#38BDF8', marginBottom: '8px' }}>
+                        🌴 退休支取参数设定
+                      </div>
+                      <div className="grid-3">
+                        <div>
+                          <label className="form-label">当前年龄</label>
+                          <input 
+                            type="number" 
+                            className="input-control" 
+                            value={editingGoal.retireConfig?.currentAge || 35}
+                            onChange={e => setEditingGoal({
+                              ...editingGoal,
+                              retireConfig: { ...editingGoal.retireConfig, currentAge: parseInt(e.target.value) || 35 }
+                            })}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label">计划退休年龄</label>
+                          <input 
+                            type="number" 
+                            className="input-control" 
+                            value={editingGoal.retireConfig?.retireAge || 50}
+                            onChange={e => setEditingGoal({
+                              ...editingGoal,
+                              retireConfig: { ...editingGoal.retireConfig, retireAge: parseInt(e.target.value) || 50 }
+                            })}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label">退休后月生活费 (元)</label>
+                          <input 
+                            type="number" 
+                            className="input-control" 
+                            value={editingGoal.retireConfig?.retireMonthlyExpense || 10000}
+                            step="1000"
+                            onChange={e => setEditingGoal({
+                              ...editingGoal,
+                              retireConfig: { ...editingGoal.retireConfig, retireMonthlyExpense: parseFloat(e.target.value) || 10000 }
+                            })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                    <button type="button" className="btn btn-outline" onClick={() => setIsModalOpen(false)}>取消</button>
+                    <button type="submit" className="btn btn-primary">保存规划目标</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
