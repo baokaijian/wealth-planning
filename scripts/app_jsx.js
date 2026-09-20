@@ -470,17 +470,17 @@ function App() {
               ⏱️ 缓冲池与压力测试
             </button>
             <button className={`nav-tab-btn ${activeTab === 'thermometer' ? 'active' : ''}`} onClick={() => setActiveTab('thermometer')}>
-              🌡️ 估值温度计与再平衡
+              🌡️ 温度计与再平衡
             </button>
             <button className={`nav-tab-btn ${activeTab === 'report' ? 'active' : ''}`} onClick={() => setActiveTab('report')}>
               📋 体检报告导出
             </button>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="header-actions">
             <div className="storage-tag" title="所有家庭财务数据完全保存在您的本地浏览器 localStorage 中，不向任何第三方服务器发送">
               <span className="pulse-dot"></span>
-              纯本地存储
+              <span className="storage-text">纯本地存储</span>
             </div>
             <input 
               type="file" 
