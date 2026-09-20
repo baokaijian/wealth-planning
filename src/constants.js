@@ -1,7 +1,31 @@
 // src/constants.js
 
-// 默认资产配置池（扩充板块、币种与风格分类供集中度检查）
+// 默认资产配置池（科学三桶结构：安全防御 30% / 长期成长 55% / 综合对冲 15%）
 export const DEFAULT_ASSETS = {
+  // 安全防御桶 (30%)
+  '511880': {
+    name: '银华日利货币 ETF',
+    type: 'ETF',
+    weight: 15.0,
+    yield: 1.8,
+    months: { 1: 0.083, 2: 0.083, 3: 0.083, 4: 0.083, 5: 0.083, 6: 0.083, 7: 0.083, 8: 0.083, 9: 0.083, 10: 0.083, 11: 0.083, 12: 0.083 },
+    market: 'A股',
+    category: 'Cash',
+    style: '现金货币',
+    bucket: 'safety'
+  },
+  '511360': {
+    name: '短融 ETF',
+    type: 'ETF',
+    weight: 15.0,
+    yield: 2.7,
+    months: { 3: 0.25, 6: 0.25, 9: 0.25, 12: 0.25 },
+    market: 'A股',
+    category: 'FixedIncome',
+    style: '防守固收',
+    bucket: 'safety'
+  },
+  // 长期成长 / 红利核心桶 (55%)
   '512890': {
     name: '中证红利低波 ETF',
     type: 'ETF',
@@ -10,7 +34,9 @@ export const DEFAULT_ASSETS = {
     months: { 7: 0.5, 12: 0.5 },
     market: 'A股',
     category: 'Equity',
-    style: '红利低波'
+    style: '红利低波',
+    bucket: 'growth',
+    targetIndexCode: 'H30269'
   },
   '515450': {
     name: '标普大盘红利低波 ETF',
@@ -20,67 +46,58 @@ export const DEFAULT_ASSETS = {
     months: { 7: 1.0 },
     market: 'A股',
     category: 'Equity',
-    style: '红利低波'
+    style: '红利低波',
+    bucket: 'growth',
+    targetIndexCode: 'H30269'
   },
   '513530': {
     name: '恒生红利低波 ETF',
     type: 'ETF',
-    weight: 15.0,
+    weight: 10.0,
     yield: 4.8,
     months: { 7: 0.5, 12: 0.5 },
     market: '港股',
     category: 'Equity',
-    style: '红利低波'
+    style: '红利低波',
+    bucket: 'growth',
+    targetIndexCode: 'HSHYLV'
   },
-  '600941': {
-    name: '中国移动 (个股)',
-    type: 'Stock',
+  '510300': {
+    name: '沪深300 ETF',
+    type: 'ETF',
     weight: 10.0,
-    yield: 6.0,
-    months: { 6: 0.6, 9: 0.4 },
+    yield: 1.5,
+    months: { 10: 1.0 },
     market: 'A股',
     category: 'Equity',
-    style: '红利低波'
+    style: '核心宽基',
+    bucket: 'growth',
+    targetIndexCode: '000300'
   },
-  '600900': {
-    name: '长江电力 (个股)',
-    type: 'Stock',
-    weight: 10.0,
-    yield: 3.71,
-    months: { 7: 1.0 },
+  // 综合对冲桶 (15%)
+  '518880': {
+    name: '黄金 ETF',
+    type: 'ETF',
+    weight: 7.0,
+    yield: 0.0,
+    months: {},
     market: 'A股',
-    category: 'Equity',
-    style: '红利低波'
+    category: 'Gold',
+    style: '贵金属对冲',
+    bucket: 'hedge',
+    targetIndexCode: 'AU9999'
   },
-  '601398': {
-    name: '工商银行 (个股)',
-    type: 'Stock',
-    weight: 10.0,
-    yield: 5.5,
-    months: { 7: 0.7, 12: 0.3 },
+  '511010': {
+    name: '国债 ETF (10年/30年)',
+    type: 'ETF',
+    weight: 8.0,
+    yield: 2.2,
+    months: { 6: 0.5, 12: 0.5 },
     market: 'A股',
-    category: 'Equity',
-    style: '红利低波'
-  },
-  '601088': {
-    name: '中国神华 (个股)',
-    type: 'Stock',
-    weight: 10.0,
-    yield: 4.77,
-    months: { 7: 1.0 },
-    market: 'A股',
-    category: 'Equity',
-    style: '红利低波'
-  },
-  '601668': {
-    name: '中国建筑 (个股)',
-    type: 'Stock',
-    weight: 10.0,
-    yield: 5.52,
-    months: { 6: 1.0 },
-    market: 'A股',
-    category: 'Equity',
-    style: '红利低波'
+    category: 'FixedIncome',
+    style: '利率长债',
+    bucket: 'hedge',
+    targetIndexCode: '000012'
   }
 };
 
@@ -98,30 +115,58 @@ export const GOAL_PRIORITIES = [
   '弹性'
 ];
 
-// 贷款利率档位与中值映射
+// 综合贷款利率档位定义与中值
 export const DEBT_RATE_BRACKETS = {
-  '<3.5%': { label: '<3.5% (公积金/超低息)', median: 3.0 },
-  '3.5-4.5%': { label: '3.5-4.5% (主流商贷/优质消费贷)', median: 4.0 },
-  '4.5-6%': { label: '4.5-6% (早期商贷/一般消费贷)', median: 5.25 },
-  '>6%': { label: '>6% (高息网贷/信用卡分期)', median: 7.2 }
+  '<3.5%': {
+    label: '<3.5% (公积金/超低息贷款)',
+    median: 3.0,
+    description: '通常为公积金贷款或极低息政策性贷款'
+  },
+  '3.5-4.5%': {
+    label: '3.5-4.5% (主流商业房贷/优质消费贷)',
+    median: 4.0,
+    description: '当前大部分一线与核心二线城市首套房房贷主流利率'
+  },
+  '4.5-6%': {
+    label: '4.5-6% (早期存量商贷/一般信用贷)',
+    median: 5.25,
+    description: '较早年份发放的房贷未下调利率或一般银行消费信用贷'
+  },
+  '>6%': {
+    label: '>6% (高息网贷/信用卡分期/经营贷)',
+    median: 7.2,
+    description: '信用卡账单分期、借呗微粒贷等高息信用债务'
+  }
 };
 
-// 1. 保障缺口测算行业稳定性联动配置
+// 保障需求：行业稳定性系数
 export const INSURANCE_STABILITY_CONFIG = {
-  high: { years: 3, medical: 300000, label: '高稳定 (体制内/大型垄断国企)' },
-  medium: { years: 4, medical: 400000, label: '中等稳定 (成熟实业/常规外企)' },
-  low: { years: 5, medical: 500000, label: '波动大 (互联网/金融/初创/销售佣金)' }
+  high: {
+    years: 3,
+    medical: 300000,
+    label: '高稳定 (体制内/大型垄断国企)'
+  },
+  medium: {
+    years: 4,
+    medical: 400000,
+    label: '中等稳定 (成熟实业/常规外企)'
+  },
+  low: {
+    years: 5,
+    medical: 500000,
+    label: '波动大 (互联网/金融初创/提成销售)'
+  }
 };
 
-// 保障自评档位
+// 商业保险覆盖自评档位
 export const INSURANCE_COVERAGE_TIERS = [
-  { id: 'none', label: '极低/空白 (仅基本医保或无商业险)', warning: true },
-  { id: 'insufficient', label: '基础不足 (仅少量单位团险或低保额意外)', warning: true },
-  { id: 'moderate', label: '基本齐备 (常规寿险/重疾但保额一般)', warning: false },
-  { id: 'complete', label: '充足全面 (高额寿险+重疾+百万医疗兜底)', warning: false }
+  { id: 'none', label: '极低/空白 (仅基本医保或无商业险)' },
+  { id: 'insufficient', label: '基础不足 (仅少量单位团险或低保额意外险)' },
+  { id: 'moderate', label: '基本齐备 (常规寿险/重疾险但保额一般)' },
+  { id: 'complete', label: '充足全面 (高额寿险+重疾+百万医疗兜底)' }
 ];
 
-// 4. 个人养老金常数
+// 个人养老金相关常量
 export const PENSION_ANNUAL_MAX = 12000;
 export const PENSION_TAX_BRACKETS = [
   { rate: 0.0, label: '不达起征点 (0%)' },
@@ -134,14 +179,14 @@ export const PENSION_TAX_BRACKETS = [
   { rate: 0.45, label: '45% (年应税所得 > 96万)' }
 ];
 
-// 5. 房产集中度预警阈值
+// 房产集中度预警阈值
 export const PROPERTY_THRESHOLDS = {
   greenMax: 0.60,
   yellowMax: 0.75,
   defaultStressDropPct: 20
 };
 
-// 6. 复合压力测试预设情景
+// 复合压力测试预设情景
 export const STRESS_PRESETS = {
   standard: {
     id: 'standard',
@@ -181,35 +226,32 @@ export const STRESS_PRESETS = {
   }
 };
 
-// 6. 内置历史回放模板 (离线静态 12 个月回撤路径与分红系数)
+// 历史极端周期回放预设（逐月回撤与分红系数）
 export const HISTORICAL_REPLAYS = {
   replay_2018: {
     id: 'replay_2018',
     name: '2018 式阴跌回放',
     description: '宏观去杠杆与外部冲击，12 个月逐月阴跌累计回撤 25%，分红保持平稳发放。',
     monthlyDrawdown: [-0.02, -0.04, -0.07, -0.09, -0.12, -0.15, -0.18, -0.20, -0.22, -0.23, -0.24, -0.25],
-    dividendFactor: 1.0,
-    unemploymentMonths: 0
+    dividendFactor: 1.0
   },
   replay_2022: {
     id: 'replay_2022',
     name: '2022 式股债双杀回放',
     description: '全球加息周期与流动性收紧，权益回撤 20%，债券资产阶段回调 3%，分红下调 10%。',
     monthlyDrawdown: [-0.05, -0.08, -0.12, -0.16, -0.18, -0.20, -0.19, -0.18, -0.20, -0.20, -0.18, -0.18],
-    dividendFactor: 0.90,
-    unemploymentMonths: 0
+    dividendFactor: 0.90
   },
   replay_2015: {
     id: 'replay_2015',
     name: '2015 式急跌回放',
     description: '杠杆资金踩踏出清，前 3 个月急速暴跌 40%，随后低位宽幅剧烈震荡。',
     monthlyDrawdown: [-0.15, -0.32, -0.40, -0.38, -0.39, -0.37, -0.38, -0.36, -0.36, -0.35, -0.36, -0.35],
-    dividendFactor: 0.95,
-    unemploymentMonths: 0
+    dividendFactor: 0.95
   }
 };
 
-// 7. 行为约束引擎配置
+// 行为约束引擎：回撤档位映射基础上限与扣减规则
 export const BEHAVIOR_DRAWDOWN_MAP = {
   '<5%': 20,
   '5-10%': 35,
@@ -220,153 +262,173 @@ export const BEHAVIOR_DRAWDOWN_MAP = {
 
 export const BEHAVIOR_RULES = {
   panicReactionDeduction: {
-    'panic_sell': 15, // 恐慌卖出 -15%
-    'pause_watch': 5, // 暂停观望 -5%
-    'buy_more': 0     // 逆势加仓 0%
+    'panic_sell': 15,
+    'pause_watch': 5,
+    'buy_more': 0
   },
-  cashflowRelianceDeduction: 10,   // 生活费高度依赖投资收益 -10%
-  industryVolatileDeduction: 10,  // 行业波动大且失业恢复>6个月 -10%
-  floorProtection: 15,            // 工具安全保护下限 15%
-  extremeEquityDrawdown: 0.40     // 历史极端权益回撤估算 40%
+  cashflowRelianceDeduction: 10,
+  industryVolatileDeduction: 10,
+  floorProtection: 15,
+  extremeEquityDrawdown: 0.40
 };
 
-// 8. 估值温度计五档买卖纪律
+// 10大代表性指数监测列表
+export const THERMOMETER_INDICES = [
+  { code: 'H30269', name: '中证红利低波', type: 'dividend', metricName: '股息率近三年百分位', defaultPercentile: 72, dividendYield: 4.85, pe: 6.2, desc: '偏重金融煤炭交运，红利低波核心表征' },
+  { code: '000015', name: '上证红利', type: 'dividend', metricName: '股息率近三年百分位', defaultPercentile: 65, dividendYield: 5.12, pe: 5.8, desc: '上交所传统成熟高分红蓝筹' },
+  { code: '932039', name: '央企股东回报', type: 'dividend', metricName: '股息率近三年百分位', defaultPercentile: 58, dividendYield: 4.30, pe: 7.1, desc: '央企分红与回购质量评估' },
+  { code: 'HSHYLV', name: '港股通高股息低波', type: 'dividend', metricName: '股息率近三年百分位', defaultPercentile: 78, dividendYield: 6.40, pe: 5.2, desc: '港股离岸高股息，考虑税后现金流' },
+  { code: '000300', name: '沪深300', type: 'broad', metricName: '综合PE/PB估值百分位', defaultPercentile: 32, dividendYield: 2.85, pe: 11.8, desc: 'A股核心大盘蓝筹基准' },
+  { code: '000510', name: '中证A500', type: 'broad', metricName: '综合PE/PB估值百分位', defaultPercentile: 35, dividendYield: 2.70, pe: 13.2, desc: '新一代均衡型宽基旗舰' },
+  { code: '000905', name: '中证500', type: 'broad', metricName: '综合PE/PB估值百分位', defaultPercentile: 26, dividendYield: 1.95, pe: 22.4, desc: '中盘成长弹性与制造龙头' },
+  { code: '000688', name: '科创50', type: 'growth', metricName: 'PE/PS估值百分位', defaultPercentile: 18, dividendYield: 0.60, pe: 42.0, desc: '硬科技硬核成长核心板块' },
+  { code: 'SPX', name: '标普500', type: 'global', metricName: 'PE估值历史百分位', defaultPercentile: 86, dividendYield: 1.45, pe: 26.5, desc: '美股成熟大盘综合指数' },
+  { code: 'NDX', name: '纳斯达克100', type: 'global', metricName: 'PE估值历史百分位', defaultPercentile: 88, dividendYield: 0.75, pe: 31.0, desc: '全球科技创新巨头指数' }
+];
+
+// 估值温度计五档区间与纪律导向
 export const THERMOMETER_TIERS = [
-  { min: 0, max: 20, code: 'deep_low', label: '深度低估', color: '#10B981', action: '定投倍数放大至 1.5-2.0x；若缓冲池储备超额，可将盈余资金一次性转入' },
+  { min: 0, max: 20, code: 'deep_low', label: '深度低估', color: '#10B981', action: '定投倍数放大至 1.5-2.0x；若缓冲池储备超额，可将盈余资金适度转入' },
   { min: 20, max: 40, code: 'low', label: '低估', color: '#34D399', action: '按 1.2x 步长积极定投建仓，持续累积低成本份额' },
   { min: 40, max: 60, code: 'neutral', label: '中性平衡', color: '#38BDF8', action: '估值处于合理中枢，保持既定配置目标权重，常规基准定投' },
-  { min: 60, max: 80, code: 'warm', label: '估值偏热', color: '#FBBF24', action: '停止增量资金加仓，将新增可结余资金导向现金缓冲池或债券防守桶' },
+  { min: 60, max: 80, code: 'warm', label: '偏热', color: '#FBBF24', action: '停止增量资金加仓，将新增可结余资金导向现金缓冲池或债券防守桶' },
   { min: 80, max: 100, code: 'overheat', label: '极度过热', color: '#F87171', action: '启动卖出侧纪律：建议按月度 3 次分批将成长类持仓再平衡回目标权重' }
 ];
 
-// 9. 流动性硬隔离常数
-export const LIQUIDITY_DISCOUNT_FACTOR = 0.5; // 未来 1-3 年确定性支出折减系数 50%
-export const LIQUIDITY_SAFE_COVERAGE_RATIO = 1.5; // 短期应急流动性安全倍数底线 1.5 倍
+// 流动性硬隔离折扣与覆盖率参数
+export const LIQUIDITY_DISCOUNT_FACTOR = 0.5; // 1-3年资金50%折减
+export const LIQUIDITY_SAFE_COVERAGE_RATIO = 1.5; // 应急资金安全倍数底线
 
-// 10. 三重集中度检查阈值
+// 集中度限制
 export const CONCENTRATION_LIMITS = {
-  singleAssetYellow: 40,     // 单一标的 >40% 黄灯
-  top3AssetsRed: 70,         // 前三大标的合计 >70% 红灯
-  marketCurrencyAlert: 60,   // 任一市场/币种 >60% 提示
-  dividendStyleClusterAlert: 50 // 红利低波风格簇合计 >50% 提示
+  singleAssetYellow: 40, // 单一标的黄灯
+  top3AssetsRed: 70, // 前三标的红灯
+  marketCurrencyAlert: 60, // 单一市场/板块预警
+  dividendStyleClusterAlert: 50 // 红利低波风格共振预警
 };
 
-// 初始全局状态树 (全面纳入新模块)
+// 初始自洽示范数据
 export const INITIAL_STATE = {
-  // 看板参数
   board: {
-    principal: 50.0,        // 可用总本金 (万元)
-    bufferSeed: 5.0,        // 缓冲池初始资金 (万元)
-    targetMonthly: 0.2,     // 期望月现金流 (万元)
-    growthRate: 6.5,        // 增长预期年化收益率 (%)
-    moneyMarketRate: 2.0,   // 缓冲池闲置资金年化 (%)
+    principal: 80.0, // 80 万元总本金
+    bufferSeed: 10.0, // 10 万元缓冲池初始种子金
+    targetMonthly: 1.2, // 1.2 万元/月 (对齐月必要生活支出 12,000 元)
+    growthRate: 6.5,
+    moneyMarketRate: 2.0,
     assets: DEFAULT_ASSETS
   },
-  // 家庭资产体检
   health: {
-    monthlyIncome: 30000,         // 家庭月收入 (元)
-    monthlyExpense: 18000,        // 家庭月总支出 (元)
-    essentialMonthlyExpense: 12000, // 月必要支出底线 (元，生活必需非弹性)
-    monthlySurplus: 12000,        // 月可结余 (元)
-    bucket1y: 100000,             // 1年内: 应急活期/流动资金 (元)
-    bucket1To3y: 150000,          // 1-3年: 确定要用的钱/短期确定性资金 (元)
-    bucket3To5y: 200000,          // 3-5年: 稳健配置 (元)
-    bucket5yPlus: 500000,         // 5年以上: 长期权益/红利资产 (元)
-    hasHousePlan: false,          // 是否有买房/换房计划
-    expectedDownPayment: 600000   // 预计首付金额 (元)
+    // 收支
+    monthlyIncome: 30000,
+    monthlyExpense: 18000,
+    essentialMonthlyExpense: 12000,
+    monthlySurplus: 12000,
+    // 基础信息与收入结构
+    incomeSourceCount: 'dual', // 'single' | 'dual' | 'multiple'
+    unemploymentRecoveryMonths: 6, // 预期失业恢复月数
+    unemploymentReplacementRate: 0.3, // 失业期替代收入比例 30%
+    // A组：资金分层资产
+    assetsBreakdown: {
+      cashCurrent: 100000, // 现金活期 10万
+      cashShortDebt: 200000, // 货基短债 20万
+      equityAssets: 440000, // 权益类资产 44万 (80万*55%)
+      goldAssets: 56000, // 黄金资产 5.6万 (80万*7%)
+      bondAssets: 184000, // 债券资产 18.4万
+      propertyEstimated: 2800000, // 房产估值 280万
+      pensionCashValue: 20000, // 养老金现值 2万
+      otherAssets: 0
+    },
+    // B组：未来确定性支出
+    expectedExpenses: {
+      expense1y: 100000, // 12个月内大额支出 10万
+      expense1To3y: 150000, // 1-3年大额支出 15万
+      expense3To5y: 100000 // 3-5年大额支出 10万
+    },
+    hasHousePlan: false,
+    expectedDownPayment: 600000
   },
-  // 1. 家庭保障缺口模块
   insurance: {
-    coverageTier: 'insufficient',  // 保障自评档位: none / insufficient / moderate / complete
-    stabilityTier: 'medium',       // 行业稳定性: high / medium / low
-    childEduTarget: 500000,        // 子女教育金刚性储备诉求 (元)
-    existingLifeCover: 500000,     // 已有寿险保额 (元)
-    existingCritCover: 200000,     // 已有重疾保额 (元)
-    existingAccidentCover: 500000, // 已有意外险保额 (元)
-    hasMillionMedical: false       // 是否持有百万医疗兜底
+    coverageTier: 'insufficient',
+    stabilityTier: 'medium',
+    childEduTarget: 500000, // 子女教育金目标独立输入 50万
+    existingLifeCover: 500000,
+    existingCritCover: 200000,
+    existingAccidentCover: 500000,
+    hasMillionMedical: false
   },
-  // 3. 债务与决策模块
   debt: {
-    mortgageBalance: 800000,         // 房贷余额 (元)
-    carLoanBalance: 0,               // 车贷余额 (元)
-    consumerLoanBalance: 0,          // 消费贷余额 (元)
-    businessLoanBalance: 0,          // 经营贷余额 (元)
-    monthlyDebtPayment: 4500,        // 每月贷款总还款 (元)
-    debtRateBracket: '4.5-6%',       // 综合贷款利率区间 (<3.5% / 3.5-4.5% / 4.5-6% / >6%)
-    customDebtRate: 5.5,             // 用户自报或选定档位利率 (%)
-    highInterestDebtBalance: 0,      // 高息债务余额 (元)
-    availableFundX: 200000           // 模拟可用资金 X (元)
+    mortgageBalance: 800000,
+    carLoanBalance: 0,
+    consumerLoanBalance: 0,
+    businessLoanBalance: 0,
+    monthlyDebtPayment: 4500,
+    remainingYears: 15,
+    debtRateBracket: '3.5-4.5%',
+    customDebtRate: null,
+    useCustomRate: false,
+    highInterestDebtBalance: 0,
+    availableFundX: 200000
   },
-  // 4. 个人养老金税优模块
   pension: {
-    hasAccount: true,                // 是否已开立个人养老金账户
-    currentYearDeposited: 4000,      // 本年已缴存金额 (元, 0-12000)
-    marginalTaxRate: 0.20            // 个人边际税率档位
+    hasAccount: true,
+    currentYearDeposited: 4000,
+    marginalTaxRate: 0.20
   },
-  // 5. 房产资产模块
   property: {
-    totalEstimatedValue: 2800000,    // 房产当前总估值 (元)
-    stressDropPct: 20                // 压力测试房产下跌幅度 (%)
+    totalEstimatedValue: 2800000,
+    stressDropPct: 20
   },
-  // 6. 复合压力测试场景
   stress: {
-    scenarioType: 'preset',          // preset | replay
-    selectedPresetId: 'standard',    // standard | severe | stagflation
-    selectedReplayId: 'replay_2018'  // replay_2018 | replay_2022 | replay_2015
+    scenarioType: 'preset',
+    selectedPresetId: 'standard',
+    selectedReplayId: 'replay_2018',
+    customDrawdown: null,
+    unemploymentReplacementRate: 0.3
   },
-  // 7. 行为约束问卷
   behavior: {
-    drawdownBracket: '10-20%',       // 自评最大承受回撤: <5%, 5-10%, 10-20%, 20-30%, >30%
-    marketDropReaction: 'panic_sell', // 大跌第一反应: panic_sell | pause_watch | buy_more
-    cashflowRelianceHigh: true,      // 现金流是否高度依赖投资收益
-    industryVolatileHigh: false      // 行业波动大且失业恢复>6个月
+    drawdownBracket: '10-20%',
+    marketDropReaction: 'panic_sell',
+    cashflowRelianceHigh: true,
+    industryVolatileHigh: false
   },
-  // 8. 估值温度计与再平衡
   thermometer: {
-    selectedIndex: 'csi_div_low_vol', // 跟踪指数
-    percentile: 85,                   // 当前指数估值百分位 (0-100)
+    selectedIndex: 'H30269',
+    percentileOverrides: {},
+    dataSource: 'cached',
     userHoldings: {
-      '512890': 15.0,
-      '515450': 10.0,
+      '511880': 12.0,
+      '511360': 12.0,
+      '512890': 16.0,
+      '515450': 12.0,
       '513530': 8.0,
-      '600941': 5.0,
-      '600900': 4.0,
-      '601398': 4.0,
-      '601088': 3.0,
-      '601668': 3.0
-    }
+      '510300': 8.0,
+      '518880': 6.0,
+      '511010': 6.0
+    },
+    incrementalCapital: 50000
   },
-  // 2. 目标列表
   goals: [
     {
       id: 'goal-edu-2035',
       name: '2035 年子女教育金',
       type: '子女教育金',
-      targetAmount: 1000000, // 100 万元
+      targetAmount: 1000000,
       targetYear: 2035,
       priority: '刚性',
       reservedAmount: 0,
       linkTo1To3y: false,
-      retireConfig: {
-        currentAge: 35,
-        retireAge: 50,
-        retireMonthlyExpense: 10000
-      }
+      retireConfig: { currentAge: 35, retireAge: 50, retireMonthlyExpense: 10000 }
     },
     {
       id: 'goal-fire-2040',
       name: '2040 提前退休计划',
       type: '提前退休',
-      targetAmount: 2500000, // 250 万元
+      targetAmount: 2500000,
       targetYear: 2040,
       priority: '弹性',
       reservedAmount: 150000,
       linkTo1To3y: true,
-      retireConfig: {
-        currentAge: 35,
-        retireAge: 50,
-        retireMonthlyExpense: 12000
-      }
+      retireConfig: { currentAge: 35, retireAge: 50, retireMonthlyExpense: 12000 }
     }
   ]
 };
