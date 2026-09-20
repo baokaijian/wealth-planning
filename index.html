@@ -443,6 +443,93 @@
       max-height: 90vh;
       overflow-y: auto;
     }
+    .modal-box-lg {
+      max-width: 920px;
+      width: 95%;
+    }
+
+    .guide-step {
+      background: rgba(30, 41, 59, 0.45);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 12px;
+      transition: all 0.2s ease;
+    }
+    .guide-step:hover {
+      border-color: rgba(56, 189, 248, 0.35);
+      background: rgba(30, 41, 59, 0.7);
+    }
+    .guide-step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(56, 189, 248, 0.2);
+      color: #38BDF8;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      margin-right: 10px;
+      flex-shrink: 0;
+    }
+    .guide-tab-btn {
+      padding: 10px 18px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    .guide-tab-btn:hover {
+      color: var(--text-main);
+    }
+    .guide-tab-btn.active {
+      color: #38BDF8;
+      border-bottom-color: #38BDF8;
+    }
+    .guide-module-card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .guide-module-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #F8FAFC;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .guide-faq-item {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .guide-faq-q {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #38BDF8;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .guide-faq-a {
+      font-size: 0.86rem;
+      color: #CBD5E1;
+      line-height: 1.6;
+    }
 
     /* 红黄绿灯总览卡片 */
     .traffic-card {
@@ -965,6 +1052,22 @@ function migrateState(stored) {
   }
   if (migrated.stress.unemploymentReplacementRate === undefined) {
     migrated.stress.unemploymentReplacementRate = 0.3;
+  }
+  if (!migrated.thermometer) {
+    migrated.thermometer = { ...INITIAL_STATE.thermometer };
+  } else {
+    migrated.thermometer = {
+      ...INITIAL_STATE.thermometer,
+      ...migrated.thermometer,
+      userHoldings: {
+        ...INITIAL_STATE.thermometer.userHoldings,
+        ...(migrated.thermometer.userHoldings || {})
+      },
+      percentileOverrides: {
+        ...INITIAL_STATE.thermometer.percentileOverrides,
+        ...(migrated.thermometer.percentileOverrides || {})
+      }
+    };
   }
   return migrated;
 }
@@ -1804,6 +1907,7 @@ function calculateThermometerSignal(percentile = 50) {
     code,
     tier,
     dcaFactor,
+    dcaMultiplier: dcaFactor,
     isOverheated: code === 'overheat',
     isDeepLow: code === 'deep_low',
     actionAdvice: tier.action,
@@ -1817,16 +1921,18 @@ function calculateThermometerSignal(percentile = 50) {
  * P2-2 增量资金再平衡分配算法
  */
 function calculateIncrementalRebalance(assets = {}, userHoldings = {}, incrementalCapital = 50000) {
+  const safeHoldings = userHoldings || {};
   // 计算当前持仓市值
   let totalCurrentValYuan = 0;
-  const holdingList = Object.entries(assets).map(([code, asset]) => {
-    const valWan = userHoldings[code] || 0;
+  const holdingList = Object.entries(assets || {}).map(([code, asset]) => {
+    const valWan = Number(safeHoldings[code] ?? 0);
     const valYuan = valWan * 10000;
     totalCurrentValYuan += valYuan;
     return {
       code,
       name: asset.name,
       targetWeight: asset.weight || 0,
+      targetPct: asset.weight || 0,
       valYuan
     };
   });
@@ -1843,7 +1949,9 @@ function calculateIncrementalRebalance(assets = {}, userHoldings = {}, increment
     return {
       ...item,
       currentWeight: parseFloat(currentWeight.toFixed(1)),
+      currentPct: parseFloat(currentWeight.toFixed(1)),
       weightDiff: parseFloat(weightDiff.toFixed(1)),
+      diffPct: parseFloat(weightDiff.toFixed(1)),
       status: weightDiff > 2.0 ? 'overweight' : (weightDiff < -2.0 ? 'underweight' : 'balanced'),
       neededGap
     };
@@ -1859,7 +1967,8 @@ function calculateIncrementalRebalance(assets = {}, userHoldings = {}, increment
     }
     return {
       ...item,
-      allocatedYuan
+      allocatedYuan,
+      allocatedCash: allocatedYuan
     };
   });
 
@@ -1867,7 +1976,8 @@ function calculateIncrementalRebalance(assets = {}, userHoldings = {}, increment
     totalCurrentValYuan,
     totalAfterCapital,
     incrementalCapital,
-    allocation
+    allocation,
+    allocations: allocation
   };
 }
 
@@ -2530,6 +2640,8 @@ function App() {
   const [editingGoal, setEditingGoal] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [guideTab, setGuideTab] = useState('workflow');
   const [copySuccess, setCopySuccess] = useState(false);
   const [showBehaviorBreakdown, setShowBehaviorBreakdown] = useState(false);
   const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
@@ -2570,16 +2682,16 @@ function App() {
   
   // 温度计指标
   const activeThermometerIndex = useMemo(() => {
-    const code = state.thermometer.selectedIndex || 'H30269';
+    const code = state.thermometer?.selectedIndex || 'H30269';
     return THERMOMETER_INDICES.find(i => i.code === code) || THERMOMETER_INDICES[0];
-  }, [state.thermometer.selectedIndex]);
+  }, [state.thermometer?.selectedIndex]);
 
   const activePercentile = useMemo(() => {
-    if (state.thermometer.percentileOverrides && state.thermometer.percentileOverrides[activeThermometerIndex.code] !== undefined) {
+    if (state.thermometer?.percentileOverrides && state.thermometer.percentileOverrides[activeThermometerIndex.code] !== undefined) {
       return state.thermometer.percentileOverrides[activeThermometerIndex.code];
     }
     return activeThermometerIndex.defaultPercentile || 50;
-  }, [state.thermometer.percentileOverrides, activeThermometerIndex]);
+  }, [state.thermometer?.percentileOverrides, activeThermometerIndex]);
 
   const thermometerMetrics = useMemo(() => calculateThermometerSignal(activePercentile), [activePercentile]);
 
@@ -2720,11 +2832,11 @@ function App() {
   // 增量资金再平衡计算
   const incrementalRebalance = useMemo(() => {
     return calculateIncrementalRebalance(
-      state.board.assets,
-      state.thermometer.userHoldings,
-      state.thermometer.incrementalCapital || 50000
+      state.board?.assets,
+      state.thermometer?.userHoldings,
+      state.thermometer?.incrementalCapital || 50000
     );
-  }, [state.board.assets, state.thermometer.userHoldings, state.thermometer.incrementalCapital]);
+  }, [state.board?.assets, state.thermometer?.userHoldings, state.thermometer?.incrementalCapital]);
 
   const explainableScores = useMemo(() => calculateExplainableScores(state), [state]);
   const unifiedDashboard = useMemo(() => calculateUnifiedRiskDashboard(state), [state]);
@@ -2992,6 +3104,14 @@ function App() {
           </div>
 
           <div className="header-actions">
+            <button 
+              className="btn btn-outline btn-sm" 
+              onClick={() => setIsGuideOpen(true)} 
+              title="查看系统使用说明与各模块功能详解"
+              style={{ color: '#38BDF8', borderColor: 'rgba(56, 189, 248, 0.4)', fontWeight: 600 }}
+            >
+              📖 使用说明
+            </button>
             <div className="storage-tag" title="所有家庭财务数据完全保存在您的本地浏览器 localStorage 中，不向任何第三方服务器发送">
               <span className="pulse-dot"></span>
               <span className="storage-text">纯本地存储</span>
@@ -4757,8 +4877,8 @@ function App() {
                   <label className="form-label">监测目标指数</label>
                   <select 
                     className="input-control"
-                    value={state.thermometer.selectedIndex || 'H30269'}
-                    onChange={e => setState({ ...state, thermometer: { ...state.thermometer, selectedIndex: e.target.value } })}
+                    value={state.thermometer?.selectedIndex || 'H30269'}
+                    onChange={e => setState({ ...state, thermometer: { ...(state.thermometer || {}), selectedIndex: e.target.value } })}
                   >
                     {THERMOMETER_INDICES.map(idx => (
                       <option key={idx.code} value={idx.code}>
@@ -4773,7 +4893,7 @@ function App() {
 
                 <div className="form-group">
                   <label className="form-label">
-                    历史估值分位数调节：<strong>{thermometerMetrics.percentile}%</strong> (动态定投倍数: <strong style={{ color: '#10B981' }}>{thermometerMetrics.dcaMultiplier}x</strong>)
+                    历史估值分位数调节：<strong>{thermometerMetrics.percentile}%</strong> (动态定投倍数: <strong style={{ color: '#10B981' }}>{thermometerMetrics.dcaMultiplier || thermometerMetrics.dcaFactor || 1.0}x</strong>)
                   </label>
                   <input 
                     type="range" 
@@ -4784,9 +4904,9 @@ function App() {
                       setState({
                         ...state,
                         thermometer: {
-                          ...state.thermometer,
+                          ...(state.thermometer || {}),
                           percentileOverrides: {
-                            ...state.thermometer.percentileOverrides,
+                            ...((state.thermometer && state.thermometer.percentileOverrides) || {}),
                             [activeThermometerIndex.code]: p
                           }
                         }
@@ -4808,11 +4928,11 @@ function App() {
               <div style={{ background: 'rgba(255,255,255,0.04)', padding: '16px', borderRadius: '10px', border: `1px solid ${thermometerMetrics.tier.color}`, marginBottom: '20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <div style={{ fontSize: '1rem', fontWeight: 700, color: thermometerMetrics.tier.color }}>
-                    📢 当前状态操作纪律：{thermometerMetrics.tier.label}（定投步长放大系数: {thermometerMetrics.dcaMultiplier}x）
+                    📢 当前状态操作纪律：{thermometerMetrics.tier.label}（定投步长放大系数: {thermometerMetrics.dcaMultiplier || thermometerMetrics.dcaFactor || 1.0}x）
                   </div>
                   {thermometerMetrics.isDeepLow && (
-                    <span className={`tag ${bufferMetrics.minBuffer >= 6 * (state.health.essentialMonthlyExpense || 12000) ? 'tag-green' : 'tag-yellow'}`}>
-                      {bufferMetrics.minBuffer >= 6 * (state.health.essentialMonthlyExpense || 12000) ? '✅ 缓冲池超额充裕，允许大额加仓' : '⚠️ 缓冲池储备偏紧，禁止大额抽水！'}
+                    <span className={`tag ${(bufferMetrics?.minBuffer ?? 0) >= 6 * (state.health?.essentialMonthlyExpense || 12000) ? 'tag-green' : 'tag-yellow'}`}>
+                      {(bufferMetrics?.minBuffer ?? 0) >= 6 * (state.health?.essentialMonthlyExpense || 12000) ? '✅ 缓冲池超额充裕，允许大额加仓' : '⚠️ 缓冲池储备偏紧，禁止大额抽水！'}
                     </span>
                   )}
                 </div>
@@ -4844,16 +4964,16 @@ function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {Object.entries(state.board.assets).map(([code, asset]) => {
-                      const holding = state.thermometer.userHoldings?.[code] ?? 10.0;
+                    {Object.entries(state.board?.assets || {}).map(([code, asset]) => {
+                      const holding = state.thermometer?.userHoldings?.[code] ?? 10.0;
                       const targetIdxCode = asset.targetIndexCode || 'H30269';
                       const idxObj = THERMOMETER_INDICES.find(i => i.code === targetIdxCode) || THERMOMETER_INDICES[0];
-                      const idxPercentile = (state.thermometer.percentileOverrides && state.thermometer.percentileOverrides[targetIdxCode] !== undefined) 
+                      const idxPercentile = (state.thermometer?.percentileOverrides && state.thermometer.percentileOverrides[targetIdxCode] !== undefined) 
                         ? state.thermometer.percentileOverrides[targetIdxCode] 
                         : idxObj.defaultPercentile;
                       const sig = calculateThermometerSignal(idxPercentile);
 
-                      const totalHolding = Object.values(state.thermometer.userHoldings || {}).reduce((a, b) => a + Number(b || 0), 0);
+                      const totalHolding = Object.values(state.thermometer?.userHoldings || {}).reduce((a, b) => a + Number(b || 0), 0);
                       const currentPct = totalHolding > 0 ? (holding / totalHolding * 100) : 0;
                       const diffPct = currentPct - (asset.weight || 0);
 
@@ -4881,8 +5001,8 @@ function App() {
                                 setState({
                                   ...state,
                                   thermometer: {
-                                    ...state.thermometer,
-                                    userHoldings: { ...state.thermometer.userHoldings, [code]: val }
+                                    ...(state.thermometer || {}),
+                                    userHoldings: { ...((state.thermometer && state.thermometer.userHoldings) || {}), [code]: val }
                                   }
                                 });
                               }}
@@ -4917,9 +5037,9 @@ function App() {
                       type="number"
                       className="input-control"
                       style={{ width: '130px', padding: '4px 8px' }}
-                      value={state.thermometer.incrementalCapital || 50000}
+                      value={state.thermometer?.incrementalCapital || 50000}
                       step="10000"
-                      onChange={e => setState({ ...state, thermometer: { ...state.thermometer, incrementalCapital: parseFloat(e.target.value) || 0 } })}
+                      onChange={e => setState({ ...state, thermometer: { ...(state.thermometer || {}), incrementalCapital: parseFloat(e.target.value) || 0 } })}
                     />
                   </div>
                 </div>
@@ -4937,24 +5057,30 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {incrementalRebalance.allocations.map(a => (
-                        <tr key={a.code}>
-                          <td><code>{a.code}</code></td>
-                          <td><strong>{a.name}</strong></td>
-                          <td>{a.currentPct.toFixed(1)}%</td>
-                          <td>{a.targetPct.toFixed(1)}%</td>
-                          <td>
-                            {a.diffPct < 0 ? (
-                              <span className="tag tag-yellow">欠配 {Math.abs(a.diffPct).toFixed(1)}%</span>
-                            ) : (
-                              <span className="tag tag-green">足额</span>
-                            )}
-                          </td>
-                          <td style={{ fontWeight: 700, color: a.allocatedCash > 0 ? '#34D399' : '#94A3B8' }}>
-                            {a.allocatedCash > 0 ? `+¥${a.allocatedCash.toLocaleString()} 元` : '¥0'}
-                          </td>
-                        </tr>
-                      ))}
+                      {(incrementalRebalance?.allocations || incrementalRebalance?.allocation || []).map(a => {
+                        const currentPctVal = a.currentPct ?? a.currentWeight ?? 0;
+                        const targetPctVal = a.targetPct ?? a.targetWeight ?? 0;
+                        const diffPctVal = a.diffPct ?? a.weightDiff ?? 0;
+                        const allocatedVal = a.allocatedCash ?? a.allocatedYuan ?? 0;
+                        return (
+                          <tr key={a.code}>
+                            <td><code>{a.code}</code></td>
+                            <td><strong>{a.name}</strong></td>
+                            <td>{currentPctVal.toFixed(1)}%</td>
+                            <td>{targetPctVal.toFixed(1)}%</td>
+                            <td>
+                              {diffPctVal < 0 ? (
+                                <span className="tag tag-yellow">欠配 {Math.abs(diffPctVal).toFixed(1)}%</span>
+                              ) : (
+                                <span className="tag tag-green">足额</span>
+                              )}
+                            </td>
+                            <td style={{ fontWeight: 700, color: allocatedVal > 0 ? '#34D399' : '#94A3B8' }}>
+                              {allocatedVal > 0 ? `+¥${allocatedVal.toLocaleString()} 元` : '¥0'}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -5270,6 +5396,245 @@ function App() {
                 <button type="submit" className="btn btn-primary">确认添加标的</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 系统使用说明与功能全览弹窗 */}
+      {isGuideOpen && (
+        <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setIsGuideOpen(false); }}>
+          <div className="modal-box modal-box-lg">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', borderBottom: '1px solid var(--card-border)', paddingBottom: '14px' }}>
+              <div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#FFF', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>📖 家庭财富规划与量化风险管理系统 · 使用说明</span>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  纯前端离线运行 · 数据安全隔离 · 科学三桶资产配置 · 责任缺口法保障 · 36 个月复合压力测试
+                </div>
+              </div>
+              <button className="btn btn-outline btn-sm" onClick={() => setIsGuideOpen(false)} style={{ padding: '4px 10px' }}>✕</button>
+            </div>
+
+            {/* 说明内部导航 */}
+            <div style={{ display: 'flex', gap: '6px', borderBottom: '1px solid rgba(255,255,255,0.08)', marginBottom: '18px', overflowX: 'auto' }}>
+              <button 
+                className={`guide-tab-btn ${guideTab === 'workflow' ? 'active' : ''}`}
+                onClick={() => setGuideTab('workflow')}
+              >
+                🚀 快速上手流程 (4步法)
+              </button>
+              <button 
+                className={`guide-tab-btn ${guideTab === 'modules' ? 'active' : ''}`}
+                onClick={() => setGuideTab('modules')}
+              >
+                🧩 六大核心模块详解
+              </button>
+              <button 
+                className={`guide-tab-btn ${guideTab === 'faq' ? 'active' : ''}`}
+                onClick={() => setGuideTab('faq')}
+              >
+                🔒 隐私安全与常见问答 (FAQ)
+              </button>
+            </div>
+
+            {/* TAB 1: 快速上手流程 */}
+            {guideTab === 'workflow' && (
+              <div>
+                <div className="guide-step">
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+                    <span className="guide-step-num">1</span>
+                    <strong style={{ fontSize: '1rem', color: '#38BDF8' }}>第一步：资产体检与保障筑底（「🩺 资产体检与保障」）</strong>
+                  </div>
+                  <div style={{ fontSize: '0.86rem', color: '#CBD5E1', lineHeight: '1.6' }}>
+                    • 录入家庭每月税后总收入、总支出与月必要生活开支底线（如 12,000 元/月）。<br/>
+                    • 盘点家庭资金分层资产（现金活期、短债、权益类、房产等）与各项债务（房贷/车贷/消费贷）。<br/>
+                    • 核心诊断关注：
+                    <span style={{ color: '#34D399' }}> ①流动性硬隔离</span>（1-3年大额支出按50%折减，避免急用钱熊市割肉）；
+                    <span style={{ color: '#FBBF24' }}> ②债务决策对照</span>（综合贷款利率 vs 组合保守收益率，明确是否提前还贷）；
+                    <span style={{ color: '#38BDF8' }}> ③责任缺口法四大险种测算</span>（寿险、重疾、意外险缺口精确覆盖）。
+                  </div>
+                </div>
+
+                <div className="guide-step">
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+                    <span className="guide-step-num">2</span>
+                    <strong style={{ fontSize: '1rem', color: '#38BDF8' }}>第二步：多目标资金归集与挤占推演（「🎯 目标规划」）</strong>
+                  </div>
+                  <div style={{ fontSize: '0.86rem', color: '#CBD5E1', lineHeight: '1.6' }}>
+                    • 创建家庭各阶段大额财务目标（子女大学教育金、买房首付、提前退休 FIRE 养老等）。<br/>
+                    • 区分<strong>刚性</strong>与<strong>弹性</strong>优先级：刚性目标享有月度结余优先分配权与单独预留金锁定；弹性目标消化增量结余。<br/>
+                    • 若出现资金缺口，系统提供<strong>四重调优杠杆</strong>建议：提结余 / 降目标 / 延时间 / 提收益，清晰量化每一步决策代价。
+                  </div>
+                </div>
+
+                <div className="guide-step">
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+                    <span className="guide-step-num">3</span>
+                    <strong style={{ fontSize: '1rem', color: '#38BDF8' }}>第三步：构建科学三桶组合与分红日历（「📊 资产看板」）</strong>
+                  </div>
+                  <div style={{ fontSize: '0.86rem', color: '#CBD5E1', lineHeight: '1.6' }}>
+                    • 按照科学配置模型分配资产三桶：<strong>安全防御 30%</strong>（现金/短债）、<strong>长期成长 55%</strong>（红利低波/核心宽基）、<strong>综合对冲 15%</strong>（黄金/长债）。<br/>
+                    • 观察<strong>12 个月逐月分红现金流日历</strong>，验证每季度是否有平滑股息流入以支撑生活。<br/>
+                    • 严格注意：组合权重之和必须等于 100%，若配置异常会触发置顶红线警报。
+                  </div>
+                </div>
+
+                <div className="guide-step">
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+                    <span className="guide-step-num">4</span>
+                    <strong style={{ fontSize: '1rem', color: '#38BDF8' }}>第四步：极端情景压力测试与动态纪律再平衡（「⏱️ 缓冲池」与「🌡️ 温度计」）</strong>
+                  </div>
+                  <div style={{ fontSize: '0.86rem', color: '#CBD5E1', lineHeight: '1.6' }}>
+                    • 在「缓冲池与压力测试」模拟 36 个月复合冲击（失业 6-12 个月 + 股息下调 50% + 权益回撤 35% + 突发医疗 20万 + 滞胀通胀），确保现金缓冲池底线永不击穿（最低缓冲余额 ≥ 0）。<br/>
+                    • 在「估值温度计与再平衡」观察 10 大指数估值水位，严格遵守“深度低估加大定投倍数至 1.5-2.0x / 极度过热按月分批止盈”的操作纪律。<br/>
+                    • 使用<strong>增量资金再平衡测算器</strong>，利用每月新增结余现金优先补齐欠配标的，无需卖出持仓产生摩擦税费。
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: 六大功能模块详解 */}
+            {guideTab === 'modules' && (
+              <div>
+                <div className="guide-module-card">
+                  <div className="guide-module-title">
+                    <span>🎯 目标导向规划</span>
+                    <span className="tag tag-blue">优先级与挤占推演</span>
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#CBD5E1', lineHeight: '1.6' }}>
+                    <strong>核心用途：</strong>将家庭未来各项大额支出量化，推演终值与达成概率，防止多个目标争夺同一笔资金。<br/>
+                    <strong>关键机制：</strong>
+                    <br/>• <strong>刚性 vs 弹性：</strong>刚性目标（如子女教育金）享有结余优先独占权；弹性目标（如改善或提前退休）按剩余结余排期。
+                    <br/>• <strong>提前退休 (FIRE) 联动：</strong>根据当前年龄、计划退休年龄及退休月支出，基于 4% 安全提取法则自动推算 25 倍目标本金底线。
+                    <br/>• <strong>四重调优闭环杠杆：</strong>若目标未达成，自动算出四类调整方案的精确数值：①每月需多存多少元；②目标需下调多少元；③需延后几年达成；④年化收益需提升几个百分点。
+                  </div>
+                </div>
+
+                <div className="guide-module-card">
+                  <div className="guide-module-title">
+                    <span>📊 资产配置与股息看板</span>
+                    <span className="tag tag-green">三桶模型与现金流</span>
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#CBD5E1', lineHeight: '1.6' }}>
+                    <strong>核心用途：</strong>构建可持续产生现金流的高韧性资产组合，摆脱看天吃饭的择时焦虑。<br/>
+                    <strong>关键机制：</strong>
+                    <br/>• <strong>科学三桶资产结构：</strong>安全防御桶（保障 1-2 年流动性）、长期成长桶（红利低波与核心资产享受长期复利与分红）、综合对冲桶（黄金与长债平滑系统性黑天鹅）。
+                    <br/>• <strong>12 个月逐月分红日历：</strong>基于各 ETF 真实分红月份，自动推演全年各月税后股息分布，与月度必要开支对比实现“以息养家”。
+                    <br/>• <strong>权重 100% 硬核校验：</strong>配置比例实时汇总，非 100% 时触发置顶警报条，确保所有模型测算口径科学真实。
+                  </div>
+                </div>
+
+                <div className="guide-module-card">
+                  <div className="guide-module-title">
+                    <span>🩺 资产体检与家庭保障</span>
+                    <span className="tag tag-yellow">防火墙与风险隔离</span>
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#CBD5E1', lineHeight: '1.6' }}>
+                    <strong>核心用途：</strong>防范“因病致贫、因债断供、熊市被迫割肉急用钱”三大财务黑天鹅。<br/>
+                    <strong>关键机制：</strong>
+                    <br/>• <strong>流动性硬隔离：</strong>未来 1-3 年确定性大额支出（购房/装修/学费）按 50% 折减，从投资本金中剥离，严守 1.5 倍应急安全底线。
+                    <br/>• <strong>债务清偿决策对照：</strong>综合贷款利率 vs 组合保守预期收益率（增长预期收益率×70%）。利差 &gt; 2% 优先清偿高息负债，利差 &lt; -2% 保持贷款，锁定无风险利差收益。
+                    <br/>• <strong>责任缺口法四大险种精算：</strong>寿险缺口（全部负债 + 10年生活费 + 教育金 - 流动资产）；重疾缺口（3-5年税后收入 + 30-50万治疗康复金）；自动核算意外险建议额与百万医疗险兜底。
+                    <br/>• <strong>集中度与行为约束：</strong>单一标的 &gt; 40%、前三 &gt; 70% 或同质红利风格共振时预警，结合最大回撤承受力锁定权益配置上限。
+                  </div>
+                </div>
+
+                <div className="guide-module-card">
+                  <div className="guide-module-title">
+                    <span>⏱️ 现金缓冲池与复合压力测试</span>
+                    <span className="tag tag-red">36 个月生存推演</span>
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#CBD5E1', lineHeight: '1.6' }}>
+                    <strong>核心用途：</strong>检验资产组合与现金流在遭遇极端宏观逆境时的抗击打能力。<br/>
+                    <strong>关键机制：</strong>
+                    <br/>• <strong>36 个月逐月平滑滚动态：</strong>模拟种子金 + 逐月分红 + 货基收益 - 生活提款的全生命周期，精准定位“资金最低脆弱月份”。
+                    <br/>• <strong>复合压力情景自定义：</strong>支持失业（失业期仅有 30% 替代收入）、分红永久下降、分红延迟到账、权益市值大跌、突发一次性医疗支出以及年通胀 5%（生活支出逐月递增）的叠加冲击。
+                    <br/>• <strong>历史极端周期一键回放：</strong>内置 2015 年急速大跌、2018 年去杠杆阴跌、2022 年股债双杀真实数据曲线，回放家庭组合的实际幸存状态。
+                  </div>
+                </div>
+
+                <div className="guide-module-card">
+                  <div className="guide-module-title">
+                    <span>🌡️ 估值温度计与增量再平衡</span>
+                    <span className="tag tag-blue">克服人性纪律操作</span>
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#CBD5E1', lineHeight: '1.6' }}>
+                    <strong>核心用途：</strong>提供客观量化水位信号，消除主观追涨杀跌，规范买入与卖出侧双向纪律。<br/>
+                    <strong>关键机制：</strong>
+                    <br/>• <strong>10 大核心代表性指数监测：</strong>覆盖中证红利低波、港股通高股息、沪深300、中证A500、科创50、标普500等，提供近 3 年估值/股息率分位数。
+                    <br/>• <strong>五档动态定投倍数：</strong>深度低估（&lt;20%）放大定投至 1.5-2.0x；低估（20-40%）按 1.2x 定投；中性保持常规；偏热暂停增量；极度过热（&gt;80%）启动月度分批止盈纪律。
+                    <br/>• <strong>增量资金再平衡测算器：</strong>无需卖出已有持仓（避免缴税和交易滑点），直接依据新增可用现金分配给欠配幅度最大的标的，渐进式平滑纠偏回目标权重。
+                  </div>
+                </div>
+
+                <div className="guide-module-card">
+                  <div className="guide-module-title">
+                    <span>📋 体检报告导出与本地管理</span>
+                    <span className="tag tag-purple">档案沉淀与迁移</span>
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#CBD5E1', lineHeight: '1.6' }}>
+                    <strong>核心用途：</strong>生成结构化归档文件，方便长周期跟踪家庭财富健康状况。<br/>
+                    <strong>关键机制：</strong>
+                    <br/>• <strong>一键导出 Markdown 报告：</strong>汇总家庭资产负债、三桶配置、压力测试表现、保障缺口与纪律操作建议，可一键复制到 Notion、Obsidian 等笔记软件或打印留存。
+                    <br/>• <strong>本地历史快照：</strong>点击右上角「📸 快照」即可记录当前版本，随时查看家庭财务指标的历程变化。
+                    <br/>• <strong>数据备份与导入：</strong>点击「📥 导出」可下载包含全量配置的 <code>.json</code> 文件；点击「📤 导入」可在任何新设备上完整还原所有数据。
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: 隐私安全与常见问答 */}
+            {guideTab === 'faq' && (
+              <div>
+                <div className="guide-faq-item">
+                  <div className="guide-faq-q">
+                    <span>🔒</span> 我的家庭财务隐私数据会被上传到云端服务器吗？
+                  </div>
+                  <div className="guide-faq-a">
+                    <strong>绝对不会。</strong> 本系统是 100% 运行在您浏览器本地的纯前端单页面应用（SPA）。所有家庭收支、资产总额、负债金额与规划目标仅存储在当前浏览器的 <code>localStorage</code> 中，系统内不存在任何后端服务器通信接口。您在断网（离线）状态下依然可以使用全部功能，数据永远不会离开您的设备。
+                  </div>
+                </div>
+
+                <div className="guide-faq-item">
+                  <div className="guide-faq-q">
+                    <span>💾</span> 清理浏览器缓存会导致数据丢失吗？如何更换电脑继续使用？
+                  </div>
+                  <div className="guide-faq-a">
+                    如果您主动清空了浏览器网站数据或使用了无痕模式，<code>localStorage</code> 会被重置。
+                    因此，我们强烈建议您在完成重要的财务规划后，点击右上角的 <strong>「📥 导出」</strong> 按钮，将您的家庭规划方案下载为本地 <code>.json</code> 备份文件。<br/>
+                    当您更换电脑、切换浏览器或需要恢复数据时，只需点击右上角 <strong>「📤 导入」</strong> 选取该文件，即可 1 秒完整还原所有配置。
+                  </div>
+                </div>
+
+                <div className="guide-faq-item">
+                  <div className="guide-faq-q">
+                    <span>🔄</span> 页面被我改乱了，如何重置回初始示范数据？
+                  </div>
+                  <div className="guide-faq-a">
+                    随时可以点击右上角的 <strong>「🔄 重置」</strong> 按钮，在确认后，系统将自动清空当前配置并还原为出厂内置的专业自洽示范数据（80万本金、经典三桶配置、子女教育金与 FIRE 提前退休双目标模型），方便您重新学习或对照推演。
+                  </div>
+                </div>
+
+                <div className="guide-faq-item">
+                  <div className="guide-faq-q">
+                    <span>⚖️</span> 本系统给出的测算收益与资产配置是投资建议吗？
+                  </div>
+                  <div className="guide-faq-a">
+                    <strong>重要免责声明：</strong> 本工具为个人家庭财务量化规划、压力测试与行为纪律辅助推演系统。系统中涉及的预期收益率（如 6.5% 增长预期）、历史分红率、估值分位数与测算结果均为数学模型模拟结果，<strong>不代表任何历史业绩保证或未来投资收益承诺，不构成任何具体的投资建议或金融产品推荐</strong>。市场有风险，投资决策需根据自身财务状况审慎做出。
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '14px', borderTop: '1px solid var(--card-border)' }}>
+              <div style={{ fontSize: '0.75rem', color: '#64748B' }}>
+                💡 随时可在右上角点击「📖 使用说明」重新查看本指南
+              </div>
+              <button className="btn btn-primary btn-sm" onClick={() => setIsGuideOpen(false)}>
+                我知道了，开始规划
+              </button>
+            </div>
           </div>
         </div>
       )}

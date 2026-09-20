@@ -74,6 +74,22 @@ function migrateState(stored) {
   if (migrated.stress.unemploymentReplacementRate === undefined) {
     migrated.stress.unemploymentReplacementRate = 0.3;
   }
+  if (!migrated.thermometer) {
+    migrated.thermometer = { ...INITIAL_STATE.thermometer };
+  } else {
+    migrated.thermometer = {
+      ...INITIAL_STATE.thermometer,
+      ...migrated.thermometer,
+      userHoldings: {
+        ...INITIAL_STATE.thermometer.userHoldings,
+        ...(migrated.thermometer.userHoldings || {})
+      },
+      percentileOverrides: {
+        ...INITIAL_STATE.thermometer.percentileOverrides,
+        ...(migrated.thermometer.percentileOverrides || {})
+      }
+    };
+  }
   return migrated;
 }
 """
@@ -526,6 +542,93 @@ html_template = f"""<!DOCTYPE html>
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
       max-height: 90vh;
       overflow-y: auto;
+    }}
+    .modal-box-lg {{
+      max-width: 920px;
+      width: 95%;
+    }}
+
+    .guide-step {{
+      background: rgba(30, 41, 59, 0.45);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 12px;
+      transition: all 0.2s ease;
+    }}
+    .guide-step:hover {{
+      border-color: rgba(56, 189, 248, 0.35);
+      background: rgba(30, 41, 59, 0.7);
+    }}
+    .guide-step-num {{
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(56, 189, 248, 0.2);
+      color: #38BDF8;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      margin-right: 10px;
+      flex-shrink: 0;
+    }}
+    .guide-tab-btn {{
+      padding: 10px 18px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }}
+    .guide-tab-btn:hover {{
+      color: var(--text-main);
+    }}
+    .guide-tab-btn.active {{
+      color: #38BDF8;
+      border-bottom-color: #38BDF8;
+    }}
+    .guide-module-card {{
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }}
+    .guide-module-title {{
+      font-size: 1rem;
+      font-weight: 700;
+      color: #F8FAFC;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }}
+    .guide-faq-item {{
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }}
+    .guide-faq-q {{
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #38BDF8;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }}
+    .guide-faq-a {{
+      font-size: 0.86rem;
+      color: #CBD5E1;
+      line-height: 1.6;
     }}
 
     /* 红黄绿灯总览卡片 */

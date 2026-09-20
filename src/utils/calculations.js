@@ -842,6 +842,7 @@ export function calculateThermometerSignal(percentile = 50) {
     code,
     tier,
     dcaFactor,
+    dcaMultiplier: dcaFactor,
     isOverheated: code === 'overheat',
     isDeepLow: code === 'deep_low',
     actionAdvice: tier.action,
@@ -855,16 +856,18 @@ export function calculateThermometerSignal(percentile = 50) {
  * P2-2 增量资金再平衡分配算法
  */
 export function calculateIncrementalRebalance(assets = {}, userHoldings = {}, incrementalCapital = 50000) {
+  const safeHoldings = userHoldings || {};
   // 计算当前持仓市值
   let totalCurrentValYuan = 0;
-  const holdingList = Object.entries(assets).map(([code, asset]) => {
-    const valWan = userHoldings[code] || 0;
+  const holdingList = Object.entries(assets || {}).map(([code, asset]) => {
+    const valWan = Number(safeHoldings[code] ?? 0);
     const valYuan = valWan * 10000;
     totalCurrentValYuan += valYuan;
     return {
       code,
       name: asset.name,
       targetWeight: asset.weight || 0,
+      targetPct: asset.weight || 0,
       valYuan
     };
   });
@@ -881,7 +884,9 @@ export function calculateIncrementalRebalance(assets = {}, userHoldings = {}, in
     return {
       ...item,
       currentWeight: parseFloat(currentWeight.toFixed(1)),
+      currentPct: parseFloat(currentWeight.toFixed(1)),
       weightDiff: parseFloat(weightDiff.toFixed(1)),
+      diffPct: parseFloat(weightDiff.toFixed(1)),
       status: weightDiff > 2.0 ? 'overweight' : (weightDiff < -2.0 ? 'underweight' : 'balanced'),
       neededGap
     };
@@ -897,7 +902,8 @@ export function calculateIncrementalRebalance(assets = {}, userHoldings = {}, in
     }
     return {
       ...item,
-      allocatedYuan
+      allocatedYuan,
+      allocatedCash: allocatedYuan
     };
   });
 
@@ -905,7 +911,8 @@ export function calculateIncrementalRebalance(assets = {}, userHoldings = {}, in
     totalCurrentValYuan,
     totalAfterCapital,
     incrementalCapital,
-    allocation
+    allocation,
+    allocations: allocation
   };
 }
 
