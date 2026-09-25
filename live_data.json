@@ -347,7 +347,7 @@
         "fallback": "null yield means no verified trailing cash distribution; the UI may show a clearly labelled planning assumption"
     },
     "data_quality": {
-        "generated_at": "2026-09-24 13:58:18",
+        "generated_at": "2026-09-25 14:20:52",
         "assets_checked": 18,
         "unverified_stable_cashflow_count": 4,
         "fetch_error_count": 0,
@@ -393,7 +393,7 @@
     "valuation_freshness": {
         "status": "stale",
         "latest_date": "2026-07-20",
-        "stale_days": 66,
+        "stale_days": 67,
         "indices": [
             "000015",
             "000300",
@@ -405,6 +405,6 @@
             "HSHYLV",
             "SPX"
         ],
-        "detail": "估值历史最新日期 2026-07-20，距今 66 天。超过 7 天建议人工核对，超过 21 天百分位判断可能失真。"
+        "detail": "估值历史最新日期 2026-07-20，距今 67 天。超过 7 天建议人工核对，超过 21 天百分位判断可能失真。"
     }
 }
