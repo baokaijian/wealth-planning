@@ -293,13 +293,16 @@
             "low": 1.182,
             "price_source": "tencent_realtime_quote",
             "price_as_of": "2026-09-30 16:14:05",
-            "yield": null,
-            "impliedYield": null,
-            "yield_method": "no_cash_distribution_in_trailing_12m",
-            "trailing_12m_cash_per_unit": 0,
-            "distribution_count": 0,
-            "distribution_as_of": "",
-            "distribution_months": {}
+            "yield": 3.1486,
+            "impliedYield": 3.1486,
+            "yield_method": "trailing_12m_cash_distributions",
+            "trailing_12m_cash_per_unit": 0.0375,
+            "distribution_count": 2,
+            "distribution_as_of": "2026-07-14",
+            "distribution_months": {
+                "4": 0.642667,
+                "7": 0.357333
+            }
         },
         "512100": {
             "name": "中证1000ETF南方",
@@ -344,10 +347,10 @@
         "fallback": "null yield means no verified trailing cash distribution; the UI may show a clearly labelled planning assumption"
     },
     "data_quality": {
-        "generated_at": "2026-10-02 15:15:10",
+        "generated_at": "2026-10-05 17:39:24",
         "assets_checked": 18,
-        "unverified_stable_cashflow_count": 3,
-        "fetch_error_count": 1,
+        "unverified_stable_cashflow_count": 4,
+        "fetch_error_count": 0,
         "alerts": [
             {
                 "code": "511360",
@@ -381,16 +384,16 @@
                 "name": "政金债券 ETF",
                 "income_type": "cash_interest",
                 "declared_yield": 2.6,
-                "severity": "error",
-                "reason": "dividend_source_fetch_failed",
-                "detail": "<urlopen error _ssl.c:1130: The handshake operation timed out>"
+                "severity": "warning",
+                "reason": "no_verified_cash_distribution_in_trailing_12m",
+                "detail": "该资产近12个月在分红数据源中无真实现金分配记录，界面使用的收益率是规划假设，不是可核验的实际分红。"
             }
         ]
     },
     "valuation_freshness": {
         "status": "stale",
         "latest_date": "2026-07-20",
-        "stale_days": 74,
+        "stale_days": 77,
         "indices": [
             "000015",
             "000300",
@@ -402,6 +405,6 @@
             "HSHYLV",
             "SPX"
         ],
-        "detail": "估值历史最新日期 2026-07-20，距今 74 天。超过 7 天建议人工核对，超过 21 天百分位判断可能失真。"
+        "detail": "估值历史最新日期 2026-07-20，距今 77 天。超过 7 天建议人工核对，超过 21 天百分位判断可能失真。"
     }
 }
