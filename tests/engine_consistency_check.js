@@ -53,7 +53,7 @@ function familyMetrics(fd) {
   const cashCoverageMonths = liquidCash / (monthlyEssential + fd['debt-monthly-repay']);
   const investableAssets = fd['ast-cash'] + fd['ast-mmf'] + fd['ast-ashare'] + fd['ast-hk'] +
     fd['ast-overseas'] + fd['ast-gold'] + fd['ast-others'];
-  return { totalAssets, netWorth, leverage, repayIncomeRatio, surplusRatio, cashCoverageMonths, investableAssets };
+  return { totalAssets, totalLiabilities, netWorth, leverage, repayIncomeRatio, surplusRatio, cashCoverageMonths, investableAssets };
 }
 
 function runCase(testCase) {
@@ -107,6 +107,12 @@ function runCase(testCase) {
   );
   const dcaMissing = engine.getDcaAdjustment([], 'NO_DATA', 'overseas_tech');
   const fit = engine.evaluatePortfolioFit(weights, assets, family.isProhibitAggressive);
+  const protection = engine.calculateProtectionGap(
+    testCase.familyData,
+    fm.totalLiabilities,
+    testCase.familyData['f-monthly-income'] * 12,
+    testCase.familyData['ast-cash'] + testCase.familyData['ast-mmf']
+  );
   return {
     name: testCase.name,
     safeMonthlyWithdrawWan: feasibility.safeMonthlyWithdrawWan,
@@ -121,6 +127,10 @@ function runCase(testCase) {
     missingDcaHasHistory: dcaMissing.hasHistory,
     portfolioFitStatus: fit.status,
     profileKey: family.profileKey,
+    protectionLifeGap: protection.life.gap,
+    protectionCiGap: protection.ci.gap,
+    protectionAccidentGap: protection.accident.gap,
+    protectionAlert: protection.shouldAlertPriority,
   };
 }
 

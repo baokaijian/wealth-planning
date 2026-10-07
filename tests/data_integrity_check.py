@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from pathlib import Path
 
 
@@ -64,6 +65,18 @@ def main():
             errors.append(f"live_data.json {code} 缺少价格时间")
         if record.get("yield_method") == "implied_from_reference_distribution":
             errors.append(f"live_data.json {code} 仍使用参考价格反推收益率")
+    quote_dates = []
+    for record in live.get("data", {}).values():
+        try:
+            quote_dates.append(datetime.strptime(record.get("price_as_of", "")[:10], "%Y-%m-%d"))
+        except (TypeError, ValueError):
+            pass
+    if quote_dates:
+        oldest_quote_age = (datetime.now() - min(quote_dates)).days
+        if oldest_quote_age > 14:
+            errors.append(f"live_data.json 最旧行情已滞后 {oldest_quote_age} 天，自动更新可能已停止")
+        elif oldest_quote_age > 4:
+            warnings.append(f"live_data.json 最旧行情已滞后 {oldest_quote_age} 天，请确认是否处于长假/休市")
     for index, item in enumerate(history):
         if not item.get("index_code") or not item.get("date"):
             errors.append(f"valuation_history[{index}] 缺少 index_code/date")
@@ -98,11 +111,10 @@ def main():
         if not item.get("date") or not VERIFIED_PERCENTILE_FIELDS <= set(item):
             errors.append(f"{code} 缺少已核验估值日期或三年百分位")
     # 估值新鲜度：估值历史为半手动维护，滞后要显式告警，但不要因运营滞后阻断数据正确性检查。
-    from datetime import datetime as _datetime
     _latest_date = max((item.get("date", "") for item in history if item.get("date")), default="")
     if _latest_date:
         try:
-            _stale_days = (_datetime.now() - _datetime.strptime(_latest_date, "%Y-%m-%d")).days
+            _stale_days = (datetime.now() - datetime.strptime(_latest_date, "%Y-%m-%d")).days
             if _stale_days > 21:
                 warnings.append(f"估值历史滞后 {_stale_days} 天（最新 {_latest_date}），百分位判断可能失真，请补充估值数据源/更新管线")
             elif _stale_days > 7:

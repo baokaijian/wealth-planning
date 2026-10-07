@@ -64,6 +64,28 @@ test('估值温度计分别返回已验证的PE、PB和股息率百分位', () =
   assert.equal(result.asOf, '2026-07-20');
 });
 
+test('估值数据超过 21 天时保留展示指标，但禁止用旧百分位调节定投', () => {
+  const history = [{
+    index_code: '000300',
+    date: '2026-07-20',
+    pe: 10,
+    pb: 1.1,
+    dividend_yield: 3,
+    pe_percentile_3y: 10,
+    pb_percentile_3y: 15,
+    dividend_yield_percentile_3y: 80,
+  }];
+  const result = engine.getDcaAdjustment(history, '000300', 'domestic_beta', {
+    referenceDate: '2026-08-11',
+  });
+
+  assert.equal(result.hasHistory, true);
+  assert.equal(result.isStale, true);
+  assert.equal(result.staleDays, 22);
+  assert.equal(result.factor, 1.0);
+  assert.match(result.valuationZone, /数据过期/);
+});
+
 test('新增风险溢价观察位缺少估值历史时保持1.0x且不生成高低估判断', () => {
   const smallCap = engine.getDcaAdjustment([], '000852', 'small_cap');
   const offshoreGrowth = engine.getDcaAdjustment([], 'HKTECH', 'china_offshore_growth');

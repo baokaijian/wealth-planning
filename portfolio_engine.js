@@ -553,6 +553,8 @@ const portfolioEngine = {
                 percentileWindow: "--",
                 asOf: "--",
                 valuationSource: "--",
+                isStale: false,
+                staleDays: null,
                 valuationZone: `${roleMessage.zone}，保持基础计划`,
                 tips: `由于未找到此标的的${roleMessage.metric}，DCA 保持 1.0x，不生成低估/高估判断。${overseasRiskTip}`
             };
@@ -591,6 +593,13 @@ const portfolioEngine = {
         const pePct = verifiedPercentile('pe_percentile_3y', calculatedPercentile(peList, currentPE));
         const pbPct = verifiedPercentile('pb_percentile_3y', calculatedPercentile(pbList, currentPB));
         const dyPct = verifiedPercentile('dividend_yield_percentile_3y', calculatedPercentile(dyList, currentDY));
+
+        const referenceDate = context && context.referenceDate ? new Date(context.referenceDate) : null;
+        const valuationDate = latest.date ? new Date(`${latest.date}T00:00:00Z`) : null;
+        const staleDays = referenceDate && valuationDate && !Number.isNaN(referenceDate.getTime()) && !Number.isNaN(valuationDate.getTime())
+            ? Math.max(0, Math.floor((referenceDate.getTime() - valuationDate.getTime()) / 86400000))
+            : null;
+        const isStale = staleDays !== null && staleDays > 21;
 
         let percentile = 50.0;
         let factor = 1.0;
@@ -716,6 +725,12 @@ const portfolioEngine = {
             }
         }
 
+        if (isStale) {
+            factor = 1.0;
+            valuationZone = "估值数据过期，保持基础计划";
+            tips = `估值数据已滞后 ${staleDays} 天，PE/PB/百分位仅供历史参考；在更新并验证前，DCA 固定为 1.0x。`;
+        }
+
         return {
             hasHistory: true,
             percentile,
@@ -729,6 +744,8 @@ const portfolioEngine = {
             percentileWindow: latest.percentile_window || "本地历史",
             asOf: latest.date || "--",
             valuationSource: latest.valuation_source || "valuation_history",
+            isStale,
+            staleDays,
             valuationZone,
             tips
         };
@@ -1176,6 +1193,111 @@ const portfolioEngine = {
             reason,
             isProhibitAggressive,
             fourMoney: this.calculateFourMoneyAnalysis(fd, totalAssets, netWorth, leverage, repayIncomeRatio, surplusRatio, cashCoverageMonths, riskToleranceCode)
+        };
+    },
+
+    /**
+     * 家庭保障缺口测算
+     * 1. 寿险保额缺口 = 全部债务 + 未来10年生活费 + 子女教育金 - 流动资产
+     * 2. 重疾保额缺口 = 年收入 * 稳定性年数 + 治疗康复备用金
+     * 3. 意外险保额 = 寿险建议保额的 50%
+     * 4. 百万医疗险检查
+     */
+    calculateProtectionGap(fd, totalLiabilities = 0, annualIncome = 0, liquidCash = 0) {
+        const safeLiabilities = Math.max(0, Number(totalLiabilities) || 0);
+        const safeAnnualIncome = Math.max(0, Number(annualIncome) || 0);
+        const safeLiquidCash = Math.max(0, Number(liquidCash) || 0);
+
+        // 1. 未来10年生活费：月必要支出底线 * 12 * 10 (若必要支出为0，取固定支出70%)
+        const monthlyExpense = Math.max(
+            Number(fd['f-essential-expense']) || 0,
+            (Number(fd['f-fixed-expense']) || 0) * 0.7,
+            0
+        );
+        const tenYearLivingExpense = monthlyExpense * 12 * 10;
+
+        // 子女教育金预估：若未手动输入且有子女，默认按 200,000 估算；若输入了则使用输入值
+        let childEduReserve = 0;
+        if (fd['protect-child-edu'] !== undefined && fd['protect-child-edu'] !== '' && !isNaN(Number(fd['protect-child-edu']))) {
+            childEduReserve = Math.max(0, Number(fd['protect-child-edu']));
+        } else if (fd['f-children'] === 'yes') {
+            childEduReserve = 200000;
+        }
+
+        // 寿险保额建议与净缺口
+        const lifeRequired = Math.max(0, safeLiabilities + tenYearLivingExpense + childEduReserve - safeLiquidCash);
+        const lifeExisting = Math.max(0, Number(fd['existing-life-insurance']) || 0);
+        const lifeGap = Math.max(0, lifeRequired - lifeExisting);
+        const lifeIncomeMultiple = safeAnnualIncome > 0 ? (lifeGap / safeAnnualIncome) : 0;
+
+        // 2. 重疾保额建议与净缺口
+        // 稳定性年限：体制内/极稳(stable) -> 3年；常态/普通(normal) -> 4年；高波动/自由职业/私企波动(volatile) -> 5年
+        const stability = fd['f-stability'] || fd['protect-career-stability'] || 'normal';
+        let incomeYears = 4.0;
+        if (stability === 'stable') incomeYears = 3.0;
+        else if (stability === 'volatile') incomeYears = 5.0;
+
+        // 康复治疗备用金：默认 300,000 元（支持 30~50 万元自定义）
+        let rehabReserve = 300000;
+        if (fd['protect-rehab-reserve'] !== undefined && fd['protect-rehab-reserve'] !== '' && !isNaN(Number(fd['protect-rehab-reserve']))) {
+            rehabReserve = Math.max(0, Number(fd['protect-rehab-reserve']));
+        }
+
+        const ciRequired = Math.max(0, (safeAnnualIncome * incomeYears) + rehabReserve);
+        const ciExisting = Math.max(0, Number(fd['existing-ci-insurance']) || 0);
+        const ciGap = Math.max(0, ciRequired - ciExisting);
+        const ciIncomeMultiple = safeAnnualIncome > 0 ? (ciGap / safeAnnualIncome) : 0;
+
+        // 3. 意外险建议与净缺口 (按寿险建议保额的 50%)
+        const accidentRequired = Math.round(lifeRequired * 0.5);
+        const accidentExisting = Math.max(0, Number(fd['existing-accident-insurance']) || 0);
+        const accidentGap = Math.max(0, accidentRequired - accidentExisting);
+        const accidentIncomeMultiple = safeAnnualIncome > 0 ? (accidentGap / safeAnnualIncome) : 0;
+
+        // 4. 百万医疗险检查
+        const hasMillionMedical = Boolean(fd['protect-has-million-medical']);
+
+        // 5. 综合状态与联动告警判定
+        const hasAnyGap = lifeGap > 0 || ciGap > 0 || accidentGap > 0 || !hasMillionMedical;
+        const coverageLevel = fd['protect-coverage'] || 'basic';
+        const isLowCoverage = coverageLevel === 'none' || coverageLevel === 'basic';
+        // 触发三桶告警条件：保障自评为前两档且存在未补足净缺口或无百万医疗
+        const shouldAlertPriority = isLowCoverage && hasAnyGap;
+
+        return {
+            life: {
+                required: lifeRequired,
+                existing: lifeExisting,
+                gap: lifeGap,
+                incomeMultiple: Number(lifeIncomeMultiple.toFixed(1)),
+                components: {
+                    liabilities: safeLiabilities,
+                    tenYearLivingExpense,
+                    childEduReserve,
+                    liquidCashDeduction: safeLiquidCash
+                }
+            },
+            ci: {
+                required: ciRequired,
+                existing: ciExisting,
+                gap: ciGap,
+                incomeMultiple: Number(ciIncomeMultiple.toFixed(1)),
+                incomeYears,
+                rehabReserve
+            },
+            accident: {
+                required: accidentRequired,
+                existing: accidentExisting,
+                gap: accidentGap,
+                incomeMultiple: Number(accidentIncomeMultiple.toFixed(1))
+            },
+            medical: {
+                hasMillionMedical,
+                warning: !hasMillionMedical ? '缺少百万医疗险兜底，重大疾病高额自费医疗费用极易穿透家庭流动资金防线。' : null
+            },
+            shouldAlertPriority,
+            hasAnyGap,
+            annualIncome: safeAnnualIncome
         };
     }
 };

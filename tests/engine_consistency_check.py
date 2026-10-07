@@ -59,7 +59,7 @@ def family_metrics(fd):
     monthly_essential = max(fd["f-essential-expense"], fd["f-fixed-expense"] * 0.7, 1.0)
     cash_coverage_months = liquid_cash / (monthly_essential + fd["debt-monthly-repay"])
     investable_assets = fd["ast-cash"] + fd["ast-mmf"] + fd["ast-ashare"] + fd["ast-hk"] + fd["ast-overseas"] + fd["ast-gold"] + fd["ast-others"]
-    return total_assets, net_worth, leverage, repay_income_ratio, surplus_ratio, cash_coverage_months, investable_assets
+    return total_assets, total_liabilities, net_worth, leverage, repay_income_ratio, surplus_ratio, cash_coverage_months, investable_assets
 
 
 def run_python_case(case):
@@ -90,7 +90,7 @@ def run_python_case(case):
         case["stressParams"],
     )
     fd = case["familyData"]
-    total_assets, net_worth, leverage, repay_income_ratio, surplus_ratio, cash_coverage_months, investable_assets = family_metrics(fd)
+    total_assets, total_liabilities, net_worth, leverage, repay_income_ratio, surplus_ratio, cash_coverage_months, investable_assets = family_metrics(fd)
     family = portfolio_engine.evaluate_family_profile(
         fd,
         investable_assets,
@@ -111,6 +111,12 @@ def run_python_case(case):
     )
     dca_missing = portfolio_engine.get_dca_adjustment([], "NO_DATA", "overseas_tech")
     fit = portfolio_engine.evaluate_portfolio_fit(weights, assets, family["isProhibitAggressive"])
+    protection = portfolio_engine.calculate_protection_gap(
+        fd,
+        total_liabilities,
+        fd["f-monthly-income"] * 12,
+        fd["ast-cash"] + fd["ast-mmf"],
+    )
     return {
         "name": case["name"],
         "safeMonthlyWithdrawWan": feasibility["safeMonthlyWithdrawWan"],
@@ -125,6 +131,10 @@ def run_python_case(case):
         "missingDcaHasHistory": dca_missing["hasHistory"],
         "portfolioFitStatus": fit["status"],
         "profileKey": family["profileKey"],
+        "protectionLifeGap": protection["life"]["gap"],
+        "protectionCiGap": protection["ci"]["gap"],
+        "protectionAccidentGap": protection["accident"]["gap"],
+        "protectionAlert": protection["shouldAlertPriority"],
     }
 
 
@@ -150,7 +160,8 @@ def main():
     keys = [
         "safeMonthlyWithdrawWan", "healthScore", "breachedAtMonth", "minStressedBuffer",
         "expectedAnnualDividend", "blendedGrowthReturn", "harvestTotal", "stableIncomeTotal",
-        "missingDcaFactor", "missingDcaHasHistory", "portfolioFitStatus", "profileKey"
+        "missingDcaFactor", "missingDcaHasHistory", "portfolioFitStatus", "profileKey",
+        "protectionLifeGap", "protectionCiGap", "protectionAccidentGap", "protectionAlert"
     ]
     for name, py_result in py_results.items():
         js_result = js_results.get(name)

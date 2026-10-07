@@ -7,7 +7,7 @@ if [ ! -d ".venv" ]; then
     echo "⚠️ 未找到虚拟环境 .venv，正在创建并安装依赖..."
     python3 -m venv .venv
     .venv/bin/pip install --upgrade pip
-    .venv/bin/pip install streamlit pandas plotly
+    .venv/bin/pip install -r requirements.txt
 fi
 
 echo "🚀 正在启动红利低波现金流规划仪表盘..."

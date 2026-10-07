@@ -512,6 +512,8 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
             'percentileWindow': "--",
             'asOf': "--",
             'valuationSource': "--",
+            'isStale': False,
+            'staleDays': None,
             'valuationZone': f"{role_message['zone']}，保持基础计划",
             'tips': f"由于未找到此标的的{role_message['metric']}，DCA 保持 1.0x，不生成低估/高估判断。{overseas_risk_tip}"
         }
@@ -572,6 +574,16 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
     valuation_zone = "合理估值区间 (估值适中)"
     tips = ""
     context = context or {}
+    reference_date = context.get('referenceDate')
+    stale_days = None
+    if reference_date and latest.get('date'):
+        try:
+            reference_day = datetime.datetime.fromisoformat(str(reference_date).replace('Z', '+00:00')).date()
+            valuation_day = datetime.datetime.strptime(latest['date'], '%Y-%m-%d').date()
+            stale_days = max(0, (reference_day - valuation_day).days)
+        except (TypeError, ValueError):
+            stale_days = None
+    is_stale = stale_days is not None and stale_days > 21
     dca_cfg = get_dca_role_config(role)
     low_pct = float(dca_cfg.get('low_percentile', 30.0))
     high_pct = float(dca_cfg.get('high_percentile', 70.0))
@@ -680,6 +692,11 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
                 factor = factor_expensive
                 tips = f"提示：海外指数市盈率偏高，定投系数降低至 {factor:.1f}x。防止高位接盘和汇率波动双重风险。"
 
+    if is_stale:
+        factor = 1.0
+        valuation_zone = "估值数据过期，保持基础计划"
+        tips = f"估值数据已滞后 {stale_days} 天，PE/PB/百分位仅供历史参考；在更新并验证前，DCA 固定为 1.0x。"
+
     return {
         'hasHistory': True,
         'percentile': percentile,
@@ -693,6 +710,8 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
         'percentileWindow': latest.get('percentile_window') or '本地历史',
         'asOf': latest.get('date') or "--",
         'valuationSource': latest.get('valuation_source') or 'valuation_history',
+        'isStale': is_stale,
+        'staleDays': stale_days,
         'valuationZone': valuation_zone,
         'tips': tips
     }
@@ -1064,4 +1083,105 @@ def evaluate_family_profile(fd, investable_assets, net_worth, total_assets, leve
             fd, total_assets, net_worth, leverage, repay_income_ratio,
             surplus_ratio, cash_coverage_months, risk_tolerance_code
         )
+    }
+
+
+def calculate_protection_gap(fd, total_liabilities=0.0, annual_income=0.0, liquid_cash=0.0):
+    """
+    6. 家庭保障缺口测算
+    """
+    safe_liabilities = max(0.0, float(total_liabilities or 0.0))
+    safe_annual_income = max(0.0, float(annual_income or 0.0))
+    safe_liquid_cash = max(0.0, float(liquid_cash or 0.0))
+
+    monthly_expense = max(
+        float(fd.get('f-essential-expense', 0.0) or 0.0),
+        float(fd.get('f-fixed-expense', 0.0) or 0.0) * 0.7,
+        0.0
+    )
+    ten_year_living_expense = monthly_expense * 12.0 * 10.0
+
+    raw_child_edu = fd.get('protect-child-edu')
+    if raw_child_edu is not None and raw_child_edu != '':
+        try:
+            child_edu_reserve = max(0.0, float(raw_child_edu))
+        except (ValueError, TypeError):
+            child_edu_reserve = 0.0
+    elif fd.get('f-children') == 'yes':
+        child_edu_reserve = 200000.0
+    else:
+        child_edu_reserve = 0.0
+
+    life_required = max(0.0, safe_liabilities + ten_year_living_expense + child_edu_reserve - safe_liquid_cash)
+    life_existing = max(0.0, float(fd.get('existing-life-insurance', 0.0) or 0.0))
+    life_gap = max(0.0, life_required - life_existing)
+    life_income_multiple = round(life_gap / safe_annual_income, 1) if safe_annual_income > 0 else 0.0
+
+    stability = fd.get('f-stability') or fd.get('protect-career-stability') or 'normal'
+    if stability == 'stable':
+        income_years = 3.0
+    elif stability == 'volatile':
+        income_years = 5.0
+    else:
+        income_years = 4.0
+
+    raw_rehab = fd.get('protect-rehab-reserve')
+    if raw_rehab is not None and raw_rehab != '':
+        try:
+            rehab_reserve = max(0.0, float(raw_rehab))
+        except (ValueError, TypeError):
+            rehab_reserve = 300000.0
+    else:
+        rehab_reserve = 300000.0
+
+    ci_required = max(0.0, (safe_annual_income * income_years) + rehab_reserve)
+    ci_existing = max(0.0, float(fd.get('existing-ci-insurance', 0.0) or 0.0))
+    ci_gap = max(0.0, ci_required - ci_existing)
+    ci_income_multiple = round(ci_gap / safe_annual_income, 1) if safe_annual_income > 0 else 0.0
+
+    accident_required = round(life_required * 0.5)
+    accident_existing = max(0.0, float(fd.get('existing-accident-insurance', 0.0) or 0.0))
+    accident_gap = max(0.0, accident_required - accident_existing)
+    accident_income_multiple = round(accident_gap / safe_annual_income, 1) if safe_annual_income > 0 else 0.0
+
+    has_million_medical = bool(fd.get('protect-has-million-medical'))
+    has_any_gap = (life_gap > 0) or (ci_gap > 0) or (accident_gap > 0) or (not has_million_medical)
+    coverage_level = fd.get('protect-coverage', 'basic')
+    is_low_coverage = coverage_level in ('none', 'basic')
+    should_alert_priority = is_low_coverage and has_any_gap
+
+    return {
+        'life': {
+            'required': life_required,
+            'existing': life_existing,
+            'gap': life_gap,
+            'incomeMultiple': life_income_multiple,
+            'components': {
+                'liabilities': safe_liabilities,
+                'tenYearLivingExpense': ten_year_living_expense,
+                'childEduReserve': child_edu_reserve,
+                'liquidCashDeduction': safe_liquid_cash
+            }
+        },
+        'ci': {
+            'required': ci_required,
+            'existing': ci_existing,
+            'gap': ci_gap,
+            'incomeMultiple': ci_income_multiple,
+            'incomeYears': income_years,
+            'rehabReserve': rehab_reserve
+        },
+        'accident': {
+            'required': accident_required,
+            'existing': accident_existing,
+            'gap': accident_gap,
+            'incomeMultiple': accident_income_multiple
+        },
+        'medical': {
+            'hasMillionMedical': has_million_medical,
+            'warning': '缺少百万医疗险兜底，重大疾病高额自费医疗费用极易穿透家庭流动资金防线。' if not has_million_medical else None
+        },
+        'shouldAlertPriority': should_alert_priority,
+        'hasAnyGap': has_any_gap,
+        'annualIncome': safe_annual_income
     }

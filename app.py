@@ -639,7 +639,13 @@ if 'family_data' not in st.session_state:
         'goal-house': False,
         'goal-protect': False,
         'goal-growth': False,
-        'goal-retire': False
+        'goal-retire': False,
+        'protect-rehab-reserve': 300000.0,
+        'protect-child-edu': 200000.0,
+        'protect-has-million-medical': False,
+        'existing-life-insurance': 0.0,
+        'existing-ci-insurance': 0.0,
+        'existing-accident-insurance': 0.0
     }
 
 def calculate_family_diagnostics(fd):
@@ -870,7 +876,7 @@ if menu == "1. 家庭资产体检与配置建议":
     st.markdown("<h1 style='color:#102033; margin-bottom:10px;'>👤 家庭资产体检与配置建议</h1>", unsafe_allow_html=True)
     st.markdown("""
     <div style='background:rgba(59,130,246,0.05); border:1px solid #3B82F6; border-radius:8px; padding:15px; margin-bottom:20px; font-size:0.9rem;'>
-        🔒 <strong>隐私声明：</strong> 本问卷仅在您的浏览器本地运行，所有输入均用于当前页面的计算，<strong>不会上传到服务器，也不会被后台保存</strong>。
+        🔒 <strong>隐私声明：</strong> 本地运行时，输入只发送给本机 Streamlit 进程用于当前会话计算；应用不把问卷上传到第三方服务，也不做服务端持久化。关闭会话前请勿在共享设备上保留浏览器历史。
     </div>
     """, unsafe_allow_html=True)
 
@@ -986,6 +992,45 @@ if menu == "1. 家庭资产体检与配置建议":
             fd['goal-protect'] = g_cols[0].checkbox("财富保值", value=fd.get('goal-protect', False), key="goal_protect_checkbox")
             fd['goal-growth'] = g_cols[1].checkbox("资产增值", value=fd.get('goal-growth', False), key="goal_growth_checkbox")
             fd['goal-retire'] = g_cols[2].checkbox("提前退休", value=fd.get('goal-retire', False), key="goal_retire_checkbox")
+
+        # 6. 家庭保障缺口测算
+        with st.expander("🛡️ 6. 家庭保障缺口测算", expanded=True):
+            previous_child_status = st.session_state.get('_protection_child_status')
+            current_child_status = fd.get('f-children', 'no')
+            if previous_child_status is not None and previous_child_status != current_child_status:
+                if current_child_status == 'yes' and float(fd.get('protect-child-edu', 0.0) or 0.0) == 0.0:
+                    fd['protect-child-edu'] = 200000.0
+                elif current_child_status == 'no' and float(fd.get('protect-child-edu', 0.0) or 0.0) == 200000.0:
+                    fd['protect-child-edu'] = 0.0
+            st.session_state['_protection_child_status'] = current_child_status
+            p_col1, p_col2 = st.columns(2)
+            with p_col1:
+                stability_years = {"stable": 3, "normal": 4, "volatile": 5}.get(fd.get('f-stability'), 4)
+                st.caption(f"工作行业稳定性沿用前文设置，按 {stability_years} 年税后收入测算重疾收入补偿。")
+                fd['protect-child-edu'] = st.number_input(
+                    "子女教育金专项预估 (元)",
+                    min_value=0.0,
+                    value=float(fd.get('protect-child-edu', 200000.0 if fd.get('f-children') == 'yes' else 0.0)),
+                    step=50000.0
+                )
+            with p_col2:
+                fd['protect-rehab-reserve'] = st.number_input(
+                    "重疾治疗与康复备用金 (元)",
+                    min_value=0.0,
+                    value=float(fd.get('protect-rehab-reserve', 300000.0)),
+                    step=50000.0
+                )
+                fd['protect-has-million-medical'] = st.checkbox(
+                    "已有百万医疗险兜底 (大额住院自费药)",
+                    value=bool(fd.get('protect-has-million-medical', False)),
+                    key="protect_has_million_medical_checkbox"
+                )
+
+            st.write("📋 家庭已有商业保额录入 (元)")
+            ex_col1, ex_col2, ex_col3 = st.columns(3)
+            fd['existing-life-insurance'] = ex_col1.number_input("已有寿险保额", min_value=0.0, value=float(fd.get('existing-life-insurance', 0.0)), step=100000.0)
+            fd['existing-ci-insurance'] = ex_col2.number_input("已有重疾险保额", min_value=0.0, value=float(fd.get('existing-ci-insurance', 0.0)), step=100000.0)
+            fd['existing-accident-insurance'] = ex_col3.number_input("已有意外险保额", min_value=0.0, value=float(fd.get('existing-accident-insurance', 0.0)), step=100000.0)
 
         # 保存更新
         st.session_state.family_data = fd
@@ -1116,6 +1161,82 @@ if menu == "1. 家庭资产体检与配置建议":
             </div>
             """, unsafe_allow_html=True)
 
+        # 测算保障缺口
+        annual_income = fd.get('f-monthly-income', 0.0) * 12.0
+        protection = portfolio_engine.calculate_protection_gap(fd, total_liabilities, annual_income, liquid_cash)
+
+        # 渲染保障缺口测算表
+        p_life = protection['life']
+        p_ci = protection['ci']
+        p_acc = protection['accident']
+        p_med = protection['medical']
+
+        def get_gap_badge(gap, multiple):
+            if gap > 0:
+                return f"<span style='font-size:0.75rem; font-weight:700; color:#EF4444;'>净缺口 ¥{gap:,.0f} ({multiple}倍年收入)</span>"
+            return "<span style='font-size:0.75rem; font-weight:700; color:#10B981;'>保障已覆盖目标</span>"
+
+        medical_warn_html = ""
+        if not p_med['hasMillionMedical']:
+            medical_warn_html = (
+                "<div style='margin-top:10px; background:#FEE2E2; border:1px solid #FCA5A5; border-radius:6px; padding:8px 12px; font-size:0.8rem; color:#DC2626;'>"
+                "⚠️ <strong>医疗险预警：</strong> 尚未配置百万医疗险兜底。重大疾病自费药与大额住院开销极易直接穿透流动资金与安全储备。"
+                "</div>"
+            )
+
+        st.markdown(f"""
+        <div class='card'>
+            <div class='card-title'>🛡️ 家庭保障缺口测算表</div>
+            <div style='font-size:0.8rem; color:#587084; margin-bottom:12px; line-height:1.4;'>
+                基于家庭总负债、未来10年必要生活开销、子女教育与收入补偿年限测算，旨在消除极端人身风险导致的家庭财务断流。
+            </div>
+            <div style='display:flex; flex-direction:column; gap:10px;'>
+                <div style='background:#FBFDFE; border:1px solid #DCE7EF; border-left:4px solid {"#EF4444" if p_life["gap"] > 0 else "#10B981"}; border-radius:6px; padding:10px 12px; font-size:0.82rem;'>
+                    <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;'>
+                        <strong style='color:#102033; font-size:0.86rem;'>寿险保障 (定寿/终寿)</strong>
+                        {get_gap_badge(p_life['gap'], p_life['incomeMultiple'])}
+                    </div>
+                    <div style='display:flex; gap:16px; margin:4px 0; color:#102033;'>
+                        <div>建议保额: <strong>¥{p_life['required']:,.0f}</strong></div>
+                        <div>已有保额: <strong>¥{p_life['existing']:,.0f}</strong></div>
+                        <div>净缺口: <strong style='color:{"#EF4444" if p_life["gap"] > 0 else "#10B981"};'>¥{p_life['gap']:,.0f}</strong></div>
+                    </div>
+                    <div style='font-size:0.72rem; color:#587084; margin-top:4px;'>测算口径：债务 ¥{p_life['components']['liabilities']:,.0f} + 10年必要开支 ¥{p_life['components']['tenYearLivingExpense']:,.0f} + 子女教育 ¥{p_life['components']['childEduReserve']:,.0f} - 流动资金 ¥{p_life['components']['liquidCashDeduction']:,.0f}</div>
+                </div>
+
+                <div style='background:#FBFDFE; border:1px solid #DCE7EF; border-left:4px solid {"#EF4444" if p_ci["gap"] > 0 else "#10B981"}; border-radius:6px; padding:10px 12px; font-size:0.82rem;'>
+                    <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;'>
+                        <strong style='color:#102033; font-size:0.86rem;'>重大疾病险保额</strong>
+                        {get_gap_badge(p_ci['gap'], p_ci['incomeMultiple'])}
+                    </div>
+                    <div style='display:flex; gap:16px; margin:4px 0; color:#102033;'>
+                        <div>建议保额: <strong>¥{p_ci['required']:,.0f}</strong></div>
+                        <div>已有保额: <strong>¥{p_ci['existing']:,.0f}</strong></div>
+                        <div>净缺口: <strong style='color:{"#EF4444" if p_ci["gap"] > 0 else "#10B981"};'>¥{p_ci['gap']:,.0f}</strong></div>
+                    </div>
+                    <div style='font-size:0.72rem; color:#587084; margin-top:4px;'>测算口径：税后年收入 × {p_ci['incomeYears']}年 (行业稳定性补偿) + 治疗康复备用金 ¥{p_ci['rehabReserve']:,.0f}</div>
+                </div>
+
+                <div style='background:#FBFDFE; border:1px solid #DCE7EF; border-left:4px solid {"#EF4444" if p_acc["gap"] > 0 else "#10B981"}; border-radius:6px; padding:10px 12px; font-size:0.82rem;'>
+                    <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;'>
+                        <strong style='color:#102033; font-size:0.86rem;'>意外险身故/伤残保额</strong>
+                        {get_gap_badge(p_acc['gap'], p_acc['incomeMultiple'])}
+                    </div>
+                    <div style='display:flex; gap:16px; margin:4px 0; color:#102033;'>
+                        <div>建议保额: <strong>¥{p_acc['required']:,.0f}</strong></div>
+                        <div>已有保额: <strong>¥{p_acc['existing']:,.0f}</strong></div>
+                        <div>净缺口: <strong style='color:{"#EF4444" if p_acc["gap"] > 0 else "#10B981"};'>¥{p_acc['gap']:,.0f}</strong></div>
+                    </div>
+                    <div style='font-size:0.72rem; color:#587084; margin-top:4px;'>测算口径：按寿险建议保额的 50% 作为意外杠杆防线基准</div>
+                </div>
+            </div>
+            {medical_warn_html}
+            <div style='margin-top:10px; font-size:0.72rem; color:#587084; line-height:1.4;'>
+                ℹ️ 口径说明：寿险缺口 = 全部债务 + 10年必要生活费 + 子女教育金 - 流动资产；重疾保额 = 年收入 × 稳定性补偿年数 + 康复金；意外险 = 寿险建议保额 × 50%。本测算纯属财务安全模型，不构成商业保险产品推荐。
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
         with st.expander("为什么是这个数", expanded=False):
             explain_metrics = calculate_family_diagnostics(fd)
             for line in family_rule_lines(explain_metrics):
@@ -1123,11 +1244,28 @@ if menu == "1. 家庭资产体检与配置建议":
             st.caption("以上仅解释体检规则，不构成投资建议，不承诺分红或收益。")
 
         # 三桶可视化展示
+        should_alert_priority = protection['shouldAlertPriority']
+        warning_banner_html = ""
+        guideline_text = "⚖️ <strong>配置准则：</strong> 本配置仅供财务体检参考，不构成交易指示。资金分配遵循安全储备、稳健对冲与长期成长之再平衡规则。"
+        if should_alert_priority:
+            warning_banner_html = (
+                "<div style='background:#FEF3C7; border:1px solid #FDE68A; border-left:4px solid #F59E0B; border-radius:6px; padding:12px; margin-bottom:14px; font-size:0.84rem; line-height:1.5; color:#102033;'>"
+                "<div style='font-weight:700; color:#D97706; margin-bottom:4px;'>⚠️ 建议优先补齐保障缺口，再执行资产配置</div>"
+                "<div style='font-size:0.8rem; color:#587084;'>"
+                "检测到家庭自评保障不充分且存在人身险净缺口或缺少百万医疗兜底。在人身“保命钱”未筑牢前，二级市场投资波动极易在意外或疾病来临时被迫折价变现。当前三桶比例仅作为<strong>参考值</strong>。"
+                "</div></div>"
+            )
+            guideline_text = "⚖️ <strong style='color:#D97706;'>配置准则（当前为参考值：建议优先完善人身保障）：</strong> 检测到家庭保障覆盖不足且存在净缺口，资金分配建议仅作为远期健康状态下的结构模型，请先构筑家庭人身防御防线。"
+
         st.markdown(f"""
         <div class='card'>
+            {warning_banner_html}
             <div class='card-title'>🪣 三桶资产防御防线配置建议</div>
-            <div style='font-size: 0.8rem; color:#587084; margin-bottom:15px;'>
+            <div style='font-size: 0.8rem; color:#587084; margin-bottom:8px;'>
                 配置建议：安全储备 {res['safety']}% | 权益增长 {res['longterm']}% | 综合对冲 {res['hedge']}%
+            </div>
+            <div style='font-size: 0.78rem; margin-bottom: 15px; color:#587084;'>
+                {guideline_text}
             </div>
         """, unsafe_allow_html=True)
         # 用堆叠条形图表达三桶比例
@@ -1736,7 +1874,8 @@ elif menu == "3. 估值温度计与建仓建议":
     )
     dca_context = {
         'dividendWeight': sum(float(weights.get(code, 0.0)) for code, info in ASSETS_CONFIG.items() if info.get('role') == 'dividend_income'),
-        'cashflowFeasible': default_sim.get('minBuffer', 0.0) > 0
+        'cashflowFeasible': default_sim.get('minBuffer', 0.0) > 0,
+        'referenceDate': live_data_timestamp or datetime.now().isoformat()
     }
 
     res = portfolio_engine.get_dca_adjustment(history_data, index_clean, role_to_use, dca_context)
@@ -1764,19 +1903,13 @@ elif menu == "3. 估值温度计与建仓建议":
     if has_selected_valuation_history:
         window_label = "近三年" if res.get('percentileWindow') == '3y' else res.get('percentileWindow', '本地历史')
         source_label = "已验证指数基本面" if res.get('valuationSource') == 'verified_index_fundamentals' else "本地估值历史"
-        stale_note = ""
         as_of_raw = res.get('asOf')
-        if as_of_raw and as_of_raw != '--':
-            try:
-                as_of_ms = datetime.strptime(as_of_raw, "%Y-%m-%d")
-                market_ms = datetime.strptime(live_data_timestamp[:10], "%Y-%m-%d") if live_data_timestamp else datetime.now()
-                diff_days = (market_ms - as_of_ms).days
-                if diff_days > 21:
-                    stale_note = f"｜⚠️ 估值数据滞后 {diff_days} 天（晚于行情快照），百分位窗口 {window_label}，请留意新鲜度"
-                elif diff_days > 7:
-                    stale_note = f"｜估值数据滞后 {diff_days} 天"
-            except (TypeError, ValueError):
-                stale_note = ""
+        stale_days = res.get('staleDays')
+        stale_note = (
+            f"｜⚠️ 已滞后 {stale_days} 天，定投系数强制回到 1.0x"
+            if res.get('isStale')
+            else (f"｜估值数据滞后 {stale_days} 天" if isinstance(stale_days, int) and stale_days > 7 else "")
+        )
         st.caption(f"数据日期：{as_of_raw or '--'}｜百分位窗口：{window_label}｜口径：市值加权｜来源：{source_label}{stale_note}")
     else:
         st.caption("当前指数缺少可验证估值历史，因此不展示 PE/PB 百分位，也不生成估值判断。")

@@ -2,36 +2,54 @@ name: Update Live Market Data
 
 on:
   schedule:
-    # 每个工作日北京时间下午 17:00 (即 UTC 9:00) 自动运行，更新收盘行情、现金分配与回测
-    - cron: '0 9 * * 1-5'
+    # 工作日北京时间 17:30 主更新；20:30 再补跑一次，降低上游延迟或短暂网络失败造成的数据滞后。
+    - cron: '30 9 * * 1-5'
+    - cron: '30 12 * * 1-5'
   workflow_dispatch: # 允许在 GitHub Action 页面手动触发运行
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-live-market-data
+  cancel-in-progress: false
 
 jobs:
   update-data:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         ref: master
+        fetch-depth: 0
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.9'
+        python-version: '3.11'
 
-    - name: Fetch and update live data
+    - name: Fetch, retry and validate market data
       run: |
-        python update_data.py
-        python backtest.py
-        python tests/data_integrity_check.py
+        python scheduled_update.py --attempts 3 --base-delay 20
+
+    - name: Run full regression checks
+      run: |
+        python -m unittest discover -s tests -p 'test_*.py'
+        python tests/engine_consistency_check.py
+        npm test
 
     - name: Commit and push changes
       run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
         git add live_data.json strategy_presets.json
-        # 如果数据没有发生任何改变，不报错退出
-        git diff-index --quiet HEAD || git commit -m "Auto-update live market yields and prices [skip ci]"
+        if git diff --cached --quiet; then
+          echo "No market data changes to commit."
+          exit 0
+        fi
+        git commit -m "chore(data): update market yields and prices [skip ci]"
+        git pull --rebase origin master
         git push origin master

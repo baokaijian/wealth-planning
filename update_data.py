@@ -18,15 +18,17 @@ USER_AGENT = "Mozilla/5.0 (compatible; wealth-planning-data-refresh/1.0)"
 _DIVIDEND_PATTERNS = (
     (
         re.compile(
-            r"<tr><td>\d{4}年</td><td>(\d{4}-\d{2}-\d{2})</td>"
-            r"<td>(\d{4}-\d{2}-\d{2})</td><td>每10份派现金([0-9.]+)元</td>"
+            r"<tr[^>]*>\s*<td[^>]*>\d{4}年</td>\s*<td[^>]*>(\d{4}-\d{2}-\d{2})</td>"
+            r"\s*<td[^>]*>(\d{4}-\d{2}-\d{2})</td>\s*<td[^>]*>\s*每\s*10\s*份派现金\s*([0-9.]+)\s*元\s*</td>",
+            re.IGNORECASE,
         ),
         10.0,
     ),
     (
         re.compile(
-            r"<tr><td>\d{4}年</td><td>(\d{4}-\d{2}-\d{2})</td>"
-            r"<td>(\d{4}-\d{2}-\d{2})</td><td>每份派现金([0-9.]+)元</td>"
+            r"<tr[^>]*>\s*<td[^>]*>\d{4}年</td>\s*<td[^>]*>(\d{4}-\d{2}-\d{2})</td>"
+            r"\s*<td[^>]*>(\d{4}-\d{2}-\d{2})</td>\s*<td[^>]*>\s*每\s*份派现金\s*([0-9.]+)\s*元\s*</td>",
+            re.IGNORECASE,
         ),
         1.0,
     ),
@@ -89,6 +91,28 @@ def fetch_quotes(assets):
     return quotes
 
 
+def parse_distribution_events(html):
+    """从详情页 HTML 提取现金分配；页面出现分红文案却无法解析时显式失败。"""
+    events = []
+    for pattern, unit_scale in _DIVIDEND_PATTERNS:
+        for registration_date, ex_date, amount in pattern.findall(html or ""):
+            try:
+                cash_per_unit = float(amount) / unit_scale
+            except (TypeError, ValueError):
+                continue
+            events.append(
+                {
+                    "registration_date": registration_date,
+                    "ex_date": ex_date,
+                    "cash_per_unit": cash_per_unit,
+                }
+            )
+    events.sort(key=lambda item: item["ex_date"])
+    if not events and re.search(r"派\s*现金", html or ""):
+        raise ValueError("分红页面含现金分配记录，但当前解析规则未能识别，可能是上游页面结构已变化")
+    return events
+
+
 def fetch_distribution_events(code):
     """解析东方财富分红送配详情页，返回现金分红事件列表。
 
@@ -105,22 +129,10 @@ def fetch_distribution_events(code):
     except Exception as error:
         return [], str(error)
 
-    events = []
-    for pattern, unit_scale in _DIVIDEND_PATTERNS:
-        for registration_date, ex_date, amount in pattern.findall(html):
-            try:
-                cash_per_unit = float(amount) / unit_scale
-            except (TypeError, ValueError):
-                continue
-            events.append(
-                {
-                    "registration_date": registration_date,
-                    "ex_date": ex_date,
-                    "cash_per_unit": cash_per_unit,
-                }
-            )
-    events.sort(key=lambda item: item["ex_date"])
-    return events, None
+    try:
+        return parse_distribution_events(html), None
+    except ValueError as error:
+        return [], str(error)
 
 
 def trailing_distribution_summary(events, price, as_of):
