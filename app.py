@@ -1,11 +1,16 @@
+import json
+import os
+from datetime import datetime
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
+import portfolio_engine
+from family_assessment import assess_family
 from test_calculations import (
     calculate_insurance_gap,
-    calculate_pension_tax_benefit,
     calculate_real_estate_risk,
     check_liquidity_segregation,
     calculate_behavioral_equity_ceiling,
@@ -123,6 +128,7 @@ st.markdown("""
 script_dir = os.path.dirname(os.path.abspath(__file__))
 assets_path = os.path.join(script_dir, 'assets.json')
 live_data_path = os.path.join(script_dir, 'live_data.json')
+valuation_history_path = os.path.join(script_dir, 'valuation_history.json')
 strategy_presets_path = os.path.join(script_dir, 'strategy_presets.json')
 
 # 加载 assets.json 动态配置
@@ -155,6 +161,45 @@ if os.path.exists(live_data_path):
         live_data_error = ""
 else:
     live_data_error = "live_data.json 不存在"
+
+# 估值数据与静态页面共用同一份本地缓存；读取失败时只降级展示，不生成择时结论。
+history_data = []
+valuation_history_error = ""
+try:
+    with open(valuation_history_path, 'r', encoding='utf-8') as f:
+        loaded_history = json.load(f)
+        history_data = loaded_history if isinstance(loaded_history, list) else []
+except (OSError, json.JSONDecodeError) as exc:
+    valuation_history_error = f"valuation_history.json 加载失败：{exc}"
+
+VALUATION_INDEX_META = {
+    "H30269": {"name": "中证红利低波", "role": "dividend_income", "metric": "股息率"},
+    "000015": {"name": "上证红利", "role": "dividend_income", "metric": "股息率"},
+    "932039": {"name": "央企股东回报", "role": "dividend_income", "metric": "股息率"},
+    "HSHYLV": {"name": "恒生港股通高股息低波", "role": "dividend_income", "metric": "股息率"},
+    "000300": {"name": "沪深300", "role": "domestic_beta", "metric": "PE/PB"},
+    "000510": {"name": "中证A500", "role": "domestic_beta", "metric": "PE/PB"},
+    "000905": {"name": "中证500", "role": "domestic_beta", "metric": "PE/PB"},
+    "000852": {"name": "中证1000", "role": "small_cap", "metric": "PE/PB"},
+    "000688": {"name": "科创50", "role": "tech_growth", "metric": "PE"},
+    "HKTECH": {"name": "恒生科技", "role": "china_offshore_growth", "metric": "PE"},
+    "SPX": {"name": "标普500", "role": "overseas_broad", "metric": "PE"},
+    "NDX": {"name": "纳斯达克100", "role": "overseas_tech", "metric": "PE"},
+}
+
+
+def asset_target_index(asset_info):
+    return asset_info.get('target_index_code')
+
+
+def valuation_meta(index_code, role=None):
+    fallback_role = role or 'domestic_beta'
+    fallback_metric = '股息率' if fallback_role == 'dividend_income' else ('PE/PB' if fallback_role == 'domestic_beta' else 'PE')
+    return VALUATION_INDEX_META.get(index_code, {
+        'name': index_code or '未配置指数',
+        'role': fallback_role,
+        'metric': fallback_metric,
+    })
 
 def data_freshness_label():
     if live_data_status == "cache" and live_data_timestamp:
@@ -255,6 +300,8 @@ if assets_load_error:
     st.sidebar.error(f"{assets_load_error}；当前使用内置兜底资产配置。")
 if live_data_error:
     st.sidebar.warning(f"{live_data_error}；行情/收益率使用兜底估算值。")
+if valuation_history_error:
+    st.sidebar.warning(f"{valuation_history_error}；估值温度计将保持中性。")
 
 MENU_OPTIONS = [
     "1. 家庭资产体检与配置建议",
@@ -262,7 +309,9 @@ MENU_OPTIONS = [
     "3. 现金缓冲池平滑模拟器",
     "4. 估值温度计与测算工具",
     "5. 年度资产再平衡测算",
-    "6. 风险压力测试"
+    "6. 目标导向规划",
+    "7. Markdown 体检报告导出",
+    "8. 债务决策对照"
 ]
 
 if 'main_menu' not in st.session_state:
@@ -270,53 +319,60 @@ if 'main_menu' not in st.session_state:
 
 menu = st.sidebar.radio(
     "功能模块导航",
-    [
-        "1. 资产配置与股息看板", 
-        "2. 缓冲池与现金流模拟", 
-        "3. 估值温度计与建仓建议", 
-        "4. 资产记账与年度平衡",
-        "5. 目标导向规划 (核心)",
-        "6. Markdown 体检报告导出",
-        "7. 债务决策对照 (还贷vs投资)"
-    ],
-    index=4 # 默认高亮展示目标规划
+    MENU_OPTIONS,
+    key="main_menu"
 )
 
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 🔑 资产与收益基准参数")
-principal = st.sidebar.number_input("可用总本金 (万元)", min_value=5.0, max_value=5000.0, value=50.0, step=5.0)
-target_monthly = st.sidebar.number_input("期望月生活费现金流 (万元)", min_value=0.01, max_value=50.0, value=0.2, step=0.05)
-buffer_seed = st.sidebar.number_input("现金缓冲池初始资金 (万元)", min_value=0.0, max_value=100.0, value=5.0, step=0.5)
-growth_rate_pct = st.sidebar.number_input("增长预期年化收益率 (%)", min_value=1.0, max_value=25.0, value=6.5, step=0.1)
-growth_rate = growth_rate_pct / 100.0
-money_market_rate = st.sidebar.slider("缓冲池闲置资金年化收益 (%)", min_value=0.5, max_value=5.0, value=2.0, step=0.1) / 100
-
-st.sidebar.markdown("### 🩺 家庭资产体检联动")
-monthly_income = st.sidebar.number_input("家庭月总收入 (元)", min_value=1000, max_value=500000, value=30000, step=1000)
-monthly_expense = st.sidebar.number_input("家庭月常规支出 (元)", min_value=1000, max_value=300000, value=18000, step=1000)
-monthly_surplus = st.sidebar.number_input("月可结余 (元)", min_value=0, max_value=200000, value=max(0, monthly_income - monthly_expense), step=500)
-bucket_1_3y = st.sidebar.number_input("未来1-3年确定要用的钱 (元)", min_value=0, max_value=5000000, value=150000, step=10000)
-
-st.sidebar.markdown("### 💳 负债结构与债务决策联动")
 debt_bracket_options = ['<3.5%', '3.5-4.5%', '4.5-6%', '>6%']
 debt_bracket_medians = {'<3.5%': 3.0, '3.5-4.5%': 4.0, '4.5-6%': 5.25, '>6%': 7.2}
-debt_bracket = st.sidebar.selectbox("综合贷款利率区间", debt_bracket_options, index=2)
-default_median = debt_bracket_medians[debt_bracket]
-custom_debt_rate = st.sidebar.number_input("测算基准利率 (%) [支持微调]", min_value=0.0, max_value=30.0, value=float(default_median), step=0.1)
-high_interest_balance = st.sidebar.number_input("高息债务余额 (元) [>6%]", min_value=0.0, max_value=10000000.0, value=0.0, step=5000.0)
-mortgage_balance = st.sidebar.number_input("房贷余额 (元)", min_value=0.0, max_value=50000000.0, value=1200000.0, step=50000.0)
-car_loan_balance = st.sidebar.number_input("车贷余额 (元)", min_value=0.0, max_value=5000000.0, value=0.0, step=10000.0)
-consumer_loan_balance = st.sidebar.number_input("消费贷余额 (元)", min_value=0.0, max_value=5000000.0, value=0.0, step=10000.0)
-business_loan_balance = st.sidebar.number_input("经营贷余额 (元)", min_value=0.0, max_value=50000000.0, value=0.0, step=50000.0)
-monthly_debt_payment = st.sidebar.number_input("每月贷款总还款 (元)", min_value=0.0, max_value=500000.0, value=6500.0, step=500.0)
-available_fund_x = st.sidebar.number_input("测算可用资金 X (元)", min_value=10000.0, max_value=10000000.0, value=200000.0, step=50000.0)
+session_defaults = {
+    'principal': 50.0,
+    'target_monthly': 0.2,
+    'buffer_seed': 5.0,
+    'money_market_rate': 2.0,
+    'growth_rate_pct': 6.5,
+    'monthly_income': 30000.0,
+    'monthly_expense': 18000.0,
+    'monthly_surplus': 12000.0,
+    'bucket_1_3y': 150000.0,
+    'debt_bracket': '4.5-6%',
+    'custom_debt_rate': 5.25,
+    'high_interest_balance': 0.0,
+    'mortgage_balance': 1200000.0,
+    'car_loan_balance': 0.0,
+    'consumer_loan_balance': 0.0,
+    'business_loan_balance': 0.0,
+    'monthly_debt_payment': 6500.0,
+    'available_fund_x': 200000.0,
+    'buffer_stable_income_drop': 20,
+    'buffer_delay_months': 1,
+    'buffer_pause_dividend_year': False,
+    'buffer_inflation_rate': 0.0,
+}
+for session_key, default_value in session_defaults.items():
+    st.session_state.setdefault(session_key, default_value)
 
-st.sidebar.markdown("""
-<div style='margin-top:20px; padding:15px; border-radius:8px; background:rgba(255,255,255,0.05); font-size:0.8rem; color:#94A3B8;'>
-    <strong>💡 模块联动提示</strong><br>
-    「目标导向规划」将复利推演您的【月可结余】与【可用本金】；「债务决策对照」将实时对照贷款利率与组合收益率，测算提前还贷 vs 坚持投资的净资产路径。
-</div>
-""", unsafe_allow_html=True)
+principal = float(st.session_state.principal)
+target_monthly = float(st.session_state.target_monthly)
+buffer_seed = float(st.session_state.buffer_seed)
+money_market_rate = float(st.session_state.money_market_rate)
+growth_rate_pct = float(st.session_state.growth_rate_pct)
+growth_rate = growth_rate_pct / 100.0
+monthly_income = float(st.session_state.monthly_income)
+monthly_expense = float(st.session_state.monthly_expense)
+monthly_surplus = float(st.session_state.monthly_surplus)
+bucket_1_3y = float(st.session_state.bucket_1_3y)
+debt_bracket = st.session_state.debt_bracket
+custom_debt_rate = float(st.session_state.custom_debt_rate)
+high_interest_balance = float(st.session_state.high_interest_balance)
+mortgage_balance = float(st.session_state.mortgage_balance)
+car_loan_balance = float(st.session_state.car_loan_balance)
+consumer_loan_balance = float(st.session_state.consumer_loan_balance)
+business_loan_balance = float(st.session_state.business_loan_balance)
+monthly_debt_payment = float(st.session_state.monthly_debt_payment)
+available_fund_x = float(st.session_state.available_fund_x)
+
+st.sidebar.caption("先完成家庭资产体检；策略参数仅在相关页面出现。数据仅保存在当前 Streamlit 会话。")
 
 def set_buffer_coverage_months(months):
     target = max(float(st.session_state.get('target_monthly', 0.0)), 0.0)
@@ -341,7 +397,6 @@ strategy_console_pages = [
     "3. 现金缓冲池平滑模拟器",
     "4. 估值温度计与测算工具",
     "5. 年度资产再平衡测算",
-    "6. 风险压力测试"
 ]
 
 if menu in strategy_console_pages:
@@ -357,11 +412,16 @@ if menu in strategy_console_pages:
     buffer_seed = st.sidebar.number_input("现金缓冲池初始资金 (万元)", min_value=0.0, max_value=5000.0, step=1.0, key="buffer_seed", help="不确定时，可在模拟器内一键选择 6、9 或 12 个月目标支取额。")
 
     money_market_rate = st.sidebar.slider("缓冲池闲置资金年化收益 (%)", min_value=0.5, max_value=5.0, step=0.1, key="money_market_rate")
+
+    growth_rate_pct = st.sidebar.number_input("长期增长预期年化收益率 (%)", min_value=0.0, max_value=25.0, step=0.1, key="growth_rate_pct")
 else:
     principal = st.session_state.principal
     target_monthly = st.session_state.target_monthly
     buffer_seed = st.session_state.buffer_seed
     money_market_rate = st.session_state.money_market_rate
+
+growth_rate_pct = float(st.session_state.growth_rate_pct)
+growth_rate = growth_rate_pct / 100.0
 
 invest_principal = max(principal - buffer_seed, 0.0)
 
@@ -539,12 +599,13 @@ def calculate_debt_decision_metrics_py(
     bracket_median = bracket_medians.get(debt_bracket_val, 5.25)
     effective_debt_rate = custom_debt_rate_val if (custom_debt_rate_val is not None and custom_debt_rate_val > 0) else bracket_median
     conservative_yield = round(growth_rate_pct_val * 0.7, 2)
+    uncertainty_margin_pct = 1.5
     
     # 决策矩阵文案判定
-    if effective_debt_rate > (conservative_yield + 2.0):
+    if effective_debt_rate > (conservative_yield + uncertainty_margin_pct):
         decision_text = "优先清偿高息债务（相当于获得无风险的利差收益）"
         decision_type = "repay_first"
-    elif effective_debt_rate < (conservative_yield - 2.0):
+    elif effective_debt_rate < (conservative_yield - uncertainty_margin_pct):
         decision_text = "保持贷款、优先投资，但需确认现金流稳定性"
         decision_type = "invest_first"
     else:
@@ -569,7 +630,10 @@ def calculate_debt_decision_metrics_py(
             'fv_invest': round(fv_invest, 2),
             'diff': round(diff, 2),
             'diff_pct': round(diff_pct, 2),
-            'advantage': '提前还贷更优' if diff > 0 else ('坚持投资更优' if diff < 0 else '持平')
+            'advantage': (
+                '提前还贷在当前假设下占优' if decision_type == 'repay_first'
+                else ('投资在当前假设下占优' if decision_type == 'invest_first' else '差异不具稳健优势')
+            )
         })
         
     return {
@@ -579,6 +643,8 @@ def calculate_debt_decision_metrics_py(
         'conservative_yield': conservative_yield,
         'decision_text': decision_text,
         'decision_type': decision_type,
+        'uncertainty_margin_pct': uncertainty_margin_pct,
+        'assumption_note': '投资收益为规划假设，并非保证；未计税费、交易摩擦、提前还款规则及收益路径波动，利差落入不确定区间时不作确定性选择。',
         'has_high_interest_alert': has_high_interest_alert,
         'fund_x': available_fund_x_val,
         'table': table
@@ -590,8 +656,8 @@ def calculate_debt_decision_metrics_py(
 if 'family_data' not in st.session_state:
     st.session_state.family_data = {
         'f-age': 35,
-        'f-members': 3,
-        'f-children': 'yes',
+        'f-members': 1,
+        'f-children': 'no',
         'f-elders': 'no',
         'expense-buyhouse': False,
         'expense-edu': False,
@@ -601,30 +667,30 @@ if 'family_data' not in st.session_state:
         'expense-other': False,
         'f-planned-spend-12m': 0.0,
         'f-planned-spend-36m': 0.0,
-        'f-monthly-income': 30000.0,
-        'f-fixed-expense': 12000.0,
-        'f-essential-expense': 9000.0,
-        'f-surplus-income': 18000.0,
-        'f-income-sources': 2,
-        'f-salary-ratio': 80.0,
-        'f-bonus-ratio': 20.0,
-        'protect-coverage': 'basic',
+        'f-monthly-income': 0.0,
+        'f-fixed-expense': 0.0,
+        'f-essential-expense': 0.0,
+        'f-surplus-income': 0.0,
+        'f-income-sources': 1,
+        'f-salary-ratio': 100.0,
+        'f-bonus-ratio': 0.0,
+        'protect-coverage': 'none',
         'f-stability': 'normal',
         'f-recover-months': 6,
-        'ast-cash': 50000.0,
-        'ast-mmf': 100000.0,
-        'ast-ashare': 150000.0,
-        'ast-hk': 50000.0,
-        'ast-overseas': 50000.0,
-        'ast-gold': 20000.0,
-        'ast-house': 2000000.0,
-        'ast-insurance': 50000.0,
+        'ast-cash': 0.0,
+        'ast-mmf': 0.0,
+        'ast-ashare': 0.0,
+        'ast-hk': 0.0,
+        'ast-overseas': 0.0,
+        'ast-gold': 0.0,
+        'ast-house': 0.0,
+        'ast-insurance': 0.0,
         'ast-others': 0.0,
-        'debt-house': 800000.0,
-        'debt-car': 50000.0,
-        'debt-consumption': 10000.0,
+        'debt-house': 0.0,
+        'debt-car': 0.0,
+        'debt-consumption': 0.0,
         'debt-biz': 0.0,
-        'debt-monthly-repay': 8500.0,
+        'debt-monthly-repay': 0.0,
         'debt-high-interest': 0.0,
         'debt-rate': '4.2',
         'debt-pressure': 'no',
@@ -640,12 +706,90 @@ if 'family_data' not in st.session_state:
         'goal-protect': False,
         'goal-growth': False,
         'goal-retire': False,
-        'protect-rehab-reserve': 300000.0,
-        'protect-child-edu': 200000.0,
+        'protect-rehab-reserve': 0.0,
+        'protect-child-edu': 0.0,
         'protect-has-million-medical': False,
         'existing-life-insurance': 0.0,
         'existing-ci-insurance': 0.0,
         'existing-accident-insurance': 0.0
+    }
+if 'family_assessment_completed' not in st.session_state:
+    st.session_state.family_assessment_completed = False
+
+
+def build_family_assessment_input(fd):
+    child_count = 1 if fd.get('f-children') == 'yes' else 0
+    elder_count = 1 if fd.get('f-elders') == 'yes' else 0
+    member_count = max(1, int(fd.get('f-members', 1)))
+    adults = max(1, member_count - child_count - elder_count)
+    age = max(18, int(fd.get('f-age', 35)))
+    template = st.session_state.get('quick_family_template')
+    if template == 'retired' or age >= 65:
+        income_source_type = 'pension'
+    elif template == 'self_employed' or fd.get('f-stability') == 'volatile':
+        income_source_type = 'self_employed'
+    elif int(fd.get('f-income-sources', 1)) >= 2:
+        income_source_type = 'dual_salary'
+    else:
+        income_source_type = 'single_salary'
+    stability = 'volatile' if fd.get('f-stability') == 'volatile' else 'stable'
+    reaction = {
+        'sell': 'panic_sell',
+        'stop': 'reduce',
+        'hold': 'hold',
+        'buy': 'buy_more',
+    }.get(fd.get('inv-drop-action'), 'hold')
+    total_debt = sum(float(fd.get(key, 0.0)) for key in ('debt-house', 'debt-car', 'debt-consumption', 'debt-biz'))
+    equity_assets = sum(float(fd.get(key, 0.0)) for key in ('ast-ashare', 'ast-hk', 'ast-overseas'))
+    largest_equity = max((float(fd.get(key, 0.0)) for key in ('ast-ashare', 'ast-hk', 'ast-overseas')), default=0.0)
+    largest_holding_pct = largest_equity / equity_assets * 100.0 if equity_assets > 0 else 0.0
+    return {
+        'household': {
+            'adults': adults,
+            'children': child_count,
+            'elderlyDependents': elder_count,
+            'primaryAge': age,
+            'incomeSourceType': income_source_type,
+            'incomeStability': stability,
+            'yearsToRetirement': max(0, 60 - age),
+            'retired': income_source_type == 'pension',
+        },
+        'cashflow': {
+            'monthlyIncome': float(fd.get('f-monthly-income', 0.0)),
+            'essentialMonthlyExpense': float(fd.get('f-essential-expense', fd.get('f-fixed-expense', 0.0))),
+            'monthlyDebtPayment': float(fd.get('debt-monthly-repay', 0.0)),
+            'incomeShockPct': 50,
+        },
+        'assets': {
+            'cash': float(fd.get('ast-cash', 0.0)) + float(fd.get('ast-mmf', 0.0)),
+            'bonds': float(fd.get('ast-insurance', 0.0)),
+            'equities': equity_assets,
+            'gold': float(fd.get('ast-gold', 0.0)),
+            'property': float(fd.get('ast-house', 0.0)),
+            'business': float(fd.get('ast-others', 0.0)) if fd.get('expense-biz') else 0.0,
+            'otherLiquid': 0.0 if fd.get('expense-biz') else float(fd.get('ast-others', 0.0)),
+        },
+        'debts': {
+            'total': total_debt,
+            'highInterest': float(fd.get('debt-high-interest', 0.0)),
+            'highestRate': float(fd.get('debt-rate', 0.0) or 0.0),
+        },
+        'goals': {
+            'expensesWithin1Year': float(fd.get('f-planned-spend-12m', 0.0)),
+            'expenses1To3Years': float(fd.get('f-planned-spend-36m', 0.0)),
+            'homePurchaseWithinYears': 3 if fd.get('expense-buyhouse') else None,
+        },
+        'protection': {
+            'basicMedicalCovered': bool(fd.get('protect-has-million-medical')) or fd.get('protect-coverage') in ('basic', 'adequate', 'strong'),
+            'lifeCoverageGap': 0.0,
+        },
+        'risk': {
+            'investmentHorizonYears': float(fd.get('inv-horizon', 0.0) or 0.0),
+            'maxAcceptableLossPct': float(fd.get('inv-drawdown', 0.0) or 0.0),
+            'marketDropReaction': reaction,
+            'largestHoldingPct': largest_holding_pct,
+            'singleMarketPct': largest_holding_pct,
+        },
     }
 
 def calculate_family_diagnostics(fd):
@@ -882,11 +1026,101 @@ if menu == "1. 家庭资产体检与配置建议":
 
     fd = st.session_state.family_data
 
+    st.markdown("### 🧭 3 分钟快速录入")
+    st.caption("模板只用于减少录入，不会直接决定配置；实际结论仍由现金流、负债、保障和风险意愿共同约束。")
+    with st.form("family_quick_assessment_form"):
+        quick_row1 = st.columns(4)
+        quick_template = quick_row1[0].selectbox(
+            "家庭类型",
+            ["young_single", "dual_children", "single_dependents", "self_employed", "home_purchase", "near_retirement", "retired", "concentrated_assets", "debt_stressed"],
+            format_func=lambda value: {
+                "young_single": "年轻单身 / 积累期",
+                "dual_children": "双薪育儿 / 有房贷",
+                "single_dependents": "单薪 / 多责任",
+                "self_employed": "自由职业 / 收入波动",
+                "home_purchase": "三年内买房或换房",
+                "near_retirement": "临近退休",
+                "retired": "已退休",
+                "concentrated_assets": "房产或经营资产集中",
+                "debt_stressed": "高负债 / 现金流承压",
+            }[value],
+            key="quick_family_template"
+        )
+        quick_age = quick_row1[1].number_input("主要决策者年龄", 18, 100, int(fd.get('f-age', 35)), key="quick_family_age")
+        quick_income = quick_row1[2].number_input("税后月收入（元）", min_value=0.0, value=float(fd.get('f-monthly-income', 0.0)), step=1000.0, key="quick_family_income")
+        quick_expense = quick_row1[3].number_input("月必要支出（元）", min_value=0.0, value=float(fd.get('f-essential-expense', 0.0)), step=1000.0, key="quick_family_expense")
+
+        quick_row2 = st.columns(4)
+        quick_debt_payment = quick_row2[0].number_input("每月还贷（元）", min_value=0.0, value=float(fd.get('debt-monthly-repay', 0.0)), step=500.0, key="quick_family_debt_payment")
+        quick_cash = quick_row2[1].number_input("现金与货基（元）", min_value=0.0, value=float(fd.get('ast-cash', 0.0) + fd.get('ast-mmf', 0.0)), step=10000.0, key="quick_family_cash")
+        quick_equity = quick_row2[2].number_input("权益资产（元）", min_value=0.0, value=float(fd.get('ast-ashare', 0.0) + fd.get('ast-hk', 0.0) + fd.get('ast-overseas', 0.0)), step=10000.0, key="quick_family_equity")
+        quick_property = quick_row2[3].number_input("房产估值（元）", min_value=0.0, value=float(fd.get('ast-house', 0.0)), step=100000.0, key="quick_family_property")
+
+        quick_row3 = st.columns(4)
+        quick_debt = quick_row3[0].number_input("综合负债余额（元）", min_value=0.0, value=float(fd.get('debt-house', 0.0) + fd.get('debt-car', 0.0) + fd.get('debt-consumption', 0.0) + fd.get('debt-biz', 0.0)), step=10000.0, key="quick_family_debt")
+        quick_high_debt = quick_row3[1].number_input("其中高息负债（元）", min_value=0.0, value=float(fd.get('debt-high-interest', 0.0)), step=5000.0, key="quick_family_high_debt")
+        quick_near_spend = quick_row3[2].number_input("未来 1–3 年确定支出（元）", min_value=0.0, value=float(fd.get('f-planned-spend-36m', 0.0)), step=10000.0, key="quick_family_near_spend")
+        quick_medical = quick_row3[3].selectbox("基础医疗保障", [False, True], format_func=lambda value: "已覆盖" if value else "尚未覆盖 / 不确定", key="quick_family_medical")
+
+        quick_row4 = st.columns(3)
+        quick_horizon = quick_row4[0].selectbox("投资期限", [1, 3, 5, 10], index=2, format_func=lambda value: f"{value} 年{'以上' if value == 10 else ''}", key="quick_family_horizon")
+        quick_drawdown = quick_row4[1].selectbox("最大可接受亏损", [5, 10, 20, 30, 40], index=2, format_func=lambda value: f"{value}%", key="quick_family_drawdown")
+        quick_reaction = quick_row4[2].selectbox("市场下跌时", ["sell", "stop", "hold", "buy"], index=2, format_func=lambda value: {"sell": "立即卖出", "stop": "暂停投入", "hold": "按计划持有", "buy": "按纪律分批增加"}[value], key="quick_family_reaction")
+        quick_submit = st.form_submit_button("生成家庭体检结论", type="primary", use_container_width=True)
+
+    if quick_submit:
+        template_defaults = {
+            "young_single": (1, "no", "no", 1, "stable"),
+            "dual_children": (3, "yes", "no", 2, "stable"),
+            "single_dependents": (4, "yes", "yes", 1, "normal"),
+            "self_employed": (3, "yes", "no", 1, "volatile"),
+            "home_purchase": (2, "no", "no", 2, "stable"),
+            "near_retirement": (2, "no", "no", 2, "stable"),
+            "retired": (2, "no", "no", 1, "stable"),
+            "concentrated_assets": (3, "yes", "no", 2, "normal"),
+            "debt_stressed": (4, "yes", "yes", 1, "normal"),
+        }
+        members, children, elders, sources, stability = template_defaults[quick_template]
+        fd.update({
+            'f-age': quick_age,
+            'f-members': members,
+            'f-children': children,
+            'f-elders': elders,
+            'f-monthly-income': quick_income,
+            'f-fixed-expense': quick_expense,
+            'f-essential-expense': quick_expense,
+            'f-surplus-income': max(0.0, quick_income - quick_expense - quick_debt_payment),
+            'f-income-sources': sources,
+            'f-stability': stability,
+            'ast-cash': quick_cash,
+            'ast-mmf': 0.0,
+            'ast-ashare': quick_equity,
+            'ast-hk': 0.0,
+            'ast-overseas': 0.0,
+            'ast-house': quick_property,
+            'debt-house': quick_debt,
+            'debt-car': 0.0,
+            'debt-consumption': 0.0,
+            'debt-biz': 0.0,
+            'debt-monthly-repay': quick_debt_payment,
+            'debt-high-interest': quick_high_debt,
+            'f-planned-spend-36m': quick_near_spend,
+            'protect-coverage': 'adequate' if quick_medical else 'none',
+            'protect-has-million-medical': quick_medical,
+            'inv-horizon': str(quick_horizon),
+            'inv-drawdown': str(quick_drawdown),
+            'inv-drop-action': quick_reaction,
+            'expense-buyhouse': quick_template == 'home_purchase',
+        })
+        st.session_state.family_data = fd
+        st.session_state.family_assessment_completed = True
+        st.rerun()
+
     col_left, col_right = st.columns([1.2, 1.0])
 
     with col_left:
         # 1. 家庭基本信息
-        with st.expander("👤 1. 家庭基本信息", expanded=True):
+        with st.expander("👤 1. 家庭基本信息（详细）", expanded=False):
             sub_col1, sub_col2 = st.columns(2)
             with sub_col1:
                 fd['f-age'] = st.number_input("主要决策人年龄 (岁)", min_value=18, max_value=100, value=int(fd.get('f-age', 35)))
@@ -909,7 +1143,7 @@ if menu == "1. 家庭资产体检与配置建议":
             fd['f-planned-spend-36m'] = spend_col2.number_input("未来 1-3 年确定要用的钱 (元)", min_value=0.0, value=float(fd.get('f-planned-spend-36m', 0.0)), step=10000.0)
 
         # 2. 收入与现金流
-        with st.expander("💵 2. 收入与月现金流", expanded=True):
+        with st.expander("💵 2. 收入与月现金流（详细）", expanded=False):
             sub_col1, sub_col2 = st.columns(2)
             with sub_col1:
                 fd['f-monthly-income'] = st.number_input("家庭税后月收入 (元)", min_value=0.0, value=float(fd.get('f-monthly-income', 30000.0)), step=1000.0)
@@ -943,7 +1177,7 @@ if menu == "1. 家庭资产体检与配置建议":
                 fd['f-recover-months'] = st.number_input("失业后预计收入恢复期限 (月)", min_value=0, max_value=60, value=int(fd.get('f-recover-months', 6)))
 
         # 3. 家庭资产明细
-        with st.expander("🏦 3. 家庭现有资产 (单位：元)", expanded=True):
+        with st.expander("🏦 3. 家庭现有资产 (单位：元)", expanded=False):
             a_col1, a_col2, a_col3 = st.columns(3)
             fd['ast-cash'] = a_col1.number_input("活期现金/存款", min_value=0.0, value=float(fd.get('ast-cash', 50000.0)), step=10000.0)
             fd['ast-mmf'] = a_col2.number_input("货币/短债基金", min_value=0.0, value=float(fd.get('ast-mmf', 100000.0)), step=10000.0)
@@ -958,7 +1192,7 @@ if menu == "1. 家庭资产体检与配置建议":
             fd['ast-others'] = a_col3.number_input("其他类别资产", min_value=0.0, value=float(fd.get('ast-others', 0.0)), step=10000.0)
 
         # 4. 家庭债务明细
-        with st.expander("💳 4. 家庭债务负担 (单位：元)", expanded=True):
+        with st.expander("💳 4. 家庭债务负担 (单位：元)", expanded=False):
             d_col1, d_col2, d_col3 = st.columns(3)
             fd['debt-house'] = d_col1.number_input("房贷本金余额", min_value=0.0, value=float(fd.get('debt-house', 800000.0)), step=50000.0)
             fd['debt-car'] = d_col2.number_input("车贷余额", min_value=0.0, value=float(fd.get('debt-car', 50000.0)), step=10000.0)
@@ -972,7 +1206,7 @@ if menu == "1. 家庭资产体检与配置建议":
             fd['debt-high-interest'] = st.number_input("其中高息债务余额 (元)", min_value=0.0, value=float(fd.get('debt-high-interest', 0.0)), step=5000.0)
 
         # 5. 投资性格与理财目标
-        with st.expander("🚦 5. 投资性格与理财目标", expanded=True):
+        with st.expander("🚦 5. 投资性格与理财目标", expanded=False):
             i_col1, i_col2 = st.columns(2)
             with i_col1:
                 fd['inv-drawdown'] = st.selectbox("可忍受最大本金回撤", ["5", "10", "20", "30", "40"], format_func=lambda x: "小于 5% (极度保守)" if x == "5" else ("5% - 10% (偏保守)" if x == "10" else ("10% - 20% (中度防线)" if x == "20" else ("20% - 30% (适度进取)" if x == "30" else "30%以上 (极强承受)"))), index=["5", "10", "20", "30", "40"].index(fd.get('inv-drawdown', '20')))
@@ -994,7 +1228,7 @@ if menu == "1. 家庭资产体检与配置建议":
             fd['goal-retire'] = g_cols[2].checkbox("提前退休", value=fd.get('goal-retire', False), key="goal_retire_checkbox")
 
         # 6. 家庭保障缺口测算
-        with st.expander("🛡️ 6. 家庭保障缺口测算", expanded=True):
+        with st.expander("🛡️ 6. 家庭保障缺口测算", expanded=False):
             previous_child_status = st.session_state.get('_protection_child_status')
             current_child_status = fd.get('f-children', 'no')
             if previous_child_status is not None and previous_child_status != current_child_status:
@@ -1034,6 +1268,39 @@ if menu == "1. 家庭资产体检与配置建议":
 
         # 保存更新
         st.session_state.family_data = fd
+        if st.button("按详细资料重新生成体检结论", key="run_detailed_family_assessment", use_container_width=True):
+            st.session_state.family_assessment_completed = True
+            st.rerun()
+
+    if not st.session_state.family_assessment_completed:
+        st.info("请先完成上方快速录入并主动生成结论。资料未确认前，系统不会展示家庭画像、配置比例或‘已达标’等正面结论。")
+        st.stop()
+
+    family_assessment = assess_family(build_family_assessment_input(fd))
+    st.session_state.family_assessment = family_assessment
+
+    st.markdown("### 家庭评估结论")
+    assessment_cols = st.columns(4)
+    assessment_cols[0].metric("家庭画像", family_assessment['profile']['title'])
+    assessment_cols[1].metric("资料完整度", f"{family_assessment['completeness']['score']}%")
+    safe_upper = family_assessment['investable']['safeUpperBound']
+    assessment_cols[2].metric("安全可投资上限", "待补充" if safe_upper is None else f"¥{safe_upper:,.0f}")
+    assessment_cols[3].metric("最终风险上限", family_assessment['risk']['finalLabel'])
+
+    if family_assessment['redLines']:
+        st.error("；".join(item['title'] for item in family_assessment['redLines']))
+    action_cols = st.columns(3)
+    for action_col, action in zip(action_cols, family_assessment['topActions']):
+        action_col.markdown(f"**{action['title']}**")
+        action_col.caption(action['detail'])
+
+    if family_assessment['allocationRanges']:
+        range_labels = {'safety': '安全流动层', 'stable': '稳健收益层', 'growth': '长期成长层', 'hedge': '风险对冲层'}
+        range_text = "｜".join(
+            f"{range_labels[key]} {family_assessment['allocationRanges'][key]['min']}–{family_assessment['allocationRanges'][key]['max']}%"
+            for key in ('safety', 'stable', 'growth', 'hedge')
+        )
+        st.caption(f"非产品化配置区间：{range_text}。三维风险取能力、意愿与实际暴露适配度的最低值。")
 
     with col_right:
         # 指标计算逻辑
@@ -1554,146 +1821,104 @@ elif menu == "2. 资产配置与股息测算看板":
 # ==========================================
 # 模块 3: 现金缓冲池平滑模拟器
 # ==========================================
-elif menu == "2. 缓冲池与现金流模拟":
+elif menu == "3. 现金缓冲池平滑模拟器":
     st.markdown("<h1 style='color:#FFFFFF; margin-bottom:10px;'>⏱️ 现金缓冲池平滑模拟器</h1>", unsafe_allow_html=True)
-    st.write(f"大多数分红在 5-8 月密集派发。本模拟器展示了分红按真实月份归集到缓冲池，并每月固定流出 {target_monthly:.2f} 万元生活费的 36 个月动态过程。")
-    
-    # 1. 整理各资产分红月份和比例
-    # weights, yields 重新取自默认或直接读侧边栏以确保一致
-    weights = {code: info['weight']/100 for code, info in DEFAULT_ASSETS.items()}
-    yields = {code: info['yield']/100 for code, info in DEFAULT_ASSETS.items()}
-    
-    # 2. 模拟 36 个月的现金流
-    months_range = 36
-    monthly_withdraw = target_monthly * 10000
-    
-    buffer_balance = [buffer_seed * 10000] # 起始资金（元）
-    monthly_dividends_history = []
-    interest_earned_history = []
-    
-    # 构造日历月份
-    # 假设从 1 月开始模拟
-    for t in range(1, months_range + 1):
-        c_month = ((t - 1) % 12) + 1
-        
-        # 计算当月收到的总分红
-        month_dividend = 0.0
-        for code, info in DEFAULT_ASSETS.items():
-            month_dist_ratio = info['months'].get(c_month, 0.0)
-            if month_dist_ratio > 0.0:
-                asset_value = invest_principal * weights[code] * 10000 # 元
-                dividend_income = asset_value * yields[code] * month_dist_ratio
-                month_dividend += dividend_income
-                
-        # 缓冲池当期利息计算 (期初余额计算当月利息)
-        current_interest = buffer_balance[-1] * (money_market_rate / 12.0)
-        
-        # 缓冲池期末余额 = 期初余额 + 当月分红 + 利息 - 当月提取金额
-        next_balance = buffer_balance[-1] + month_dividend + current_interest - monthly_withdraw
-        
-        # 存储结果
-        monthly_dividends_history.append(month_dividend)
-        interest_earned_history.append(current_interest)
-        buffer_balance.append(next_balance)
-        
-    # 去除最后一个多余的期末余额，保留 36 个月的变动
-    buffer_history = buffer_balance[:-1]
-    
-    # 创建 DataFrame
-    timeline_df = pd.DataFrame({
-        '模拟月份': [f"第 {t} 个月 (阴历 {((t-1)%12)+1}月)" for t in range(1, months_range + 1)],
-        '当月收到分红 (元)': monthly_dividends_history,
-        '当月利息收益 (元)': interest_earned_history,
-        '缓冲池余额 (元)': buffer_history,
-        '固定生活费流出 (元)': [monthly_withdraw] * months_range
-    })
-    
-    # 极低余额警告
-    min_buffer = min(buffer_history)
-    st.markdown("### 🔍 缓冲池安全性体检")
-    b_col1, b_col2, b_col3 = st.columns(3)
-    with b_col1:
-        st.markdown(f"""
-        <div class='card'>
-            <div class='metric-label'>初始缓冲池预留</div>
-            <div class='metric-value'>¥{buffer_seed*10000:,.0f}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with b_col2:
-        status_color = "#10B981" if min_buffer > 0 else "#EF4444"
-        st.markdown(f"""
-        <div class='card'>
-            <div class='metric-label'>缓冲池最低水位</div>
-            <div class='metric-value' style='color:{status_color};'>¥{min_buffer:,.0f}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with b_col3:
-        tot_div_sum = sum(monthly_dividends_history)
-        st.markdown(f"""
-        <div class='card'>
-            <div class='metric-label'>3年预计累计红利</div>
-            <div class='metric-value'>¥{tot_div_sum:,.0f}</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-    if min_buffer <= 0:
-        st.error("⚠️ **缓冲池水位警报**：模拟显示缓冲池资金在部分月份会出现**亏空（余额为负数）**！说明您的“初始缓冲池储备”不足以支持分红发放前的日常支出，或者整体资产股息率相对于月消费过低。建议调高初始储备或增加本金。")
+    st.write("默认只运行一个标准情景，先回答‘缓冲池会不会枯竭’；需要定位原因时再展开高级参数，避免重复计算和误读。")
+
+    st.markdown("### 只需 3 步")
+    guide_col1, guide_col2, guide_col3 = st.columns(3)
+    with guide_col1:
+        st.markdown("**1. 核对月度支取**")
+        st.caption(f"当前目标支取：{target_monthly:.2f} 万元/月。若与必要支出、月供不一致，请先在策略控制台调整。")
+    with guide_col2:
+        st.markdown("**2. 选择缓冲覆盖月数**")
+        quick_cols = st.columns(3)
+        for quick_col, months in zip(quick_cols, (6, 9, 12)):
+            if quick_col.button(f"{months}个月", key=f"buffer_cover_{months}", use_container_width=True):
+                set_buffer_coverage_months(months)
+                st.rerun()
+        st.caption("稳定双薪通常 6–9 个月；单薪、自雇、临近退休优先 12 个月。")
+    with guide_col3:
+        st.markdown("**3. 先跑标准压力情景**")
+        if st.button("恢复标准情景", key="buffer_standard_scenario", use_container_width=True):
+            set_buffer_scenario('standard')
+            st.rerun()
+        st.caption("标准情景：稳定现金流下降 20%、到账延迟 1 个月。")
+
+    with st.expander("高级参数：仅在复盘压力来源时调整", expanded=False):
+        buffer_stable_income_drop = st.slider(
+            "稳定现金流下降 (%)", 0, 80, step=5,
+            key="buffer_stable_income_drop"
+        )
+        buffer_delay_months = st.slider(
+            "分红/票息到账延迟（月）", 0, 6, step=1,
+            key="buffer_delay_months"
+        )
+        buffer_pause_dividend_year = st.checkbox(
+            "第二年暂停权益分红",
+            key="buffer_pause_dividend_year"
+        )
+        buffer_inflation_rate = st.slider("年化支出通胀 (%)", 0.0, 10.0, step=0.5, key="buffer_inflation_rate")
+        st.caption("成长资产卖出不计入默认安全结论；缓冲池应首先由现金、票息和可验证分红支撑。")
+
+    sim = portfolio_engine.simulate_cashflow(
+        36,
+        target_monthly * 10000.0,
+        buffer_seed,
+        invest_principal,
+        weights,
+        ASSETS_CONFIG,
+        money_market_rate / 100.0,
+        False,
+        'neutral',
+        datetime.now().month,
+        st.session_state.get('buffer_stable_income_drop', 20),
+        st.session_state.get('buffer_delay_months', 1),
+        st.session_state.get('buffer_pause_dividend_year', False),
+        st.session_state.get('buffer_inflation_rate', 0.0)
+    )
+    feasibility = portfolio_engine.calculate_cashflow_feasibility(
+        36,
+        target_monthly * 10000.0,
+        buffer_seed,
+        principal,
+        weights,
+        ASSETS_CONFIG,
+        money_market_rate / 100.0,
+        datetime.now().month,
+        st.session_state.get('buffer_stable_income_drop', 20),
+        st.session_state.get('buffer_delay_months', 1),
+        st.session_state.get('buffer_pause_dividend_year', False),
+        st.session_state.get('buffer_inflation_rate', 0.0)
+    )
+
+    min_buffer = float(sim.get('minBuffer', 0.0))
+    weakest_month = sim.get('minBufferMonth') or 1
+    result_col1, result_col2, result_col3, result_col4 = st.columns(4)
+    result_col1.metric("初始缓冲池", f"¥{buffer_seed * 10000:,.0f}")
+    result_col2.metric("36个月最低水位", f"¥{min_buffer:,.0f}")
+    result_col3.metric("最脆弱月份", f"第 {weakest_month} 月")
+    result_col4.metric("安全月支取上限", f"{feasibility['safeMonthlyWithdrawWan']:.2f} 万")
+
+    if sim.get('breachedAtMonth'):
+        st.error(f"标准情景下缓冲池在第 {sim['breachedAtMonth']} 个月枯竭。先增加缓冲金或降低目标支取，不应依赖卖出成长资产补流。")
     else:
-        st.success("✅ **缓冲池平滑成功**：在 36 个月的模拟周期内，缓冲池余额始终大于 0。您的日常生活现金流将完全不受分红淡旺季影响！")
-        
-    # 可视化图表
-    st.markdown("### 📈 36个月缓冲池水位与红利到账图")
-    fig = go.Figure()
-    
-    # 缓冲池余额柱状图
-    fig.add_trace(go.Scatter(
-        x=timeline_df['模拟月份'], 
-        y=timeline_df['缓冲池余额 (元)'],
+        st.success("标准情景下 36 个月未发生枯竭。请继续检查最低水位是否仍能覆盖突发医疗、收入中断等家庭责任。")
+
+    timeline_months = [f"第 {month} 月" for month in range(1, 37)]
+    fig_buffer = go.Figure()
+    fig_buffer.add_trace(go.Scatter(
+        x=timeline_months,
+        y=sim['bufferHistory'],
         mode='lines+markers',
-        name='缓冲池期初余额 (元)',
-        line=dict(color='#10B981', width=3),
-        marker=dict(size=6)
+        name='缓冲池余额',
+        line=dict(color='#10B981', width=3)
     ))
-    fig_buffer.add_trace(go.Bar(
-        x=timeline_months,
-        y=sim['dividendIncomeHistory'],
-        name='红利收入 (元)',
-        marker_color='#3B82F6',
-        opacity=0.8
-    ))
-    fig_buffer.add_trace(go.Bar(
-        x=timeline_months,
-        y=sim['cashInterestIncomeHistory'],
-        name='票息/货基收入 (元)',
-        marker_color='#10B981',
-        opacity=0.8
-    ))
-    if rebalance_harvest:
-        fig_buffer.add_trace(go.Bar(
-            x=timeline_months,
-            y=sim['harvestHistory'],
-            name='非稳定卖出补流 (元)',
-            marker_color='#A78BFA',
-            opacity=0.8
-        ))
-    if min_buffer <= 0:
-        idx = weakest_month - 1
-        fig_buffer.add_hline(y=0, line_dash="dot", line_color="#EF4444")
-        fig_buffer.add_trace(go.Scatter(
-            x=[timeline_months[idx]],
-            y=[min_buffer],
-            mode='markers+text',
-            text=['最低点'],
-            textposition='top center',
-            name='压力最低点',
-            marker=dict(color='#EF4444', size=11, symbol='diamond')
-        ))
-    
+    fig_buffer.add_hline(y=0, line_dash="dot", line_color="#EF4444")
     fig_buffer.update_layout(
-        title="36个月缓冲池水位与稳定现金流动态趋势图",
-        xaxis_title="模拟时间线",
-        yaxis_title="水位/金额 (元)",
-        barmode='stack',
+        title="36个月缓冲池水位（默认不依赖卖出成长资产）",
+        xaxis_title="模拟时间",
+        yaxis_title="余额（元）",
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
         font_color='#102033',
@@ -1701,110 +1926,23 @@ elif menu == "2. 缓冲池与现金流模拟":
     )
     st.plotly_chart(fig_buffer, use_container_width=True)
 
-    # 导出明细数据
-    with st.expander("📂 查看36个月现金流流转明细表格"):
+    with st.expander("查看完整诊断指标与36个月明细", expanded=False):
         timeline_df = pd.DataFrame({
             '模拟月份': timeline_months,
-            '红利收入 (元)': sim['dividendIncomeHistory'],
-            '票息/货基收入 (元)': sim['cashInterestIncomeHistory'],
-            '缓冲池利息 (元)': sim['bufferInterestHistory'],
-            '非稳定卖出补流 (元)': sim['harvestHistory'],
-            '期末缓冲池余额 (元)': sim['bufferHistory']
+            '红利收入（元）': sim['dividendIncomeHistory'],
+            '票息/货基收入（元）': sim['cashInterestIncomeHistory'],
+            '缓冲池利息（元）': sim['bufferInterestHistory'],
+            '期末缓冲池余额（元）': sim['bufferHistory']
         })
-        st.dataframe(timeline_df.style.format({
-            '红利收入 (元)': '¥{:,.0f}',
-            '票息/货基收入 (元)': '¥{:,.0f}',
-            '缓冲池利息 (元)': '¥{:,.2f}',
-            '非稳定卖出补流 (元)': '¥{:,.0f}',
-            '期末缓冲池余额 (元)': '¥{:,.0f}'
-        }))
+        st.dataframe(timeline_df, use_container_width=True)
 
 # ==========================================
 # 模块 4: 估值温度计与测算工具
 # ==========================================
-elif menu == "3. 估值温度计与建仓建议":
-    st.markdown("<h1 style='color:#FFFFFF; margin-bottom:10px;'>🌡️ 估值温度计与建仓智能助手</h1>", unsafe_allow_html=True)
-    st.write("红利策略的核心法则：**在股息率高（估值便宜）时加大买入，在股息率低（估值昂贵）时减少或暂停买入**。本模块监控红利指数温度，并动态生成建仓额度建议。")
+elif menu == "4. 估值温度计与测算工具":
+    st.markdown("<h1 style='color:#102033; margin-bottom:10px;'>🌡️ 估值温度计与测算工具</h1>", unsafe_allow_html=True)
+    st.write("从本地 valuation_history.json 读取已验证的 PE、PB、股息率及三年百分位。数据超过 21 天时只保留展示，定投系数强制回到 1.0x。")
     
-    # 模拟数据：红利低波指数的历史股息率波动 (例如 3.8% ~ 6.2%)
-    np.random.seed(42)
-    history_dates = pd.date_range(end="2026-05-27", periods=200, freq="W")
-    # 生成平滑的历史股息率序列
-    noise = np.random.normal(0, 0.08, 200)
-    base_yield = 4.8 + np.sin(np.linspace(0, 10, 200)) * 0.8 + noise
-    
-    # 最后一期作为当前股息率
-    current_idx_yield = round(base_yield[-1], 2)
-    
-    # 计算当前历史百分位
-    percentile = round((base_yield < current_idx_yield).mean() * 100, 1)
-    
-    # 估值分级与定投比例因子
-    if percentile >= 70.0:
-        valuation_zone = "极具性价比（股息率高，估值便宜）"
-        factor = 1.3
-        color = "#10B981" # 绿色
-        tips = "建议：市场目前股息回报极为丰厚，建议加大配置买入额度！"
-    elif percentile >= 30.0:
-        valuation_zone = "估值合理（股息率适中）"
-        factor = 1.0
-        color = "#F59E0B" # 黄色
-        tips = "建议：估值处于正常水平，建议保持既定的定投节奏买入。"
-    else:
-        valuation_zone = "估值偏贵（股息率较低）"
-        factor = 0.5
-        color = "#EF4444" # 红色
-        tips = "建议：指数估值过热，股息吸引力下降，建议减少或暂停定投建仓，资金暂留货币基金。"
-        
-    st.markdown("### 📊 指数估值温度仪")
-    t_col1, t_col2, t_col3 = st.columns(3)
-    with t_col1:
-        st.markdown(f"""
-        <div class='card'>
-            <div class='metric-label'>中证红利低波当前股息率</div>
-            <div class='metric-value' style='color:#3B82F6;'>{current_idx_yield:.2f}%</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with t_col2:
-        st.markdown(f"""
-        <div class='card'>
-            <div class='metric-label'>历史股息率百分位</div>
-            <div class='metric-value' style='color:{color};'>{percentile}%</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with t_col3:
-        st.markdown(f"""
-        <div class='card'>
-            <div class='metric-label'>动态定投调节因子</div>
-            <div class='metric-value'>{factor}x</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-    st.markdown(f"""
-    <div style='background:rgba(255,255,255,0.03); border:1px solid {color}; border-radius:8px; padding:15px; margin-bottom:20px;'>
-        <h4 style='color:{color};margin-top:0;'>🏷️ 估值评级：{valuation_zone}</h4>
-        <p style='color:#E2E8F0;font-size:0.95rem;margin-bottom:0;'>{tips}</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # 建仓金额建议
-    st.markdown("### 🎯 动态定投建仓方案生成")
-    base_dca = st.number_input("您的基础月定投金额 (万元)", min_value=0.5, max_value=200.0, value=5.0, step=0.5)
-    adjusted_dca = base_dca * factor
-    
-    st.markdown(f"基于动态调节因子 **{factor}x**，本月推荐建仓总金额为 **{adjusted_dca:.2f}** 万元。")
-    
-    # 推荐明细表
-    rec_data = []
-    for code, info in DEFAULT_ASSETS.items():
-        rec_amt = adjusted_dca * (info['weight']/100.0)
-        rec_data.append({
-            '证券代码': code,
-            '证券名称': info['name'],
-            '配置占比': f"{info['weight']}%",
-            '本月买入推荐金额 (元)': f"¥{rec_amt * 10000:,.0f}"
-        })
-
     def index_role(index_code_value):
         for asset_info in ASSETS_CONFIG.values():
             if asset_target_index(asset_info) == index_code_value:
@@ -2089,8 +2227,8 @@ elif menu == "5. 年度资产再平衡测算":
         '601668': 4.0
     }
     
-    for code, info in DEFAULT_ASSETS.items():
-        col = cols_ledger[idx % 4]
+    for code, info in ASSETS_CONFIG.items():
+        col = cols_hold[idx % 4]
         with col:
             # 默认填充一个带有偏离的现值用于演示
             default_val = round(invest_principal * (weights[code] / 100.0) * 0.8, 1)
@@ -2137,6 +2275,15 @@ elif menu == "5. 年度资产再平衡测算":
                 'incremental_buy': 0.0
             })
             
+        rebalance_rows = [{
+            '基金代码': row['code'],
+            '基金名称': row['info']['name'],
+            '目标权重': f"{row['target_pct']:.1f}%",
+            '当前权重': f"{row['actual_pct']:.1f}%",
+            '偏离': f"{row['diff_pct']:+.1f}%",
+            '再平衡带宽': f"±{row['band']:.1f}%",
+            '建议': '需要复核' if row['is_over_band'] else '带宽内保持',
+        } for row in plan_rows]
         rebalance_df = pd.DataFrame(rebalance_rows)
         st.table(rebalance_df)
         
@@ -2145,7 +2292,7 @@ elif menu == "5. 年度资产再平衡测算":
 # ==========================================
 # 模块 5: 目标导向规划 (核心)
 # ==========================================
-elif menu == "5. 目标导向规划 (核心)":
+elif menu == "6. 目标导向规划":
     st.markdown("<h1 style='color:#FFFFFF; margin-bottom:10px;'>🎯 目标导向规划与多维推演工作台</h1>", unsafe_allow_html=True)
     st.write("基于家庭可用总本金与月可结余，按看板预期收益率进行复利终值推演。当目标存在缺口时，自动反解**三大可调杠杆**（储蓄端/收益端/目标端），并针对提前退休目标展开85岁全周期持久性检验。")
     
@@ -2179,9 +2326,9 @@ elif menu == "5. 目标导向规划 (核心)":
         ]
         
     # 看板股息率计算
-    weights_map = {code: info['weight']/100 for code, info in DEFAULT_ASSETS.items()}
-    yields_map = {code: info['yield']/100 for code, info in DEFAULT_ASSETS.items()}
-    blended_div_yield = sum(weights_map[c] * yields_map[c] for c in DEFAULT_ASSETS.keys())
+    weights_map = {code: weights.get(code, info['weight']) / 100 for code, info in ASSETS_CONFIG.items()}
+    yields_map = {code: info['yield'] / 100 for code, info in ASSETS_CONFIG.items()}
+    blended_div_yield = sum(weights_map[c] * yields_map[c] for c in ASSETS_CONFIG.keys())
     
     current_principal_yuan = principal * 10000.0
     
@@ -2375,7 +2522,7 @@ elif menu == "5. 目标导向规划 (核心)":
                             <div>
                                 <span style='color:#94A3B8; font-size:0.8rem;'>最脆弱月份 (资金最低谷)</span>
                                 <div style='font-size:1.1rem; font-weight:700; color:{"#38BDF8" if ret_sim["lowest_capital"]>0 else "#EF4444"};'>
-                                    第 {ret_sim['mostFragileMonth']} 个月 (约 {ret_sim['mostFragileAge']} 岁)
+                                    第 {ret_sim['most_fragile_month']} 个月 (约 {ret_sim['most_fragile_age']} 岁)
                                 </div>
                                 <div style='font-size:0.75rem; color:#94A3B8;'>该期最低水位: ¥{ret_sim['lowest_capital']:,.0f}</div>
                             </div>
@@ -2409,14 +2556,14 @@ elif menu == "5. 目标导向规划 (核心)":
 # ==========================================
 # 模块 6: Markdown 体检报告导出
 # ==========================================
-elif menu == "6. Markdown 体检报告导出":
+elif menu == "7. Markdown 体检报告导出":
     st.markdown("<h1 style='color:#FFFFFF; margin-bottom:10px;'>📋 家庭财富规划体检报告 (Markdown 导出)</h1>", unsafe_allow_html=True)
     st.write("系统已整合您的资产配置、现金流看板、缓冲池安全诊断，以及最新的**「目标达成总览」**表格，自动编译为专业 Markdown 体检报告。")
 
     # 计算全局指标
-    weights_map = {code: info['weight']/100 for code, info in DEFAULT_ASSETS.items()}
-    yields_map = {code: info['yield']/100 for code, info in DEFAULT_ASSETS.items()}
-    blended_div_yield = sum(weights_map[c] * yields_map[c] for c in DEFAULT_ASSETS.keys())
+    weights_map = {code: weights.get(code, info['weight']) / 100 for code, info in ASSETS_CONFIG.items()}
+    yields_map = {code: info['yield'] / 100 for code, info in ASSETS_CONFIG.items()}
+    blended_div_yield = sum(weights_map[c] * yields_map[c] for c in ASSETS_CONFIG.keys())
     exp_ann_div = invest_principal * blended_div_yield * 10000.0
     exp_m_avg = exp_ann_div / 12.0
     
@@ -2489,6 +2636,7 @@ elif menu == "6. Markdown 体检报告导出":
 - **综合贷款利率档位**：**{debt_res['debt_bracket']}** (测算利率: **{debt_res['effective_debt_rate']:.2f}%**，按档位中值估算，请以实际合同利率为准)
 - **组合保守预期收益率**：**{debt_res['conservative_yield']:.2f}%** (取增长预期年化收益率 {growth_rate_pct:.2f}% 的 70% 作为保守口径)
 - **决策矩阵研判结论**：**{debt_res['decision_text']}**
+- **证据边界**：{debt_res['assumption_note']}
 
 #### 路径模拟对比（可用资金 X = ¥{debt_res['fund_x']:,.0f} 元，提前还贷 vs 组合投资）
 | 模拟周期 | 模拟资金本金 | 路径A: 提前还贷终值效应 | 路径B: 坚持投资推演终值 | 净资产差额 (A - B) | 策略对比建议 |
@@ -2543,7 +2691,7 @@ elif menu == "6. Markdown 体检报告导出":
 # ==========================================
 # 模块 7: 债务决策对照 (还贷vs投资)
 # ==========================================
-elif menu == "7. 债务决策对照 (还贷vs投资)":
+elif menu == "8. 债务决策对照":
     st.markdown("<h1 style='color:#FFFFFF; margin-bottom:10px;'>⚖️ 债务决策对照：提前还贷 vs 组合投资路径模拟</h1>", unsafe_allow_html=True)
     st.caption("按档位中值估算，请以实际合同利率为准。基于客观利差量化测算，协助家庭理性权衡提前还贷与坚持投资。")
 
@@ -2616,6 +2764,7 @@ elif menu == "7. 债务决策对照 (还贷vs投资)":
     <div style='background:{matrix_bg}; border:1px solid {matrix_border}; border-radius:10px; padding:18px; margin:20px 0;'>
         <div style='font-size:1.05rem; font-weight:700; color:#FFF; margin-bottom:8px;'>
             💡 决策矩阵研判结论：<span style='color:{matrix_color};'>{debt_res['decision_text']}</span>
+            <div style='margin-top:6px; color:#587084; font-size:0.78rem;'>{debt_res['assumption_note']}</div>
         </div>
         <div style='font-size:0.85rem; color:#CBD5E1; line-height:1.6;'>
             {desc_analysis}
@@ -2645,5 +2794,3 @@ elif menu == "7. 债务决策对照 (还贷vs投资)":
         ⚖️ <strong>提示与说明</strong>：测算基于“按档位中值估算，请以实际合同利率为准”原则。两路径模型公式分别为：提前还贷 $X \\times (1 + r_{\\text{debt}})^T$ vs 投资 $X \\times (1 + r_{\\text{invest}})^T$。建议文案保持中立与工具化，辅助自主财务决策。
     </div>
     """, unsafe_allow_html=True)
-
-

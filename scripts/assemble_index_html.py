@@ -1,12 +1,19 @@
 # scripts/assemble_index_html.py
+import argparse
 import re
-import os
+from pathlib import Path
 
 with open('src/constants.js', 'r', encoding='utf-8') as f:
     constants_js = f.read()
 
 with open('src/utils/calculations.js', 'r', encoding='utf-8') as f:
     calculations_js = f.read()
+
+with open('src/utils/familyAssessment.js', 'r', encoding='utf-8') as f:
+    family_assessment_js = f.read()
+
+with open('src/utils/marketDataAdapter.js', 'r', encoding='utf-8') as f:
+    market_data_adapter_js = f.read()
 
 with open('src/utils/reportGenerator.js', 'r', encoding='utf-8') as f:
     report_generator_js = f.read()
@@ -20,6 +27,8 @@ def strip_es_modules(code):
 
 clean_constants = strip_es_modules(constants_js)
 clean_calculations = strip_es_modules(calculations_js)
+clean_family_assessment = strip_es_modules(family_assessment_js)
+clean_market_data_adapter = strip_es_modules(market_data_adapter_js)
 clean_report = strip_es_modules(report_generator_js)
 
 migrate_state_js = """
@@ -27,40 +36,54 @@ migrate_state_js = """
 // 状态平滑迁移器 (migrateState)
 // ==========================================
 function migrateState(stored) {
-  if (!stored) return INITIAL_STATE;
+  if (!stored) return EMPTY_STATE;
+  const legacy = !stored.meta;
+  const base = legacy ? INITIAL_STATE : EMPTY_STATE;
   const migrated = {
-    ...INITIAL_STATE,
+    ...base,
     ...stored,
-    board: { ...INITIAL_STATE.board, ...(stored.board || {}) },
-    health: { ...INITIAL_STATE.health, ...(stored.health || {}) },
-    insurance: { ...INITIAL_STATE.insurance, ...(stored.insurance || {}) },
-    debt: { ...INITIAL_STATE.debt, ...(stored.debt || {}) },
-    pension: { ...INITIAL_STATE.pension, ...(stored.pension || {}) },
-    property: { ...INITIAL_STATE.property, ...(stored.property || {}) },
-    stress: { ...INITIAL_STATE.stress, ...(stored.stress || {}) },
-    behavior: { ...INITIAL_STATE.behavior, ...(stored.behavior || {}) },
-    thermometer: { ...INITIAL_STATE.thermometer, ...(stored.thermometer || {}) },
-    goals: Array.isArray(stored.goals) && stored.goals.length > 0 ? stored.goals : INITIAL_STATE.goals
+    meta: {
+      ...base.meta,
+      ...(stored.meta || {}),
+      assessmentCompleted: stored.meta?.assessmentCompleted ?? true,
+      isDemo: stored.meta?.isDemo ?? false,
+      dataVersion: 2
+    },
+    quick: { ...base.quick, ...(stored.quick || {}) },
+    board: {
+      ...base.board,
+      ...(stored.board || {}),
+      assets: { ...base.board.assets, ...(stored.board?.assets || {}) }
+    },
+    health: { ...base.health, ...(stored.health || {}) },
+    insurance: { ...base.insurance, ...(stored.insurance || {}) },
+    debt: { ...base.debt, ...(stored.debt || {}) },
+    pension: { ...base.pension, ...(stored.pension || {}) },
+    property: { ...base.property, ...(stored.property || {}) },
+    stress: { ...base.stress, ...(stored.stress || {}) },
+    behavior: { ...base.behavior, ...(stored.behavior || {}) },
+    thermometer: { ...base.thermometer, ...(stored.thermometer || {}) },
+    goals: Array.isArray(stored.goals) ? stored.goals : base.goals
   };
 
   // 迁移老旧 bucket 字段至 A 组资产与 B 组确定性支出
   if (!migrated.health.assetsBreakdown) {
     migrated.health.assetsBreakdown = {
       cashCurrent: 100000,
-      cashShortDebt: (migrated.health.bucket1To3y || 150000),
-      equityAssets: (migrated.board.principal || 80) * 10000 * 0.55,
+      cashShortDebt: (migrated.health.bucket1To3y ?? 0),
+      equityAssets: (migrated.board.principal ?? 0) * 10000 * 0.55,
       goldAssets: 56000,
       bondAssets: 184000,
-      propertyEstimated: (migrated.property?.totalEstimatedValue || 2800000),
+      propertyEstimated: (migrated.property?.totalEstimatedValue ?? 0),
       pensionCashValue: 20000,
       otherAssets: 0
     };
   }
   if (!migrated.health.expectedExpenses) {
     migrated.health.expectedExpenses = {
-      expense1y: (migrated.health.bucket1y || 100000),
-      expense1To3y: (migrated.health.bucket1To3y || 150000),
-      expense3To5y: (migrated.health.bucket3To5y || 100000)
+      expense1y: (migrated.health.bucket1y ?? 0),
+      expense1To3y: (migrated.health.bucket1To3y ?? 0),
+      expense3To5y: (migrated.health.bucket3To5y ?? 0)
     };
   }
   // 利率中值与自定义利率防呆
@@ -78,14 +101,14 @@ function migrateState(stored) {
     migrated.thermometer = { ...INITIAL_STATE.thermometer };
   } else {
     migrated.thermometer = {
-      ...INITIAL_STATE.thermometer,
+      ...base.thermometer,
       ...migrated.thermometer,
       userHoldings: {
-        ...INITIAL_STATE.thermometer.userHoldings,
+        ...base.thermometer.userHoldings,
         ...(migrated.thermometer.userHoldings || {})
       },
       percentileOverrides: {
-        ...INITIAL_STATE.thermometer.percentileOverrides,
+        ...base.thermometer.percentileOverrides,
         ...(migrated.thermometer.percentileOverrides || {})
       }
     };
@@ -674,6 +697,16 @@ html_template = f"""<!DOCTYPE html>
 {clean_calculations}
 
     // ==========================================
+    // 家庭快速评估引擎
+    // ==========================================
+{clean_family_assessment}
+
+    // ==========================================
+    // 本地市场数据适配器
+    // ==========================================
+{clean_market_data_adapter}
+
+    // ==========================================
     // 报告生成引擎
     // ==========================================
 {clean_report}
@@ -689,7 +722,16 @@ html_template = f"""<!DOCTYPE html>
 </html>
 """
 
-with open('index.html', 'w', encoding='utf-8') as f:
-    f.write(html_template)
+parser = argparse.ArgumentParser(description='Build the standalone static application.')
+parser.add_argument('--check', action='store_true', help='Fail when index.html is not current.')
+args = parser.parse_args()
+output_path = Path('index.html')
 
-print("Successfully generated index.html. Total size:", len(html_template), "bytes")
+if args.check:
+    current = output_path.read_text(encoding='utf-8') if output_path.exists() else ''
+    if current != html_template:
+        raise SystemExit('index.html is stale; run python3 scripts/assemble_index_html.py')
+    print('index.html is current.')
+else:
+    output_path.write_text(html_template, encoding='utf-8')
+    print("Successfully generated index.html. Total size:", len(html_template), "bytes")

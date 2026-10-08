@@ -1,3 +1,85 @@
+const HOUSEHOLD_TEMPLATES = {
+  young_single: { adults: 1, children: 0, elderlyDependents: 0, primaryAge: 28, incomeSourceType: 'single_salary', incomeStability: 'stable', yearsToRetirement: 32, retired: false, homePurchaseWithinYears: null },
+  dual_children: { adults: 2, children: 1, elderlyDependents: 0, primaryAge: 36, incomeSourceType: 'dual_salary', incomeStability: 'stable', yearsToRetirement: 24, retired: false, homePurchaseWithinYears: null },
+  single_dependents: { adults: 2, children: 1, elderlyDependents: 1, primaryAge: 40, incomeSourceType: 'single_salary', incomeStability: 'stable', yearsToRetirement: 20, retired: false, homePurchaseWithinYears: null },
+  self_employed: { adults: 2, children: 1, elderlyDependents: 0, primaryAge: 38, incomeSourceType: 'self_employed', incomeStability: 'volatile', yearsToRetirement: 22, retired: false, homePurchaseWithinYears: null },
+  home_purchase: { adults: 2, children: 0, elderlyDependents: 0, primaryAge: 32, incomeSourceType: 'dual_salary', incomeStability: 'stable', yearsToRetirement: 28, retired: false, homePurchaseWithinYears: 2 },
+  near_retirement: { adults: 2, children: 0, elderlyDependents: 0, primaryAge: 57, incomeSourceType: 'dual_salary', incomeStability: 'stable', yearsToRetirement: 3, retired: false, homePurchaseWithinYears: null },
+  retired: { adults: 2, children: 0, elderlyDependents: 0, primaryAge: 67, incomeSourceType: 'pension', incomeStability: 'stable', yearsToRetirement: 0, retired: true, homePurchaseWithinYears: null },
+  concentrated_assets: { adults: 2, children: 1, elderlyDependents: 0, primaryAge: 42, incomeSourceType: 'multiple', incomeStability: 'variable', yearsToRetirement: 18, retired: false, homePurchaseWithinYears: null },
+  debt_stressed: { adults: 2, children: 1, elderlyDependents: 1, primaryAge: 39, incomeSourceType: 'single_salary', incomeStability: 'variable', yearsToRetirement: 21, retired: false, homePurchaseWithinYears: null }
+};
+
+function sumNumbers(values) {
+  return values.reduce((total, value) => total + (Number.isFinite(Number(value)) ? Number(value) : 0), 0);
+}
+
+function buildFamilyAssessmentInput(state) {
+  const quick = state.quick || {};
+  const health = state.health || {};
+  const assets = health.assetsBreakdown || {};
+  const debt = state.debt || {};
+  const expected = health.expectedExpenses || {};
+  const debtTotal = quick.totalDebt ?? sumNumbers([
+    debt.mortgageBalance,
+    debt.carLoanBalance,
+    debt.consumerLoanBalance,
+    debt.businessLoanBalance
+  ]);
+  return {
+    household: {
+      adults: quick.adults,
+      children: quick.children,
+      elderlyDependents: quick.elderlyDependents,
+      primaryAge: quick.primaryAge,
+      incomeSourceType: quick.incomeSourceType,
+      incomeStability: quick.incomeStability,
+      yearsToRetirement: quick.yearsToRetirement,
+      retired: quick.retired === true
+    },
+    cashflow: {
+      monthlyIncome: health.monthlyIncome,
+      essentialMonthlyExpense: health.essentialMonthlyExpense,
+      monthlyDebtPayment: debt.monthlyDebtPayment,
+      incomeShockPct: Math.max(0, 100 - Number(health.unemploymentReplacementRate || 0) * 100)
+    },
+    assets: {
+      cash: sumNumbers([assets.cashCurrent, assets.cashShortDebt]),
+      bonds: assets.bondAssets,
+      equities: assets.equityAssets,
+      gold: assets.goldAssets,
+      property: state.property?.totalEstimatedValue ?? assets.propertyEstimated,
+      business: quick.businessAssets,
+      otherLiquid: sumNumbers([assets.pensionCashValue, assets.otherAssets])
+    },
+    debts: {
+      total: debtTotal,
+      highInterest: debt.highInterestDebtBalance,
+      highestRate: quick.highestDebtRate
+    },
+    goals: {
+      expensesWithin1Year: expected.expense1y,
+      expenses1To3Years: expected.expense1To3y,
+      homePurchaseWithinYears: quick.homePurchaseWithinYears
+    },
+    protection: {
+      basicMedicalCovered: quick.basicMedicalCovered,
+      lifeCoverageGap: 0
+    },
+    risk: {
+      investmentHorizonYears: quick.investmentHorizonYears,
+      maxAcceptableLossPct: quick.maxAcceptableLossPct,
+      marketDropReaction: quick.marketDropReaction,
+      largestHoldingPct: quick.largestHoldingPct,
+      singleMarketPct: quick.singleMarketPct
+    }
+  };
+}
+
+function runFamilyAssessment(state) {
+  return assessFamily(buildFamilyAssessmentInput(state));
+}
+
 function App() {
   const [state, setState] = useState(() => {
     try {
@@ -9,10 +91,10 @@ function App() {
     } catch (e) {
       console.error('Failed to load state from localStorage:', e);
     }
-    return INITIAL_STATE;
+    return EMPTY_STATE;
   });
 
-  const [activeTab, setActiveTab] = useState('goals');
+  const [activeTab, setActiveTab] = useState('quick');
   const [editingGoal, setEditingGoal] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
@@ -22,6 +104,13 @@ function App() {
   const [showBehaviorBreakdown, setShowBehaviorBreakdown] = useState(false);
   const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
   const [showFullTimeline, setShowFullTimeline] = useState(false);
+  const [marketSnapshot, setMarketSnapshot] = useState({
+    status: 'fallback',
+    asOf: null,
+    valuationAsOf: null,
+    indices: THERMOMETER_INDICES,
+    message: '正在读取仓库内最新缓存数据'
+  });
   const fileInputRef = useRef(null);
 
   const [newAsset, setNewAsset] = useState({
@@ -45,6 +134,51 @@ function App() {
     }
   }, [state]);
 
+  // 只读取同源仓库 JSON；不发送任何家庭或用户数据。
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      fetch('assets.json', { cache: 'no-store' }).then(response => {
+        if (!response.ok) throw new Error('assets.json');
+        return response.json();
+      }),
+      fetch('live_data.json', { cache: 'no-store' }).then(response => {
+        if (!response.ok) throw new Error('live_data.json');
+        return response.json();
+      }),
+      fetch('valuation_history.json', { cache: 'no-store' }).then(response => {
+        if (!response.ok) throw new Error('valuation_history.json');
+        return response.json();
+      })
+    ]).then(([assetConfigs, livePayload, valuationHistory]) => {
+      if (cancelled) return;
+      const indices = buildValuationIndices(valuationHistory, THERMOMETER_INDICES);
+      const valuationDates = indices.map(item => item.valuationAsOf).filter(Boolean).sort();
+      setState(prev => ({
+        ...prev,
+        board: {
+          ...prev.board,
+          assets: buildAssetsFromMarketData(assetConfigs, livePayload, prev.board.assets)
+        }
+      }));
+      setMarketSnapshot({
+        status: livePayload.status === 'success' ? 'current' : 'fallback',
+        asOf: livePayload.timestamp || null,
+        valuationAsOf: valuationDates.at(-1) || null,
+        indices,
+        message: livePayload.status === 'success' ? '已载入仓库最新市场缓存' : '市场缓存状态异常，部分字段使用规划假设'
+      });
+    }).catch(error => {
+      if (cancelled) return;
+      setMarketSnapshot(prev => ({
+        ...prev,
+        status: 'fallback',
+        message: `无法读取本地市场缓存（${error.message}），当前使用内置兜底数据`
+      }));
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   // 派生量化指标计算
   const boardMetrics = useMemo(() => calculateBoardMetrics(state.board), [state.board]);
   const bufferMetrics = useMemo(() => calculateBufferSimulation(state.board), [state.board]);
@@ -55,12 +189,13 @@ function App() {
   const liquidityMetrics = useMemo(() => checkLiquiditySegregation(state.health, state.board.principal), [state.health, state.board.principal]);
   const concentrationMetrics = useMemo(() => checkTripleConcentration(state.board.assets), [state.board.assets]);
   const behaviorMetrics = useMemo(() => calculateBehavioralEquityCeiling(state.behavior, state.board.assets), [state.behavior, state.board.assets]);
+  const familyAssessment = useMemo(() => runFamilyAssessment(state), [state]);
   
   // 温度计指标
   const activeThermometerIndex = useMemo(() => {
     const code = state.thermometer?.selectedIndex || 'H30269';
-    return THERMOMETER_INDICES.find(i => i.code === code) || THERMOMETER_INDICES[0];
-  }, [state.thermometer?.selectedIndex]);
+    return marketSnapshot.indices.find(i => i.code === code) || marketSnapshot.indices[0];
+  }, [state.thermometer?.selectedIndex, marketSnapshot.indices]);
 
   const activePercentile = useMemo(() => {
     if (state.thermometer?.percentileOverrides && state.thermometer.percentileOverrides[activeThermometerIndex.code] !== undefined) {
@@ -72,13 +207,13 @@ function App() {
   const thermometerMetrics = useMemo(() => calculateThermometerSignal(activePercentile), [activePercentile]);
 
   // 多目标资源挤占推演 (P1-5)
-  const totalPrincipalYuan = (state.board.principal || 80) * 10000;
+  const totalPrincipalYuan = (state.board.principal ?? 0) * 10000;
   const multiGoalResult = useMemo(() => {
     return calculateMultiGoalProjections(
       state.goals,
       totalPrincipalYuan,
-      state.health.monthlySurplus || 12000,
-      state.board.growthRate || 6.5,
+      state.health.monthlySurplus ?? 0,
+      state.board.growthRate ?? 6.5,
       0.02
     );
   }, [state.goals, totalPrincipalYuan, state.health.monthlySurplus, state.board.growthRate]);
@@ -119,7 +254,7 @@ function App() {
     });
 
     const flexiblePrincipalAvailable = Math.max(0, totalPrincipalYuan - rigidPrincipalUsed);
-    const flexibleMonthlyAvailable = Math.max(0, (state.health.monthlySurplus || 12000) - rigidMonthlyUsed);
+    const flexibleMonthlyAvailable = Math.max(0, (state.health.monthlySurplus ?? 0) - rigidMonthlyUsed);
     const remainingPrincipal = Math.max(0, flexiblePrincipalAvailable - flexiblePrincipalUsed);
     const remainingMonthly = Math.max(0, flexibleMonthlyAvailable - flexibleMonthlyUsed);
 
@@ -301,11 +436,146 @@ function App() {
     }
   };
 
+  const updateQuick = (field, value) => {
+    setState(prev => ({
+      ...prev,
+      meta: { ...prev.meta, assessmentCompleted: false, isDemo: false },
+      quick: { ...prev.quick, [field]: value }
+    }));
+  };
+
+  const updateHealth = (field, value) => {
+    setState(prev => ({
+      ...prev,
+      meta: { ...prev.meta, assessmentCompleted: false, isDemo: false },
+      health: { ...prev.health, [field]: value }
+    }));
+  };
+
+  const updateAssetBreakdown = (field, value) => {
+    setState(prev => ({
+      ...prev,
+      meta: { ...prev.meta, assessmentCompleted: false, isDemo: false },
+      health: {
+        ...prev.health,
+        assetsBreakdown: { ...prev.health.assetsBreakdown, [field]: value }
+      }
+    }));
+  };
+
+  const updateExpectedExpense = (field, value) => {
+    setState(prev => ({
+      ...prev,
+      meta: { ...prev.meta, assessmentCompleted: false, isDemo: false },
+      health: {
+        ...prev.health,
+        expectedExpenses: { ...prev.health.expectedExpenses, [field]: value }
+      }
+    }));
+  };
+
+  const updateDebt = (field, value) => {
+    setState(prev => ({
+      ...prev,
+      meta: { ...prev.meta, assessmentCompleted: false, isDemo: false },
+      debt: { ...prev.debt, [field]: value }
+    }));
+  };
+
+  const handleTemplateChange = (templateKey) => {
+    const template = HOUSEHOLD_TEMPLATES[templateKey];
+    setState(prev => ({
+      ...prev,
+      meta: { ...prev.meta, assessmentCompleted: false, isDemo: false },
+      quick: {
+        ...prev.quick,
+        ...(template || {}),
+        householdStage: templateKey
+      }
+    }));
+  };
+
+  const handleRunQuickAssessment = () => {
+    const result = runFamilyAssessment(state);
+    if (!result.completeness.isSufficient) {
+      alert(`资料尚不足以生成结论，请补充：${result.completeness.missingLabels.slice(0, 6).join('、')}`);
+      setState(prev => ({
+        ...prev,
+        meta: { ...prev.meta, assessmentCompleted: false, isDemo: false }
+      }));
+      return;
+    }
+    const monthlyNeed = Math.max(0, Number(result.metrics.monthlyNeed || 0));
+    const emergency = Math.max(0, Number(result.investable.reservedForEmergency || 0));
+    const investable = Math.max(0, Number(result.investable.safeUpperBound || 0));
+    setState(prev => ({
+      ...prev,
+      meta: {
+        ...prev.meta,
+        assessmentCompleted: true,
+        isDemo: false,
+        assessedAt: new Date().toISOString()
+      },
+      health: {
+        ...prev.health,
+        monthlyExpense: monthlyNeed,
+        monthlySurplus: Number(result.metrics.monthlySurplus || 0)
+      },
+      board: {
+        ...prev.board,
+        principal: (emergency + investable) / 10000,
+        bufferSeed: emergency / 10000,
+        targetMonthly: Number(prev.health.essentialMonthlyExpense || 0) / 10000
+      }
+    }));
+  };
+
+  const handleLoadDemo = () => {
+    setState(prev => ({
+      ...INITIAL_STATE,
+      board: {
+        ...INITIAL_STATE.board,
+        assets: prev.board.assets
+      }
+    }));
+    setActiveTab('quick');
+  };
+
+  const setBufferCoverageMonths = (months) => {
+    const monthlyNeed = Math.max(0, Number(state.health.essentialMonthlyExpense || 0) + Number(state.debt.monthlyDebtPayment || 0));
+    const targetWan = monthlyNeed * months / 10000;
+    setState(prev => ({
+      ...prev,
+      board: {
+        ...prev.board,
+        bufferSeed: Math.min(Math.max(0, Number(prev.board.principal || 0)), targetWan)
+      }
+    }));
+  };
+
+  const applyBufferScenario = (scenarioId) => {
+    setState(prev => ({
+      ...prev,
+      stress: {
+        ...prev.stress,
+        scenarioType: 'preset',
+        selectedPresetId: scenarioId
+      }
+    }));
+  };
+
   // 重置数据
   const handleResetAll = () => {
-    if (window.confirm("确定要重置所有财务数据并恢复系统演示初始配置吗？此操作无法撤销。")) {
+    if (window.confirm("确定清除本浏览器中的家庭财务数据并返回空白快速体检吗？此操作无法撤销。")) {
       localStorage.removeItem(STORAGE_KEY);
-      setState(INITIAL_STATE);
+      setState(prev => ({
+        ...EMPTY_STATE,
+        board: {
+          ...EMPTY_STATE.board,
+          assets: prev.board.assets
+        }
+      }));
+      setActiveTab('quick');
     }
   };
 
@@ -374,16 +644,19 @@ function App() {
       alert("请输入目标名称！");
       return;
     }
+    const goalToSave = editingGoal.linkTo1To3y
+      ? { ...editingGoal, reservedAmount: state.health.expectedExpenses?.expense1To3y ?? 0 }
+      : editingGoal;
     const exists = state.goals.some(g => g.id === editingGoal.id);
     if (exists) {
       setState({
         ...state,
-        goals: state.goals.map(g => g.id === editingGoal.id ? editingGoal : g)
+        goals: state.goals.map(g => g.id === editingGoal.id ? goalToSave : g)
       });
     } else {
       setState({
         ...state,
-        goals: [editingGoal, ...state.goals]
+        goals: [goalToSave, ...state.goals]
       });
     }
     setIsModalOpen(false);
@@ -459,6 +732,9 @@ function App() {
           </div>
 
           <div className="nav-tabs">
+            <button className={`nav-tab-btn ${activeTab === 'quick' ? 'active' : ''}`} onClick={() => setActiveTab('quick')}>
+              🧭 家庭快速体检
+            </button>
             <button className={`nav-tab-btn ${activeTab === 'goals' ? 'active' : ''}`} onClick={() => setActiveTab('goals')}>
               🎯 目标规划 <span className="tag tag-blue" style={{ marginLeft: 4 }}>{state.goals.length}</span>
             </button>
@@ -508,7 +784,7 @@ function App() {
             <button className="btn btn-outline btn-sm" onClick={handleSaveSnapshot} title="保存当前快照到本地历史">
               📸 快照
             </button>
-            <button className="btn btn-outline btn-sm" onClick={handleResetAll} title="重置回初始示范数据">
+            <button className="btn btn-outline btn-sm" onClick={handleResetAll} title="清除本地数据并返回空白体检">
               🔄 重置
             </button>
           </div>
@@ -516,7 +792,7 @@ function App() {
       </header>
 
       {/* P0-6: 资产配置权重总和异常置顶报警条 */}
-      {!boardMetrics.isWeightValid && (
+      {state.meta?.assessmentCompleted && !boardMetrics.isWeightValid && (
         <div style={{
           background: 'rgba(234, 88, 12, 0.95)',
           color: '#FFF',
@@ -548,7 +824,7 @@ function App() {
       )}
 
       {/* 流动性硬隔离超限警告条 (持久置顶) */}
-      {liquidityMetrics.isViolated && (
+      {state.meta?.assessmentCompleted && liquidityMetrics.isViolated && (
         <div style={{
           background: 'rgba(239, 68, 68, 0.92)',
           color: '#FFF',
@@ -580,6 +856,179 @@ function App() {
       )}
 
       <main className="container">
+        {/* 首次入口：3 分钟家庭快速体检。未完成前不展示投资结论。 */}
+        {activeTab === 'quick' && (
+          <div>
+            <div className="card" style={{ borderColor: 'rgba(56, 189, 248, 0.35)' }}>
+              <div className="card-header">
+                <div>
+                  <div className="card-title">🧭 3分钟家庭快速体检</div>
+                  <div style={{ color: '#94A3B8', fontSize: '0.82rem', marginTop: 6 }}>
+                    先判断家庭安全边界，再讨论资产配置。所有填写内容仅保存在当前浏览器，不上传任何服务端。
+                  </div>
+                </div>
+                <button className="btn btn-outline btn-sm" onClick={handleLoadDemo}>查看示例演示</button>
+              </div>
+
+              {state.meta?.isDemo && (
+                <div style={{ padding: '10px 12px', marginBottom: 16, borderRadius: 8, background: 'rgba(245, 158, 11, 0.12)', color: '#FBBF24', fontSize: '0.82rem' }}>
+                  当前为示例家庭数据，仅用于了解流程；点击“重置”可返回空白体检。
+                </div>
+              )}
+
+              <div className="grid-3">
+                <div className="form-group">
+                  <label className="form-label">家庭类型模板</label>
+                  <select className="input-control" value={state.quick.householdStage || ''} onChange={e => handleTemplateChange(e.target.value)}>
+                    <option value="">请选择家庭类型</option>
+                    <option value="young_single">年轻单身 / 积累期</option>
+                    <option value="dual_children">双薪育儿 / 有房贷</option>
+                    <option value="single_dependents">单薪 / 多赡养责任</option>
+                    <option value="self_employed">自由职业 / 收入波动</option>
+                    <option value="home_purchase">三年内买房或换房</option>
+                    <option value="near_retirement">临近退休</option>
+                    <option value="retired">已退休</option>
+                    <option value="concentrated_assets">房产或经营资产集中</option>
+                    <option value="debt_stressed">高负债 / 现金流承压</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">主要决策者年龄</label>
+                  <input className="input-control" type="number" min="18" max="100" value={state.quick.primaryAge ?? ''} onChange={e => updateQuick('primaryAge', e.target.value === '' ? null : Number(e.target.value))} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">收入来源</label>
+                  <select className="input-control" value={state.quick.incomeSourceType || ''} onChange={e => updateQuick('incomeSourceType', e.target.value)}>
+                    <option value="">请选择</option>
+                    <option value="single_salary">单一工资</option>
+                    <option value="dual_salary">双薪</option>
+                    <option value="multiple">多元收入</option>
+                    <option value="self_employed">自雇 / 经营</option>
+                    <option value="pension">养老金</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid-4">
+                <div className="form-group">
+                  <label className="form-label">成年人 / 子女 / 赡养老人</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                    <input title="成年人" className="input-control" type="number" min="0" value={state.quick.adults ?? ''} onChange={e => updateQuick('adults', e.target.value === '' ? null : Number(e.target.value))} />
+                    <input title="子女" className="input-control" type="number" min="0" value={state.quick.children ?? ''} onChange={e => updateQuick('children', e.target.value === '' ? null : Number(e.target.value))} />
+                    <input title="赡养老人" className="input-control" type="number" min="0" value={state.quick.elderlyDependents ?? ''} onChange={e => updateQuick('elderlyDependents', e.target.value === '' ? null : Number(e.target.value))} />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">收入稳定性</label>
+                  <select className="input-control" value={state.quick.incomeStability || ''} onChange={e => updateQuick('incomeStability', e.target.value)}>
+                    <option value="">请选择</option><option value="stable">稳定</option><option value="variable">有波动</option><option value="volatile">波动较大</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">税后月收入（元）</label>
+                  <input className="input-control" type="number" min="0" step="1000" value={state.health.monthlyIncome ?? 0} onChange={e => updateHealth('monthlyIncome', Number(e.target.value))} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">月必要支出（元，不含还贷）</label>
+                  <input className="input-control" type="number" min="0" step="1000" value={state.health.essentialMonthlyExpense ?? 0} onChange={e => updateHealth('essentialMonthlyExpense', Number(e.target.value))} />
+                </div>
+              </div>
+
+              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#38BDF8', margin: '8px 0 12px' }}>家庭资产、负债与近期用钱</div>
+              <div className="grid-4">
+                <div className="form-group"><label className="form-label">活期现金（元）</label><input className="input-control" type="number" min="0" step="10000" value={state.health.assetsBreakdown.cashCurrent ?? 0} onChange={e => updateAssetBreakdown('cashCurrent', Number(e.target.value))} /></div>
+                <div className="form-group"><label className="form-label">货基 / 短债（元）</label><input className="input-control" type="number" min="0" step="10000" value={state.health.assetsBreakdown.cashShortDebt ?? 0} onChange={e => updateAssetBreakdown('cashShortDebt', Number(e.target.value))} /></div>
+                <div className="form-group"><label className="form-label">中低波动债券资产（元）</label><input className="input-control" type="number" min="0" step="10000" value={state.health.assetsBreakdown.bondAssets ?? 0} onChange={e => updateAssetBreakdown('bondAssets', Number(e.target.value))} /></div>
+                <div className="form-group"><label className="form-label">股票 / 权益资产（元）</label><input className="input-control" type="number" min="0" step="10000" value={state.health.assetsBreakdown.equityAssets ?? 0} onChange={e => updateAssetBreakdown('equityAssets', Number(e.target.value))} /></div>
+                <div className="form-group"><label className="form-label">黄金资产（元）</label><input className="input-control" type="number" min="0" step="10000" value={state.health.assetsBreakdown.goldAssets ?? 0} onChange={e => updateAssetBreakdown('goldAssets', Number(e.target.value))} /></div>
+                <div className="form-group"><label className="form-label">房产估值（元）</label><input className="input-control" type="number" min="0" step="100000" value={state.property.totalEstimatedValue ?? 0} onChange={e => setState(prev => ({ ...prev, meta: { ...prev.meta, assessmentCompleted: false, isDemo: false }, property: { ...prev.property, totalEstimatedValue: Number(e.target.value) }, health: { ...prev.health, assetsBreakdown: { ...prev.health.assetsBreakdown, propertyEstimated: Number(e.target.value) } } }))} /></div>
+                <div className="form-group"><label className="form-label">经营资产（元）</label><input className="input-control" type="number" min="0" step="10000" value={state.quick.businessAssets ?? 0} onChange={e => updateQuick('businessAssets', Number(e.target.value))} /></div>
+                <div className="form-group"><label className="form-label">综合负债余额（元）</label><input className="input-control" type="number" min="0" step="10000" value={state.quick.totalDebt ?? 0} onChange={e => updateQuick('totalDebt', Number(e.target.value))} /></div>
+                <div className="form-group"><label className="form-label">每月还贷（元）</label><input className="input-control" type="number" min="0" step="500" value={state.debt.monthlyDebtPayment ?? 0} onChange={e => updateDebt('monthlyDebtPayment', Number(e.target.value))} /></div>
+                <div className="form-group"><label className="form-label">高息负债余额（元）</label><input className="input-control" type="number" min="0" step="5000" value={state.debt.highInterestDebtBalance ?? 0} onChange={e => updateDebt('highInterestDebtBalance', Number(e.target.value))} /></div>
+                <div className="form-group"><label className="form-label">最高负债年利率（%）</label><input className="input-control" type="number" min="0" max="50" step="0.1" value={state.quick.highestDebtRate ?? ''} onChange={e => updateQuick('highestDebtRate', e.target.value === '' ? null : Number(e.target.value))} /></div>
+                <div className="form-group"><label className="form-label">1 年内确定支出（元）</label><input className="input-control" type="number" min="0" step="10000" value={state.health.expectedExpenses.expense1y ?? 0} onChange={e => updateExpectedExpense('expense1y', Number(e.target.value))} /></div>
+                <div className="form-group"><label className="form-label">1–3 年确定支出（元）</label><input className="input-control" type="number" min="0" step="10000" value={state.health.expectedExpenses.expense1To3y ?? 0} onChange={e => updateExpectedExpense('expense1To3y', Number(e.target.value))} /></div>
+              </div>
+
+              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#38BDF8', margin: '8px 0 12px' }}>保障与风险边界</div>
+              <div className="grid-4">
+                <div className="form-group"><label className="form-label">基础医疗保障</label><select className="input-control" value={state.quick.basicMedicalCovered === null ? '' : String(state.quick.basicMedicalCovered)} onChange={e => updateQuick('basicMedicalCovered', e.target.value === '' ? null : e.target.value === 'true')}><option value="">请选择</option><option value="true">已覆盖</option><option value="false">尚未覆盖 / 不确定</option></select></div>
+                <div className="form-group"><label className="form-label">长期投资期限（年）</label><input className="input-control" type="number" min="0" max="50" value={state.quick.investmentHorizonYears ?? ''} onChange={e => updateQuick('investmentHorizonYears', e.target.value === '' ? null : Number(e.target.value))} /></div>
+                <div className="form-group"><label className="form-label">最大可接受账面亏损（%）</label><input className="input-control" type="number" min="0" max="80" value={state.quick.maxAcceptableLossPct ?? ''} onChange={e => updateQuick('maxAcceptableLossPct', e.target.value === '' ? null : Number(e.target.value))} /></div>
+                <div className="form-group"><label className="form-label">市场下跌时的反应</label><select className="input-control" value={state.quick.marketDropReaction || ''} onChange={e => updateQuick('marketDropReaction', e.target.value)}><option value="">请选择</option><option value="panic_sell">立即卖出</option><option value="reduce">降低仓位</option><option value="hold">按计划持有</option><option value="add">按纪律分批增加</option></select></div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 6 }}>
+                <div style={{ fontSize: '0.78rem', color: '#94A3B8' }}>
+                  资料完整度：{familyAssessment.completeness.score}% · 合法的 0 会被保留，不会替换为演示值。
+                </div>
+                <button className="btn btn-primary" onClick={handleRunQuickAssessment}>生成家庭评估</button>
+              </div>
+            </div>
+
+            {!state.meta?.assessmentCompleted && (
+              <div className="card" style={{ textAlign: 'center', color: '#94A3B8', padding: 30 }}>
+                完成上方资料并点击“生成家庭评估”后，才会显示家庭画像、风险边界、可投资上限与配置区间。
+              </div>
+            )}
+
+            {state.meta?.assessmentCompleted && (
+              <div>
+                <div className="grid-4" style={{ marginBottom: 20 }}>
+                  <div className="metric-card"><div className="metric-label">家庭画像</div><div className="metric-val" style={{ fontSize: '1.1rem' }}>{familyAssessment.profile.title}</div><div className="metric-sub">生命周期：{familyAssessment.lifecycle.title}</div></div>
+                  <div className="metric-card"><div className="metric-label">资料完整度</div><div className="metric-val">{familyAssessment.completeness.score}%</div><div className="metric-sub">{familyAssessment.completeness.isSufficient ? '已达到评估要求' : '仍需补充资料'}</div></div>
+                  <div className="metric-card"><div className="metric-label">安全可投资上限</div><div className="metric-val" style={{ color: '#34D399' }}>{familyAssessment.investable.safeUpperBound === null ? '待补充' : `¥${familyAssessment.investable.safeUpperBound.toLocaleString()}`}</div><div className="metric-sub">已先扣除应急金、近期支出和高息负债</div></div>
+                  <div className="metric-card"><div className="metric-label">最终风险上限</div><div className="metric-val" style={{ color: '#38BDF8' }}>{familyAssessment.risk.finalLabel}</div><div className="metric-sub">能力 / 意愿 / 暴露适配度三维最低值</div></div>
+                </div>
+
+                {familyAssessment.redLines.length > 0 && (
+                  <div className="card" style={{ borderColor: 'rgba(239,68,68,.45)' }}>
+                    <div className="card-title" style={{ color: '#F87171', marginBottom: 12 }}>🚨 先处理的家庭财务红线</div>
+                    {familyAssessment.redLines.map(item => <div key={item.code} style={{ margin: '7px 0' }}>• {item.title}</div>)}
+                    <div style={{ color: '#FBBF24', fontSize: '0.8rem', marginTop: 10 }}>红线未解除前，进攻型资产配置上限自动收紧。</div>
+                  </div>
+                )}
+
+                <div className="grid-2">
+                  <div className="card">
+                    <div className="card-title" style={{ marginBottom: 14 }}>前三项行动</div>
+                    {familyAssessment.topActions.map((action, index) => (
+                      <div key={action.code} style={{ padding: '12px 0', borderBottom: index < familyAssessment.topActions.length - 1 ? '1px solid rgba(255,255,255,.06)' : 'none' }}>
+                        <div style={{ fontWeight: 700 }}>{index + 1}. {action.title}</div>
+                        <div style={{ color: '#94A3B8', fontSize: '0.8rem', marginTop: 4 }}>{action.detail}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="card">
+                    <div className="card-title" style={{ marginBottom: 14 }}>建议配置区间</div>
+                    {familyAssessment.allocationRanges ? ['safety', 'stable', 'growth', 'hedge'].map(key => {
+                      const range = familyAssessment.allocationRanges[key];
+                      return <div key={key} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}><span>{range.label}</span><strong>{range.min}%–{range.max}%</strong></div>;
+                    }) : <div style={{ color: '#94A3B8' }}>资料不足，暂不生成配置区间。</div>}
+                    <div style={{ color: '#94A3B8', fontSize: '0.76rem', marginTop: 12 }}>{familyAssessment.allocationRanges?.note}</div>
+                  </div>
+                </div>
+
+                <div className="card">
+                  <div className="card-title" style={{ marginBottom: 12 }}>风险三维与压力提示</div>
+                  <div className="grid-4">
+                    <div className="metric-card"><div className="metric-label">风险能力</div><div className="metric-val">{familyAssessment.risk.capacity.label}</div></div>
+                    <div className="metric-card"><div className="metric-label">风险意愿</div><div className="metric-val">{familyAssessment.risk.willingness.label}</div></div>
+                    <div className="metric-card"><div className="metric-label">实际暴露适配度</div><div className="metric-val">{familyAssessment.risk.actualExposure.label}</div></div>
+                    <div className="metric-card"><div className="metric-label">收入冲击后覆盖</div><div className="metric-val">{familyAssessment.stress.stressedCoverageMonths ?? '待补充'}{familyAssessment.stress.stressedCoverageMonths !== null ? ' 月' : ''}</div></div>
+                  </div>
+                  <div style={{ color: '#CBD5E1', fontSize: '0.82rem', marginTop: 14 }}>{familyAssessment.stress.message}</div>
+                  <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+                    <button className="btn btn-primary" onClick={() => setActiveTab('health')}>继续完善资产体检</button>
+                    <button className="btn btn-outline" onClick={() => setActiveTab('goals')}>进入目标规划</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* TAB 1: 🎯 目标导向规划 (含多目标资源挤占模型 P1-5) */}
         {activeTab === 'goals' && (
           <div>
@@ -787,7 +1236,7 @@ function App() {
                         </div>
                         <div className="grid-3" style={{ fontSize: '0.8rem' }}>
                           <div>退休期初推演本金: <strong>¥{Math.round(proj.fvTotal).toLocaleString()}</strong></div>
-                          <div>退休后月生活费: <strong>¥{Number(goal.retireConfig?.retireMonthlyExpense || 12000).toLocaleString()}/月</strong></div>
+                          <div>退休后月生活费: <strong>¥{Number(goal.retireConfig?.retireMonthlyExpense ?? 0).toLocaleString()}/月</strong></div>
                           <div>
                             最脆弱月份: <strong>第 {fireSim.mostFragileMonth} 个月</strong> (约 {fireSim.mostFragileAge} 岁, 水位: ¥{Math.round(fireSim.lowestCapital).toLocaleString()})
                           </div>
@@ -1500,9 +1949,9 @@ function App() {
                   <input 
                     type="number" 
                     className="input-control" 
-                    value={state.debt.remainingYears || 15} 
+                    value={state.debt.remainingYears ?? 0}
                     min="1" max="35"
-                    onChange={e => setState({ ...state, debt: { ...state.debt, remainingYears: parseInt(e.target.value) || 15 } })}
+                    onChange={e => setState({ ...state, debt: { ...state.debt, remainingYears: Number(e.target.value) || 0 } })}
                   />
                 </div>
               </div>
@@ -1577,9 +2026,9 @@ function App() {
                   <input 
                     type="number" 
                     className="input-control" 
-                    value={state.health.expectedExpenses?.expense1To3y ?? 150000} 
+                    value={state.health.expectedExpenses?.expense1To3y ?? 0}
                     step="10000"
-                    onChange={e => setState({ ...state, health: { ...state.health, bucket1To3y: parseFloat(e.target.value) || 0, expectedExpenses: { ...state.health.expectedExpenses, expense1To3y: parseFloat(e.target.value) || 0 } } })}
+                    onChange={e => setState({ ...state, health: { ...state.health, expectedExpenses: { ...state.health.expectedExpenses, expense1To3y: Number(e.target.value) || 0 } } })}
                   />
                 </div>
                 <div className="form-group">
@@ -1979,6 +2428,29 @@ function App() {
         {/* TAB 4: ⏱️ 缓冲池与复合压力测试 (失业模型 P0-1 & 历史回放 P0-2 & 4情景联测 P2-5) */}
         {activeTab === 'buffer' && (
           <div>
+            <div className="card" style={{ borderColor: 'rgba(56,189,248,.35)' }}>
+              <div className="card-title" style={{ marginBottom: 12 }}>只需按 3 步完成缓冲池设置</div>
+              <div className="grid-3">
+                <div className="guide-step">
+                  <strong>1. 先确认家庭底数</strong>
+                  <div style={{ color: '#94A3B8', fontSize: '0.8rem', marginTop: 6 }}>月必要支出 ¥{Number(state.health.essentialMonthlyExpense || 0).toLocaleString()} + 月还贷 ¥{Number(state.debt.monthlyDebtPayment || 0).toLocaleString()}。不准确时先回到快速体检修改。</div>
+                  <button className="btn btn-outline btn-sm" style={{ marginTop: 10 }} onClick={() => setActiveTab('quick')}>返回核对底数</button>
+                </div>
+                <div className="guide-step">
+                  <strong>2. 选择覆盖月数</strong>
+                  <div style={{ color: '#94A3B8', fontSize: '0.8rem', margin: '6px 0 10px' }}>稳定双薪通常 6–9 个月；单薪、自雇、临退家庭优先 12 个月。</div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {[6, 9, 12].map(months => <button key={months} className="btn btn-outline btn-sm" onClick={() => setBufferCoverageMonths(months)}>{months} 个月</button>)}
+                  </div>
+                </div>
+                <div className="guide-step">
+                  <strong>3. 先跑标准情景</strong>
+                  <div style={{ color: '#94A3B8', fontSize: '0.8rem', margin: '6px 0 10px' }}>先看标准复合情景是否枯竭；只有需要复盘原因时，再展开高级参数或历史回放。</div>
+                  <button className="btn btn-primary btn-sm" onClick={() => applyBufferScenario('standard')}>使用标准压力情景</button>
+                </div>
+              </div>
+            </div>
+
             {/* 常规基准平滑指标 */}
             <div className="grid-3" style={{ marginBottom: '20px' }}>
               <div className="metric-card">
@@ -2096,6 +2568,8 @@ function App() {
                 </table>
               </div>
 
+              <details style={{ marginBottom: 18 }}>
+                <summary style={{ cursor: 'pointer', color: '#38BDF8', fontWeight: 700, marginBottom: 12 }}>高级参数：仅在复盘压力来源时调整</summary>
               {/* 情景详细交互与失业模型参数 (P0-1) */}
               <div style={{ background: 'rgba(0,0,0,0.25)', padding: '14px', borderRadius: '10px', marginBottom: '18px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
@@ -2170,6 +2644,7 @@ function App() {
                   </div>
                 )}
               </div>
+              </details>
 
               {/* 36 个月全量推演流水表格 (P0-1 & P2-5) */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -2177,7 +2652,7 @@ function App() {
                   📅 逐月资金流水推演表 ({showFullTimeline ? '展示全部 36 个月' : '展示前 12 个月'})
                 </div>
                 <button className="btn btn-outline btn-sm" onClick={() => setShowFullTimeline(!showFullTimeline)}>
-                  {showFullTimeline ? '仅显示前 12 个月' : '展开显示全部 36 个月'}
+                  {showFullTimeline ? '收起完整诊断指标' : '查看完整诊断指标（36个月）'}
                 </button>
               </div>
 
@@ -2244,7 +2719,9 @@ function App() {
                     {activeThermometerIndex.name}：{thermometerMetrics.tier.label} ({thermometerMetrics.percentile}%)
                   </span>
                 </div>
-                <span className="tag tag-blue">数据来源：本地基准缓存</span>
+                <span className={`tag ${marketSnapshot.status === 'current' ? 'tag-green' : 'tag-yellow'}`}>
+                  {marketSnapshot.message}{marketSnapshot.valuationAsOf ? ` · 估值截至 ${marketSnapshot.valuationAsOf}` : ''}
+                </span>
               </div>
 
               {/* 10大指数选择器与滑块 */}
@@ -2256,15 +2733,22 @@ function App() {
                     value={state.thermometer?.selectedIndex || 'H30269'}
                     onChange={e => setState({ ...state, thermometer: { ...(state.thermometer || {}), selectedIndex: e.target.value } })}
                   >
-                    {THERMOMETER_INDICES.map(idx => (
+                    {marketSnapshot.indices.map(idx => (
                       <option key={idx.code} value={idx.code}>
                         {idx.name} ({idx.code}) - {idx.metricName}
                       </option>
                     ))}
                   </select>
                   <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '4px' }}>
-                    PE: {activeThermometerIndex.pe} | 股息率: {activeThermometerIndex.dividendYield}% | {activeThermometerIndex.desc}
+                    PE: {activeThermometerIndex.pe ?? '—'} | PB: {activeThermometerIndex.pb ?? '—'} | 股息率: {activeThermometerIndex.dividendYield ?? '—'}%
+                    {' · '}PE分位: {activeThermometerIndex.pePercentile ?? '—'}% | PB分位: {activeThermometerIndex.pbPercentile ?? '—'}%
+                    {' · '}{activeThermometerIndex.desc}
                   </div>
+                  {activeThermometerIndex.isStale && (
+                    <div style={{ fontSize: '0.75rem', color: '#FBBF24', marginTop: 6 }}>
+                      ⚠️ 估值缓存已滞后 {activeThermometerIndex.staleDays} 天：保留 PE/PB 展示，但默认百分位回到 50%，不据此放大或缩小定投。
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-group">
@@ -2307,8 +2791,8 @@ function App() {
                     📢 当前状态操作纪律：{thermometerMetrics.tier.label}（定投步长放大系数: {thermometerMetrics.dcaMultiplier || thermometerMetrics.dcaFactor || 1.0}x）
                   </div>
                   {thermometerMetrics.isDeepLow && (
-                    <span className={`tag ${(bufferMetrics?.minBuffer ?? 0) >= 6 * (state.health?.essentialMonthlyExpense || 12000) ? 'tag-green' : 'tag-yellow'}`}>
-                      {(bufferMetrics?.minBuffer ?? 0) >= 6 * (state.health?.essentialMonthlyExpense || 12000) ? '✅ 缓冲池超额充裕，允许大额加仓' : '⚠️ 缓冲池储备偏紧，禁止大额抽水！'}
+                    <span className={`tag ${(bufferMetrics?.minBuffer ?? 0) >= 6 * (state.health?.essentialMonthlyExpense ?? 0) ? 'tag-green' : 'tag-yellow'}`}>
+                      {(bufferMetrics?.minBuffer ?? 0) >= 6 * (state.health?.essentialMonthlyExpense ?? 0) ? '✅ 缓冲池超额充裕，允许大额加仓' : '⚠️ 缓冲池储备偏紧，禁止大额抽水！'}
                     </span>
                   )}
                 </div>
@@ -2343,7 +2827,7 @@ function App() {
                     {Object.entries(state.board?.assets || {}).map(([code, asset]) => {
                       const holding = state.thermometer?.userHoldings?.[code] ?? 10.0;
                       const targetIdxCode = asset.targetIndexCode || 'H30269';
-                      const idxObj = THERMOMETER_INDICES.find(i => i.code === targetIdxCode) || THERMOMETER_INDICES[0];
+                      const idxObj = marketSnapshot.indices.find(i => i.code === targetIdxCode) || marketSnapshot.indices[0];
                       const idxPercentile = (state.thermometer?.percentileOverrides && state.thermometer.percentileOverrides[targetIdxCode] !== undefined) 
                         ? state.thermometer.percentileOverrides[targetIdxCode] 
                         : idxObj.defaultPercentile;
@@ -2468,6 +2952,14 @@ function App() {
         {/* TAB 6: 📋 体检报告导出 */}
         {activeTab === 'report' && (
           <div>
+            {!state.meta?.assessmentCompleted && (
+              <div className="card" style={{ textAlign: 'center', padding: 36 }}>
+                <div className="card-title" style={{ justifyContent: 'center', marginBottom: 10 }}>报告尚未生成</div>
+                <div style={{ color: '#94A3B8', marginBottom: 18 }}>请先完成家庭快速体检。资料不完整时系统不会输出看似精确的绿色结论。</div>
+                <button className="btn btn-primary" onClick={() => setActiveTab('quick')}>返回快速体检</button>
+              </div>
+            )}
+            {state.meta?.assessmentCompleted && (
             <div className="card">
               <div className="card-header">
                 <div className="card-title">
@@ -2509,6 +3001,7 @@ function App() {
                 </pre>
               </div>
             </div>
+            )}
           </div>
         )}
       </main>
@@ -2587,7 +3080,7 @@ function App() {
                 <input 
                   type="number" 
                   className="input-control" 
-                  value={editingGoal.linkTo1To3y ? (state.health.bucket1To3y || 0) : (editingGoal.reservedAmount || 0)}
+                  value={editingGoal.linkTo1To3y ? (state.health.expectedExpenses?.expense1To3y ?? 0) : (editingGoal.reservedAmount ?? 0)}
                   disabled={editingGoal.linkTo1To3y}
                   onChange={e => setEditingGoal({ ...editingGoal, reservedAmount: parseFloat(e.target.value) || 0 })}
                 />
@@ -2598,7 +3091,7 @@ function App() {
                       checked={editingGoal.linkTo1To3y}
                       onChange={e => setEditingGoal({ ...editingGoal, linkTo1To3y: e.target.checked })}
                     />
-                    一键关联体检“未来 1-3 年确定要用的钱” (¥{(state.health.bucket1To3y || 0).toLocaleString()} 元)
+                    一键关联体检“未来 1-3 年确定要用的钱” (¥{(state.health.expectedExpenses?.expense1To3y ?? 0).toLocaleString()} 元)
                   </label>
                 </div>
               </div>
@@ -2639,11 +3132,11 @@ function App() {
                       <input 
                         type="number" 
                         className="input-control" 
-                        value={editingGoal.retireConfig?.retireMonthlyExpense || 12000}
+                        value={editingGoal.retireConfig?.retireMonthlyExpense ?? 0}
                         step="1000"
                         onChange={e => setEditingGoal({
                           ...editingGoal,
-                          retireConfig: { ...editingGoal.retireConfig, retireMonthlyExpense: parseFloat(e.target.value) || 12000 }
+                          retireConfig: { ...editingGoal.retireConfig, retireMonthlyExpense: Number(e.target.value) || 0 }
                         })}
                       />
                     </div>

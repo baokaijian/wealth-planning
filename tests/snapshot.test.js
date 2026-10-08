@@ -13,10 +13,11 @@ test('恶意快照字符串仅作为数据保留，不产生可执行渲染结�
 });
 
 test('快照比较渲染不把外部字段拼入innerHTML', () => {
-  const source = fs.readFileSync(require.resolve('../index.html'), 'utf8');
-  const body = source.slice(source.indexOf('function renderSnapshotComparison'), source.indexOf('function setFamilyBucketUI'));
-  assert.equal(body.includes('innerHTML'), false);
-  assert.match(body, /textContent/);
+  const source = fs.readFileSync(require.resolve('../scripts/app_jsx.js'), 'utf8');
+  assert.equal(source.includes('dangerouslySetInnerHTML'), false);
+  assert.equal(source.includes('.innerHTML'), false);
+  assert.match(source, /JSON\.parse\(event\.target\.result\)/);
+  assert.match(source, /setState\(migrated\)/);
 });
 
 test('version 1 只读迁移，未知结构返回明确错误', () => {

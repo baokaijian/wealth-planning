@@ -97,3 +97,30 @@ test('新增风险溢价观察位缺少估值历史时保持1.0x且不生成高�
   assert.equal(offshoreGrowth.factor, 1);
   assert.match(offshoreGrowth.tips, /汇率、QDII 溢价与跟踪误差/);
 });
+
+test('极低风险意愿不会因现金充足被分类为成长型家庭', () => {
+  const fd = {
+    'f-monthly-income': 30000,
+    'debt-high-interest': 0,
+    'ast-cash': 100000,
+    'ast-mmf': 100000,
+    'ast-house': 0,
+    'ast-gold': 0,
+    'ast-insurance': 0,
+    'ast-ashare': 400000,
+    'ast-hk': 200000,
+    'ast-overseas': 200000,
+    'ast-others': 0,
+    'f-fixed-expense': 10000,
+    'f-essential-expense': 8000,
+    'debt-monthly-repay': 0,
+    'protect-coverage': 'adequate'
+  };
+  const result = engine.evaluateFamilyProfile(
+    fd, 1000000, 1000000, 1000000,
+    0, 0, 0.4, 12, [], 5
+  );
+
+  assert.notEqual(result.profileKey, 'stable');
+  assert.ok(result.longterm <= 55);
+});

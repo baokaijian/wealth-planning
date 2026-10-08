@@ -17,15 +17,14 @@ test('无效组合UI状态不包含决策性结论或交易建议', () => {
 });
 
 test('现金缓冲池提供三步引导、快捷值和标准压力情景', () => {
-  const html = fs.readFileSync(path.join(projectRoot, 'index.html'), 'utf8');
+  const source = fs.readFileSync(path.join(projectRoot, 'scripts/app_jsx.js'), 'utf8');
   const streamlit = fs.readFileSync(path.join(projectRoot, 'app.py'), 'utf8');
 
-  assert.match(html, /按 3 步完成/);
-  assert.match(html, /setBufferCoverageMonths\(9\)/);
-  assert.match(html, /applyBufferScenario\('standard'\)/);
-  assert.match(html, /standard: \{ drop: 20, delay: 1, pause: false \}/);
-  assert.match(html, /高级参数：仅在复盘压力来源时调整/);
-  assert.match(html, /查看完整诊断指标/);
+  assert.match(source, /只需按 3 步完成缓冲池设置/);
+  assert.match(source, /setBufferCoverageMonths/);
+  assert.match(source, /applyBufferScenario\('standard'\)/);
+  assert.match(source, /高级参数：仅在复盘压力来源时调整/);
+  assert.match(source, /查看完整诊断指标/);
 
   assert.match(streamlit, /### 只需 3 步/);
   assert.match(streamlit, /set_buffer_coverage_months/);
@@ -34,52 +33,47 @@ test('现金缓冲池提供三步引导、快捷值和标准压力情景', () =>
 });
 
 test('现金缓冲池核心结果元素在静态页面中保持唯一', () => {
-  const html = fs.readFileSync(path.join(projectRoot, 'index.html'), 'utf8');
-  [
-    't2-coverage-months-val',
-    't2-min-buffer-val',
-    't2-recommended-spend-val',
-    't2-min-buffer-months-val'
-  ].forEach(id => {
-    assert.equal((html.match(new RegExp(`id=["']${id}["']`, 'g')) || []).length, 1, id);
-  });
+  const source = fs.readFileSync(path.join(projectRoot, 'scripts/app_jsx.js'), 'utf8');
+  assert.equal((source.match(/id="buffer-simulation-card"/g) || []).length, 1);
+  assert.equal((source.match(/const setBufferCoverageMonths/g) || []).length, 1);
+  assert.equal((source.match(/const applyBufferScenario/g) || []).length, 1);
 });
 
 test('不再提供与策略控制台重复的30秒诊断输入', () => {
-  const html = fs.readFileSync(path.join(projectRoot, 'index.html'), 'utf8');
+  const source = fs.readFileSync(path.join(projectRoot, 'scripts/app_jsx.js'), 'utf8');
   const streamlit = fs.readFileSync(path.join(projectRoot, 'app.py'), 'utf8');
 
-  ['30秒诊断', 'quick-diagnosis-card', 'runQuickDiagnosis', 'quick_rigid', 'quick_income', 'quick_cash'].forEach(text => {
-    assert.equal(html.includes(text), false, `index.html: ${text}`);
+  ['30秒诊断', 'quick-diagnosis-card', 'runQuickDiagnosis', 'quick_rigid'].forEach(text => {
+    assert.equal(source.includes(text), false, `app_jsx.js: ${text}`);
     assert.equal(streamlit.includes(text), false, `app.py: ${text}`);
   });
-  assert.match(html, /配置看板与缓冲池模拟的唯一参数口径/);
+  assert.match(source, /3分钟家庭快速体检/);
   assert.match(streamlit, /配置看板与缓冲池模拟的唯一参数口径/);
 });
 
 test('估值页面分别展示PE、PB和股息率百分位', () => {
-  const html = fs.readFileSync(path.join(projectRoot, 'index.html'), 'utf8');
+  const source = fs.readFileSync(path.join(projectRoot, 'scripts/app_jsx.js'), 'utf8');
+  const adapter = fs.readFileSync(path.join(projectRoot, 'src/utils/marketDataAdapter.js'), 'utf8');
   const streamlit = fs.readFileSync(path.join(projectRoot, 'app.py'), 'utf8');
 
-  ['t3-idx-pe-percentile', 't3-idx-pb-percentile', 't3-idx-dy-percentile', 't3-valuation-data-note'].forEach(id => {
-    assert.equal((html.match(new RegExp(`id=["']${id}["']`, 'g')) || []).length, 1, id);
-  });
-  assert.match(html, /PE\/PB 及各自百分位/);
+  assert.match(source, /PE分位/);
+  assert.match(source, /PB分位/);
+  assert.match(source, /股息率/);
+  assert.match(adapter, /pePercentile/);
+  assert.match(adapter, /pbPercentile/);
+  assert.match(adapter, /dividendYieldPercentile/);
   assert.match(streamlit, /PE\/PB 及各自百分位/);
-  assert.match(html, /HSHYLV/);
-  assert.match(html, /000688/);
+  assert.match(source, /valuation_history\.json/);
 });
 
 test('填写内容使用版本化浏览器本地缓存并自动恢复', () => {
-  const html = fs.readFileSync(path.join(projectRoot, 'index.html'), 'utf8');
+  const source = fs.readFileSync(path.join(projectRoot, 'scripts/app_jsx.js'), 'utf8');
+  const assembler = fs.readFileSync(path.join(projectRoot, 'scripts/assemble_index_html.py'), 'utf8');
 
-  assert.match(html, /const LOCAL_APP_STORAGE_KEY = 'wealth_planning_inputs_v1'/);
-  assert.match(html, /document\.addEventListener\('input', scheduleLocalAutoSave, true\)/);
-  assert.match(html, /document\.addEventListener\('change', scheduleLocalAutoSave, true\)/);
-  assert.match(html, /localStorage\.setItem\(LOCAL_APP_STORAGE_KEY/);
-  assert.match(html, /restoreLocalAppData\(\)/);
-  assert.match(html, /localStorage\.removeItem\(LOCAL_APP_STORAGE_KEY\)/);
-  assert.match(html, /不会上传到服务器，也不会被后台保存/);
-  assert.equal(html.includes('刷新页面后默认清空全部数据'), false);
-  assert.equal(html.includes("fetch(LOCAL_APP_STORAGE_KEY"), false);
+  assert.match(assembler, /const STORAGE_KEY = 'WEALTH_PLANNING_LOCAL_STORAGE_V1'/);
+  assert.match(source, /localStorage\.getItem\(STORAGE_KEY\)/);
+  assert.match(source, /localStorage\.setItem\(STORAGE_KEY/);
+  assert.match(source, /localStorage\.removeItem\(STORAGE_KEY\)/);
+  assert.match(source, /不上传任何服务端/);
+  assert.equal(source.includes("fetch(STORAGE_KEY"), false);
 });

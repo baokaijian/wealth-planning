@@ -309,6 +309,32 @@ export const CONCENTRATION_LIMITS = {
 
 // 初始自洽示范数据
 export const INITIAL_STATE = {
+  meta: {
+    assessmentCompleted: true,
+    isDemo: true,
+    dataVersion: 2
+  },
+  quick: {
+    householdStage: 'dual_children',
+    adults: 2,
+    children: 1,
+    elderlyDependents: 0,
+    primaryAge: 36,
+    incomeSourceType: 'dual_salary',
+    incomeStability: 'stable',
+    yearsToRetirement: 24,
+    retired: false,
+    investmentHorizonYears: 10,
+    maxAcceptableLossPct: 20,
+    marketDropReaction: 'hold',
+    homePurchaseWithinYears: null,
+    businessAssets: 0,
+    totalDebt: 600000,
+    highestDebtRate: 3.6,
+    basicMedicalCovered: true,
+    largestHoldingPct: 25,
+    singleMarketPct: 45
+  },
   board: {
     principal: 80.0, // 80 万元总本金
     bufferSeed: 10.0, // 10 万元缓冲池初始种子金
@@ -431,6 +457,122 @@ export const INITIAL_STATE = {
       retireConfig: { currentAge: 35, retireAge: 50, retireMonthlyExpense: 12000 }
     }
   ]
+};
+
+// 首次使用保持为空白状态，只有用户完成快速体检或主动加载示例后才生成结论。
+export const EMPTY_STATE = {
+  meta: {
+    assessmentCompleted: false,
+    isDemo: false,
+    dataVersion: 2
+  },
+  quick: {
+    householdStage: '',
+    adults: null,
+    children: null,
+    elderlyDependents: null,
+    primaryAge: null,
+    incomeSourceType: '',
+    incomeStability: '',
+    yearsToRetirement: null,
+    retired: false,
+    investmentHorizonYears: 0,
+    maxAcceptableLossPct: null,
+    marketDropReaction: '',
+    homePurchaseWithinYears: null,
+    businessAssets: 0,
+    totalDebt: 0,
+    highestDebtRate: null,
+    basicMedicalCovered: null,
+    largestHoldingPct: 0,
+    singleMarketPct: 0
+  },
+  board: {
+    principal: 0,
+    bufferSeed: 0,
+    targetMonthly: 0,
+    growthRate: 6.5,
+    moneyMarketRate: 2.0,
+    assets: DEFAULT_ASSETS
+  },
+  health: {
+    monthlyIncome: 0,
+    monthlyExpense: 0,
+    essentialMonthlyExpense: 0,
+    monthlySurplus: 0,
+    incomeSourceCount: '',
+    unemploymentRecoveryMonths: 0,
+    unemploymentReplacementRate: 0,
+    assetsBreakdown: {
+      cashCurrent: 0,
+      cashShortDebt: 0,
+      equityAssets: 0,
+      goldAssets: 0,
+      bondAssets: 0,
+      propertyEstimated: 0,
+      pensionCashValue: 0,
+      otherAssets: 0
+    },
+    expectedExpenses: {
+      expense1y: 0,
+      expense1To3y: 0,
+      expense3To5y: 0
+    },
+    hasHousePlan: false,
+    expectedDownPayment: 0
+  },
+  insurance: {
+    coverageTier: 'none',
+    stabilityTier: 'medium',
+    childEduTarget: 0,
+    existingLifeCover: 0,
+    existingCritCover: 0,
+    existingAccidentCover: 0,
+    hasMillionMedical: false
+  },
+  debt: {
+    mortgageBalance: 0,
+    carLoanBalance: 0,
+    consumerLoanBalance: 0,
+    businessLoanBalance: 0,
+    monthlyDebtPayment: 0,
+    remainingYears: 0,
+    debtRateBracket: '<3.5%',
+    customDebtRate: null,
+    useCustomRate: false,
+    highInterestDebtBalance: 0,
+    availableFundX: 0
+  },
+  pension: {
+    hasAccount: false,
+    currentYearDeposited: 0,
+    marginalTaxRate: 0
+  },
+  property: {
+    totalEstimatedValue: 0,
+    stressDropPct: 20
+  },
+  stress: {
+    scenarioType: 'preset',
+    selectedPresetId: 'standard',
+    selectedReplayId: 'replay_2018',
+    customDrawdown: null,
+    unemploymentReplacementRate: 0
+  },
+  behavior: {
+    drawdownBracket: '<5%',
+    marketDropReaction: 'pause_watch',
+    cashflowRelianceHigh: false,
+    industryVolatileHigh: false
+  },
+  thermometer: {
+    selectedIndex: 'H30269',
+    percentileOverrides: {},
+    dataSource: 'cached',
+    userHoldings: {},
+    incrementalCapital: 0
+  },
+  goals: []
 };
 
 export const DISCLAIMER_TEXT = "免责声明：所有财务推演与量化模型均基于用户输入的数据及假设性收益率，不代表任何历史业绩保证或未来投资收益承诺，不构成具体金融产品推荐。市场有风险，投资决策需审慎。";

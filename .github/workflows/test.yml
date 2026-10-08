@@ -16,13 +16,7 @@ jobs:
         with:
           node-version: 20
       - run: npm test
-      - name: JavaScript engine and automation checks
+      - name: Python syntax and repository hygiene
         run: |
-          node --test tests/portfolio_engine.test.js tests/protection_gap.test.js tests/automation_guard.test.js
-      - name: Python and data checks
-        run: |
-          python -m unittest discover -s tests -p 'test_*.py'
-          python tests/engine_consistency_check.py
-          python tests/data_integrity_check.py
           python -m py_compile app.py portfolio_engine.py update_data.py backtest.py scheduled_update.py
           git diff --check

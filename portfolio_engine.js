@@ -1162,7 +1162,7 @@ const portfolioEngine = {
             borderColor = "var(--accent-red)";
             safety = 60; longterm = 20; hedge = 20;
             reason = "优先使用流动资产和红利低波资产积攒至少12个月的应急现金防御墙（安全桶拉升至60%），待收支结余率与现金池充裕后，再逐步增配增长资产。";
-        } else if (cashCoverageMonths >= 12 && surplusRatio >= 0.25 && riskToleranceCode >= 5) {
+        } else if (cashCoverageMonths >= 12 && surplusRatio >= 0.25 && Number(riskToleranceCode) >= 30) {
             // 允许提高宽基/科技成长等增长资产比例 (结余率高、现金富余、投资期限偏长)
             profileKey = "stable";
             profileTitle = "💎 稳健积累型家庭";

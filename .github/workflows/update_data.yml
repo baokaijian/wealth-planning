@@ -31,14 +31,17 @@ jobs:
       with:
         python-version: '3.11'
 
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
     - name: Fetch, retry and validate market data
       run: |
         python scheduled_update.py --attempts 3 --base-delay 20
 
     - name: Run full regression checks
       run: |
-        python -m unittest discover -s tests -p 'test_*.py'
-        python tests/engine_consistency_check.py
         npm test
 
     - name: Commit and push changes

@@ -7,7 +7,12 @@
     "start": "bash run_web.sh",
     "dev": "python3 -m http.server 3000",
     "streamlit": "bash run.sh",
-    "test": "python3 test_calculations.py"
+    "build:web": "python3 scripts/assemble_index_html.py",
+    "check:web-build": "python3 scripts/assemble_index_html.py --check",
+    "test:js": "node --test tests/*.test.js",
+    "test:python": "python3 -m unittest discover -s tests -p 'test_*.py'",
+    "test:parity": "python3 tests/engine_consistency_check.py",
+    "test": "npm run test:js && npm run test:python && npm run test:parity && python3 tests/data_integrity_check.py && npm run check:web-build"
   },
   "keywords": [
     "wealth-planning",

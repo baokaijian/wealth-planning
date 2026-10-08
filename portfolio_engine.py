@@ -1047,7 +1047,7 @@ def evaluate_family_profile(fd, investable_assets, net_worth, total_assets, leve
         longterm = 20
         hedge = 20
         reason = "优先使用流动资产和红利低波资产积攒至少12个月的应急现金防御墙（安全桶拉升至60%），待收支结余率与现金池充裕后，再逐步增配增长资产。"
-    elif cash_coverage_months >= 12 and surplus_ratio >= 0.25 and risk_tolerance_code >= 5:
+    elif cash_coverage_months >= 12 and surplus_ratio >= 0.25 and risk_tolerance_code >= 30:
         profile_key = "stable"
         profile_title = "💎 稳健积累型家庭"
         profile_diag = "负债水平极低，每月结余能力强，且手握超过一年的固定开支现金储备，具备扎实的抗冲击底气。"
