@@ -11,13 +11,15 @@
             "low": 100.891,
             "price_source": "tencent_realtime_quote",
             "price_as_of": "2026-10-08 16:14:41",
-            "yield": null,
-            "impliedYield": null,
-            "yield_method": "no_cash_distribution_in_trailing_12m",
-            "trailing_12m_cash_per_unit": 0,
-            "distribution_count": 0,
-            "distribution_as_of": "",
-            "distribution_months": {}
+            "yield": 1.1449,
+            "impliedYield": 1.1449,
+            "yield_method": "trailing_12m_cash_distributions",
+            "trailing_12m_cash_per_unit": 1.1553,
+            "distribution_count": 1,
+            "distribution_as_of": "2025-12-30",
+            "distribution_months": {
+                "12": 1.0
+            }
         },
         "511360": {
             "name": "短融ETF海富通",
@@ -62,13 +64,15 @@
             "low": 3.369,
             "price_source": "tencent_realtime_quote",
             "price_as_of": "2026-10-08 16:14:52",
-            "yield": null,
-            "impliedYield": null,
-            "yield_method": "no_cash_distribution_in_trailing_12m",
-            "trailing_12m_cash_per_unit": 0,
-            "distribution_count": 0,
-            "distribution_as_of": "",
-            "distribution_months": {}
+            "yield": 4.1862,
+            "impliedYield": 4.1862,
+            "yield_method": "trailing_12m_cash_distributions",
+            "trailing_12m_cash_per_unit": 0.143,
+            "distribution_count": 1,
+            "distribution_as_of": "2026-01-21",
+            "distribution_months": {
+                "1": 1.0
+            }
         },
         "561960": {
             "name": "央企回报ETF招商",
@@ -96,17 +100,25 @@
             "low": 1.54,
             "price_source": "tencent_realtime_quote",
             "price_as_of": "2026-10-08 16:14:59",
-            "yield": 1.071,
-            "impliedYield": 1.071,
+            "yield": 7.7419,
+            "impliedYield": 7.7419,
             "yield_method": "trailing_12m_cash_distributions",
-            "trailing_12m_cash_per_unit": 0.0166,
-            "distribution_count": 4,
-            "distribution_as_of": "2026-09-10",
+            "trailing_12m_cash_per_unit": 0.12,
+            "distribution_count": 12,
+            "distribution_as_of": "2026-09-14",
             "distribution_months": {
-                "3": 0.361446,
-                "6": 0.096386,
-                "9": 0.180723,
-                "12": 0.361446
+                "1": 0.083333,
+                "2": 0.083333,
+                "3": 0.083333,
+                "4": 0.083333,
+                "5": 0.083333,
+                "6": 0.083333,
+                "7": 0.083333,
+                "8": 0.083333,
+                "9": 0.083333,
+                "10": 0.083333,
+                "11": 0.083333,
+                "12": 0.083333
             }
         },
         "510300": {
@@ -335,20 +347,11 @@
         "fallback": "null yield means no verified trailing cash distribution; the UI may show a clearly labelled planning assumption"
     },
     "data_quality": {
-        "generated_at": "2026-10-08 16:44:49",
+        "generated_at": "2026-10-08 18:58:31",
         "assets_checked": 18,
-        "unverified_stable_cashflow_count": 3,
-        "fetch_error_count": 3,
+        "unverified_stable_cashflow_count": 4,
+        "fetch_error_count": 0,
         "alerts": [
-            {
-                "code": "511880",
-                "name": "银华日利货币 ETF",
-                "income_type": "cash_interest",
-                "declared_yield": 1.8,
-                "severity": "error",
-                "reason": "dividend_source_fetch_failed",
-                "detail": "<urlopen error _ssl.c:999: The handshake operation timed out>"
-            },
             {
                 "code": "511360",
                 "name": "短融 ETF",
@@ -368,22 +371,13 @@
                 "detail": "该资产近12个月在分红数据源中无真实现金分配记录，界面使用的收益率是规划假设，不是可核验的实际分红。"
             },
             {
-                "code": "510880",
-                "name": "华泰柏瑞红利 ETF",
-                "income_type": "dividend",
-                "declared_yield": 4.0,
-                "severity": "error",
-                "reason": "dividend_source_fetch_failed",
-                "detail": "<urlopen error _ssl.c:999: The handshake operation timed out>"
-            },
-            {
                 "code": "561960",
                 "name": "央企股东回报 ETF",
                 "income_type": "dividend",
                 "declared_yield": 4.2,
-                "severity": "error",
-                "reason": "dividend_source_fetch_failed",
-                "detail": "<urlopen error _ssl.c:999: The handshake operation timed out>"
+                "severity": "warning",
+                "reason": "no_verified_cash_distribution_in_trailing_12m",
+                "detail": "该资产近12个月在分红数据源中无真实现金分配记录，界面使用的收益率是规划假设，不是可核验的实际分红。"
             },
             {
                 "code": "511520",
