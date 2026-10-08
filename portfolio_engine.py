@@ -501,6 +501,7 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
         overseas_risk_tip = "注意汇率、QDII 溢价与跟踪误差风险。" if role in ['overseas_broad', 'overseas_tech', 'overseas_beta', 'china_offshore_growth'] else ""
         return {
             'hasHistory': False,
+            'hasSufficientHistory': False,
             'percentile': 50.0,
             'factor': 1.0,
             'pe': "--",
@@ -549,6 +550,7 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
     current_pe = safe_float(latest.get('pe'))
     current_pb = safe_float(latest.get('pb'))
     current_dy = safe_float(latest.get('dividend_yield'))
+    has_sufficient_history = not str(latest.get('percentile_window') or '').startswith('insufficient_history')
 
     if current_pe is None: current_pe = 0.0
     if current_pb is None: current_pb = 0.0
@@ -565,9 +567,9 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
             return fallback
         return round(value, 1)
 
-    pe_pct = verified_percentile('pe_percentile_3y', calculated_percentile(pe_list, current_pe))
-    pb_pct = verified_percentile('pb_percentile_3y', calculated_percentile(pb_list, current_pb))
-    dy_pct = verified_percentile('dividend_yield_percentile_3y', calculated_percentile(dy_list, current_dy))
+    pe_pct = verified_percentile('pe_percentile_3y', calculated_percentile(pe_list, current_pe)) if has_sufficient_history else None
+    pb_pct = verified_percentile('pb_percentile_3y', calculated_percentile(pb_list, current_pb)) if has_sufficient_history else None
+    dy_pct = verified_percentile('dividend_yield_percentile_3y', calculated_percentile(dy_list, current_dy)) if has_sufficient_history else None
 
     percentile = 50.0
     factor = 1.0
@@ -591,7 +593,12 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
     factor_mid = float(dca_cfg.get('factor_mid', 1.0))
     factor_expensive = float(dca_cfg.get('factor_expensive', 0.5))
 
-    if role == 'dividend_income':
+    if not has_sufficient_history:
+        percentile = 50.0
+        factor = 1.0
+        valuation_zone = "当前估值已更新，历史样本不足"
+        tips = "当前 PE/PB/股息率可用于观察，但三年历史样本不足，百分位保持中性 50%，DCA 固定为 1.0x。"
+    elif role == 'dividend_income':
         if dy_pct is not None:
             percentile = dy_pct
 
@@ -699,6 +706,7 @@ def get_dca_adjustment(history_data, index_code, role, context=None):
 
     return {
         'hasHistory': True,
+        'hasSufficientHistory': has_sufficient_history,
         'percentile': percentile,
         'factor': factor,
         'pe': f"{current_pe:.2f}",

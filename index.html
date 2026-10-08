@@ -838,7 +838,7 @@ const BEHAVIOR_RULES = {
   extremeEquityDrawdown: 0.40
 };
 
-// 10大代表性指数监测列表
+// 12大代表性指数监测列表
 const THERMOMETER_INDICES = [
   { code: 'H30269', name: '中证红利低波', type: 'dividend', metricName: '股息率近三年百分位', defaultPercentile: 72, dividendYield: 4.85, pe: 6.2, desc: '偏重金融煤炭交运，红利低波核心表征' },
   { code: '000015', name: '上证红利', type: 'dividend', metricName: '股息率近三年百分位', defaultPercentile: 65, dividendYield: 5.12, pe: 5.8, desc: '上交所传统成熟高分红蓝筹' },
@@ -847,7 +847,9 @@ const THERMOMETER_INDICES = [
   { code: '000300', name: '沪深300', type: 'broad', metricName: '综合PE/PB估值百分位', defaultPercentile: 32, dividendYield: 2.85, pe: 11.8, desc: 'A股核心大盘蓝筹基准' },
   { code: '000510', name: '中证A500', type: 'broad', metricName: '综合PE/PB估值百分位', defaultPercentile: 35, dividendYield: 2.70, pe: 13.2, desc: '新一代均衡型宽基旗舰' },
   { code: '000905', name: '中证500', type: 'broad', metricName: '综合PE/PB估值百分位', defaultPercentile: 26, dividendYield: 1.95, pe: 22.4, desc: '中盘成长弹性与制造龙头' },
+  { code: '000852', name: '中证1000', type: 'broad', metricName: '综合PE/PB估值百分位', defaultPercentile: 50, dividendYield: 1.13, pe: 41.52, desc: '小盘风险溢价观察位，历史不足时保持中性' },
   { code: '000688', name: '科创50', type: 'growth', metricName: 'PE/PS估值百分位', defaultPercentile: 18, dividendYield: 0.60, pe: 42.0, desc: '硬科技硬核成长核心板块' },
+  { code: 'HKTECH', name: '恒生科技', type: 'growth', metricName: 'PE估值历史百分位', defaultPercentile: 50, dividendYield: 1.07, pe: 21.95, desc: '离岸中国成长观察位，历史不足时保持中性' },
   { code: 'SPX', name: '标普500', type: 'global', metricName: 'PE估值历史百分位', defaultPercentile: 86, dividendYield: 1.45, pe: 26.5, desc: '美股成熟大盘综合指数' },
   { code: 'NDX', name: '纳斯达克100', type: 'global', metricName: 'PE估值历史百分位', defaultPercentile: 88, dividendYield: 0.75, pe: 31.0, desc: '全球科技创新巨头指数' }
 ];
@@ -3203,6 +3205,12 @@ function finiteOr(value, fallback = 0) {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
+function finiteOrNull(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
 function marketLabel(market) {
   return { CN: 'A股', HK: '港股', US: '美股', GLOBAL: '全球' }[market] || market || '其他';
 }
@@ -3284,13 +3292,19 @@ function buildValuationIndices(history = [], baseIndices = [], referenceDate = n
     const row = latest.get(base.code);
     if (!row) return base;
     const peers = rowsByCode[base.code] || [];
-    const pePercentile = finiteOr(row.pe_percentile_3y, percentile(peers.map(item => item.pe), row.pe));
-    const pbPercentile = finiteOr(row.pb_percentile_3y, percentile(peers.map(item => item.pb), row.pb));
-    const yieldPercentile = finiteOr(
-      row.dividend_yield_percentile_3y,
-      percentile(peers.map(item => item.dividend_yield), row.dividend_yield)
-    );
-    const defaultPercentile = base.type === 'dividend'
+    const hasSufficientHistory = !String(row.percentile_window || '').startsWith('insufficient_history');
+    const pePercentile = hasSufficientHistory
+      ? (finiteOrNull(row.pe_percentile_3y) ?? percentile(peers.map(item => item.pe), row.pe))
+      : null;
+    const pbPercentile = hasSufficientHistory
+      ? (finiteOrNull(row.pb_percentile_3y) ?? percentile(peers.map(item => item.pb), row.pb))
+      : null;
+    const yieldPercentile = hasSufficientHistory
+      ? (finiteOrNull(row.dividend_yield_percentile_3y) ?? percentile(peers.map(item => item.dividend_yield), row.dividend_yield))
+      : null;
+    const defaultPercentile = !hasSufficientHistory
+      ? 50
+      : base.type === 'dividend'
       ? yieldPercentile
       : Math.round(((pePercentile + pbPercentile) / 2) * 10) / 10;
     const asOfDate = new Date(`${row.date}T00:00:00`);
@@ -3309,9 +3323,12 @@ function buildValuationIndices(history = [], baseIndices = [], referenceDate = n
       dividendYieldPercentile: yieldPercentile,
       defaultPercentile: isStale ? 50 : defaultPercentile,
       rawPercentile: defaultPercentile,
+      hasSufficientHistory,
       isStale,
       staleDays,
       valuationAsOf: row.date,
+      valuationDataTime: row.data_time || null,
+      percentileWindow: row.percentile_window || 'local_history',
       valuationSource: row.valuation_source || 'local_history'
     };
   });
@@ -6418,13 +6435,13 @@ function App() {
           </div>
         )}
 
-        {/* TAB 5: 🌡️ 估值温度计与再平衡 (10指数 P2-1 & 增量再平衡 P2-2) */}
+        {/* TAB 5: 🌡️ 估值温度计与再平衡 (12指数 P2-1 & 增量再平衡 P2-2) */}
         {activeTab === 'thermometer' && (
           <div>
             <div className="card" id="thermometer-card">
               <div className="card-header">
                 <div className="card-title">
-                  <span>🌡️ 估值温度计与卖出侧纪律闭环 (10大核心指数监测)</span>
+                  <span>🌡️ 估值温度计与卖出侧纪律闭环 (12大核心指数监测)</span>
                   <span className="tag" style={{ background: thermometerMetrics.tier.color, color: '#FFF' }}>
                     {activeThermometerIndex.name}：{thermometerMetrics.tier.label} ({thermometerMetrics.percentile}%)
                   </span>
@@ -6434,7 +6451,7 @@ function App() {
                 </span>
               </div>
 
-              {/* 10大指数选择器与滑块 */}
+              {/* 12大指数选择器与滑块 */}
               <div className="grid-2" style={{ gap: '16px', marginBottom: '18px' }}>
                 <div className="form-group">
                   <label className="form-label">监测目标指数</label>
@@ -6457,6 +6474,11 @@ function App() {
                   {activeThermometerIndex.isStale && (
                     <div style={{ fontSize: '0.75rem', color: '#FBBF24', marginTop: 6 }}>
                       ⚠️ 估值缓存已滞后 {activeThermometerIndex.staleDays} 天：保留 PE/PB 展示，但默认百分位回到 50%，不据此放大或缩小定投。
+                    </div>
+                  )}
+                  {activeThermometerIndex.hasSufficientHistory === false && (
+                    <div style={{ fontSize: '0.75rem', color: '#FBBF24', marginTop: 6 }}>
+                      ⚠️ 已更新当前 PE/PB/股息率，但三年历史样本不足；百分位保持中性 50%，不据此放大或缩小定投。
                     </div>
                   )}
                 </div>

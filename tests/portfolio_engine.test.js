@@ -98,6 +98,25 @@ test('新增风险溢价观察位缺少估值历史时保持1.0x且不生成高�
   assert.match(offshoreGrowth.tips, /汇率、QDII 溢价与跟踪误差/);
 });
 
+test('当前估值已更新但历史样本不足时展示数值并固定1.0x', () => {
+  const history = [{
+    index_code: '000852', date: '2026-10-08', pe: 41.5189, pb: 2.303,
+    dividend_yield: 1.1254, pe_percentile_3y: 50, pb_percentile_3y: 50,
+    dividend_yield_percentile_3y: 50, percentile_window: 'insufficient_history_neutral'
+  }];
+  const result = engine.getDcaAdjustment(history, '000852', 'small_cap', {
+    referenceDate: '2026-10-08',
+  });
+
+  assert.equal(result.hasHistory, true);
+  assert.equal(result.hasSufficientHistory, false);
+  assert.equal(result.pe, '41.52');
+  assert.equal(result.pb, '2.30');
+  assert.equal(result.pePercentile, '--');
+  assert.equal(result.factor, 1);
+  assert.match(result.valuationZone, /历史样本不足/);
+});
+
 test('极低风险意愿不会因现金充足被分类为成长型家庭', () => {
   const fd = {
     'f-monthly-income': 30000,

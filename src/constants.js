@@ -272,7 +272,7 @@ export const BEHAVIOR_RULES = {
   extremeEquityDrawdown: 0.40
 };
 
-// 10大代表性指数监测列表
+// 12大代表性指数监测列表
 export const THERMOMETER_INDICES = [
   { code: 'H30269', name: '中证红利低波', type: 'dividend', metricName: '股息率近三年百分位', defaultPercentile: 72, dividendYield: 4.85, pe: 6.2, desc: '偏重金融煤炭交运，红利低波核心表征' },
   { code: '000015', name: '上证红利', type: 'dividend', metricName: '股息率近三年百分位', defaultPercentile: 65, dividendYield: 5.12, pe: 5.8, desc: '上交所传统成熟高分红蓝筹' },
@@ -281,7 +281,9 @@ export const THERMOMETER_INDICES = [
   { code: '000300', name: '沪深300', type: 'broad', metricName: '综合PE/PB估值百分位', defaultPercentile: 32, dividendYield: 2.85, pe: 11.8, desc: 'A股核心大盘蓝筹基准' },
   { code: '000510', name: '中证A500', type: 'broad', metricName: '综合PE/PB估值百分位', defaultPercentile: 35, dividendYield: 2.70, pe: 13.2, desc: '新一代均衡型宽基旗舰' },
   { code: '000905', name: '中证500', type: 'broad', metricName: '综合PE/PB估值百分位', defaultPercentile: 26, dividendYield: 1.95, pe: 22.4, desc: '中盘成长弹性与制造龙头' },
+  { code: '000852', name: '中证1000', type: 'broad', metricName: '综合PE/PB估值百分位', defaultPercentile: 50, dividendYield: 1.13, pe: 41.52, desc: '小盘风险溢价观察位，历史不足时保持中性' },
   { code: '000688', name: '科创50', type: 'growth', metricName: 'PE/PS估值百分位', defaultPercentile: 18, dividendYield: 0.60, pe: 42.0, desc: '硬科技硬核成长核心板块' },
+  { code: 'HKTECH', name: '恒生科技', type: 'growth', metricName: 'PE估值历史百分位', defaultPercentile: 50, dividendYield: 1.07, pe: 21.95, desc: '离岸中国成长观察位，历史不足时保持中性' },
   { code: 'SPX', name: '标普500', type: 'global', metricName: 'PE估值历史百分位', defaultPercentile: 86, dividendYield: 1.45, pe: 26.5, desc: '美股成熟大盘综合指数' },
   { code: 'NDX', name: '纳斯达克100', type: 'global', metricName: 'PE估值历史百分位', defaultPercentile: 88, dividendYield: 0.75, pe: 31.0, desc: '全球科技创新巨头指数' }
 ];

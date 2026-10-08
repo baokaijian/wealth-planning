@@ -108,3 +108,20 @@ test('估值缓存超过21天时保留PE/PB展示但禁用择时信号', async (
   assert.equal(indices[0].pe, 14.3);
   assert.equal(indices[0].pb, 1.46);
 });
+
+test('估值当前值可用但历史不足时隐藏伪百分位并保持中性', async () => {
+  const { buildValuationIndices } = await modulePromise;
+  const indices = buildValuationIndices([{
+    date: '2026-10-08', data_time: '2026-10-08 11:12:39', index_code: '000852',
+    pe: 41.5189, pb: 2.303, dividend_yield: 1.1254,
+    pe_percentile_3y: 50, pb_percentile_3y: 50, dividend_yield_percentile_3y: 50,
+    percentile_window: 'insufficient_history_neutral'
+  }], [{ code: '000852', name: '中证1000', type: 'broad', defaultPercentile: 20 }], new Date('2026-10-08T12:00:00'));
+
+  assert.equal(indices[0].pe, 41.5189);
+  assert.equal(indices[0].pePercentile, null);
+  assert.equal(indices[0].pbPercentile, null);
+  assert.equal(indices[0].defaultPercentile, 50);
+  assert.equal(indices[0].hasSufficientHistory, false);
+  assert.equal(indices[0].valuationDataTime, '2026-10-08 11:12:39');
+});

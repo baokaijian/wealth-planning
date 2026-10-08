@@ -110,6 +110,11 @@ def run_python_case(case):
         case["stableIncomeDrop"], case["delayMonths"], case["pauseDividendYear"]
     )
     dca_missing = portfolio_engine.get_dca_adjustment([], "NO_DATA", "overseas_tech")
+    dca_insufficient = portfolio_engine.get_dca_adjustment([{
+        "index_code": "000852", "date": "2026-10-08", "pe": 41.5189, "pb": 2.303,
+        "dividend_yield": 1.1254, "pe_percentile_3y": 50, "pb_percentile_3y": 50,
+        "dividend_yield_percentile_3y": 50, "percentile_window": "insufficient_history_neutral",
+    }], "000852", "small_cap", {"referenceDate": "2026-10-08"})
     fit = portfolio_engine.evaluate_portfolio_fit(weights, assets, family["isProhibitAggressive"])
     protection = portfolio_engine.calculate_protection_gap(
         fd,
@@ -129,6 +134,10 @@ def run_python_case(case):
         "stableIncomeTotal": sum(harvest["totalStableIncomeHistory"]),
         "missingDcaFactor": dca_missing["factor"],
         "missingDcaHasHistory": dca_missing["hasHistory"],
+        "insufficientDcaFactor": dca_insufficient["factor"],
+        "insufficientDcaHasHistory": dca_insufficient["hasHistory"],
+        "insufficientDcaHasSufficientHistory": dca_insufficient["hasSufficientHistory"],
+        "insufficientDcaPe": dca_insufficient["pe"],
         "portfolioFitStatus": fit["status"],
         "profileKey": family["profileKey"],
         "protectionLifeGap": protection["life"]["gap"],
@@ -160,7 +169,9 @@ def main():
     keys = [
         "safeMonthlyWithdrawWan", "healthScore", "breachedAtMonth", "minStressedBuffer",
         "expectedAnnualDividend", "blendedGrowthReturn", "harvestTotal", "stableIncomeTotal",
-        "missingDcaFactor", "missingDcaHasHistory", "portfolioFitStatus", "profileKey",
+        "missingDcaFactor", "missingDcaHasHistory", "insufficientDcaFactor",
+        "insufficientDcaHasHistory", "insufficientDcaHasSufficientHistory", "insufficientDcaPe",
+        "portfolioFitStatus", "profileKey",
         "protectionLifeGap", "protectionCiGap", "protectionAccidentGap", "protectionAlert"
     ]
     for name, py_result in py_results.items():

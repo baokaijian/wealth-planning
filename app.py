@@ -1954,6 +1954,8 @@ elif menu == "4. 估值温度计与测算工具":
             return "不做估值择时，按基础比例"
         meta = valuation_meta(target_index, info.get('role'))
         if asset_res.get('hasHistory'):
+            if asset_res.get('hasSufficientHistory') is False:
+                return "当前估值已更新：历史样本不足，固定1.0x"
             return f"有历史数据：按{meta['metric']}校准"
         role = info.get('role')
         if role in ('overseas_broad', 'overseas_tech', 'china_offshore_growth'):
@@ -2018,6 +2020,7 @@ elif menu == "4. 估值温度计与测算工具":
 
     res = portfolio_engine.get_dca_adjustment(history_data, index_clean, role_to_use, dca_context)
     has_selected_valuation_history = bool(res.get('hasHistory'))
+    has_selected_percentile_history = res.get('hasSufficientHistory', has_selected_valuation_history)
 
     st.markdown(f"### 📊 {index_code} 指数温度计指标板")
     is_dividend_role = role_to_use == 'dividend_income'
@@ -2026,7 +2029,7 @@ elif menu == "4. 估值温度计与测算工具":
         return "--" if value in (None, "--") else f"{float(value):.1f}%"
 
     decision_label = "股息率百分位" if is_dividend_role else ("PE/PB较高百分位" if role_to_use == 'domestic_beta' else "PE百分位")
-    decision_value = f"{res['percentile']:.1f}%" if has_selected_valuation_history else "--"
+    decision_value = f"{res['percentile']:.1f}%" if has_selected_percentile_history else "--"
     metric_row1 = st.columns(4)
     metric_row1[0].metric("当前 PE（市盈率）", res['pe'])
     metric_row1[1].metric("PE 三年百分位", percentile_text(res.get('pePercentile')))
@@ -2039,7 +2042,7 @@ elif menu == "4. 估值温度计与测算工具":
     metric_row2[3].metric("定投调节系数", f"{res['factor']:.1f}x")
 
     if has_selected_valuation_history:
-        window_label = "近三年" if res.get('percentileWindow') == '3y' else res.get('percentileWindow', '本地历史')
+        window_label = "样本不足（中性50%，不择时）" if not has_selected_percentile_history else ("近三年" if res.get('percentileWindow') == '3y' else res.get('percentileWindow', '本地历史'))
         source_label = "已验证指数基本面" if res.get('valuationSource') == 'verified_index_fundamentals' else "本地估值历史"
         as_of_raw = res.get('asOf')
         stale_days = res.get('staleDays')

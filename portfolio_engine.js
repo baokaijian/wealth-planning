@@ -542,6 +542,7 @@ const portfolioEngine = {
                 : "";
             return {
                 hasHistory: false,
+                hasSufficientHistory: false,
                 percentile: 50.0,
                 factor: 1.0,
                 pe: "--",
@@ -579,6 +580,7 @@ const portfolioEngine = {
         const currentPE = parseFloat(latest.pe);
         const currentPB = parseFloat(latest.pb);
         const currentDY = parseFloat(latest.dividend_yield);
+        const hasSufficientHistory = !String(latest.percentile_window || '').startsWith('insufficient_history');
 
         const calculatedPercentile = (values, current) => {
             if (!values.length || !Number.isFinite(current)) return null;
@@ -590,9 +592,15 @@ const portfolioEngine = {
                 ? parseFloat(value.toFixed(1))
                 : fallback;
         };
-        const pePct = verifiedPercentile('pe_percentile_3y', calculatedPercentile(peList, currentPE));
-        const pbPct = verifiedPercentile('pb_percentile_3y', calculatedPercentile(pbList, currentPB));
-        const dyPct = verifiedPercentile('dividend_yield_percentile_3y', calculatedPercentile(dyList, currentDY));
+        const pePct = hasSufficientHistory
+            ? verifiedPercentile('pe_percentile_3y', calculatedPercentile(peList, currentPE))
+            : null;
+        const pbPct = hasSufficientHistory
+            ? verifiedPercentile('pb_percentile_3y', calculatedPercentile(pbList, currentPB))
+            : null;
+        const dyPct = hasSufficientHistory
+            ? verifiedPercentile('dividend_yield_percentile_3y', calculatedPercentile(dyList, currentDY))
+            : null;
 
         const referenceDate = context && context.referenceDate ? new Date(context.referenceDate) : null;
         const valuationDate = latest.date ? new Date(`${latest.date}T00:00:00Z`) : null;
@@ -614,7 +622,12 @@ const portfolioEngine = {
         const factorMid = parseFloat(dcaCfg.factor_mid ?? 1.0);
         const factorExpensive = parseFloat(dcaCfg.factor_expensive ?? 0.5);
 
-        if (role === 'dividend_income') {
+        if (!hasSufficientHistory) {
+            percentile = 50.0;
+            factor = 1.0;
+            valuationZone = "当前估值已更新，历史样本不足";
+            tips = "当前 PE/PB/股息率可用于观察，但三年历史样本不足，百分位保持中性 50%，DCA 固定为 1.0x。";
+        } else if (role === 'dividend_income') {
             // 红利看股息率高低进行加仓调节（股息率越高代表估值越便宜）
             if (dyPct !== null) percentile = dyPct;
 
@@ -733,6 +746,7 @@ const portfolioEngine = {
 
         return {
             hasHistory: true,
+            hasSufficientHistory,
             percentile,
             factor,
             pe: currentPE.toFixed(2),

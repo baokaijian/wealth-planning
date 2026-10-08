@@ -24,6 +24,12 @@ function finiteOr(value, fallback = 0) {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
+function finiteOrNull(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
 function marketLabel(market) {
   return { CN: 'A股', HK: '港股', US: '美股', GLOBAL: '全球' }[market] || market || '其他';
 }
@@ -105,13 +111,19 @@ export function buildValuationIndices(history = [], baseIndices = [], referenceD
     const row = latest.get(base.code);
     if (!row) return base;
     const peers = rowsByCode[base.code] || [];
-    const pePercentile = finiteOr(row.pe_percentile_3y, percentile(peers.map(item => item.pe), row.pe));
-    const pbPercentile = finiteOr(row.pb_percentile_3y, percentile(peers.map(item => item.pb), row.pb));
-    const yieldPercentile = finiteOr(
-      row.dividend_yield_percentile_3y,
-      percentile(peers.map(item => item.dividend_yield), row.dividend_yield)
-    );
-    const defaultPercentile = base.type === 'dividend'
+    const hasSufficientHistory = !String(row.percentile_window || '').startsWith('insufficient_history');
+    const pePercentile = hasSufficientHistory
+      ? (finiteOrNull(row.pe_percentile_3y) ?? percentile(peers.map(item => item.pe), row.pe))
+      : null;
+    const pbPercentile = hasSufficientHistory
+      ? (finiteOrNull(row.pb_percentile_3y) ?? percentile(peers.map(item => item.pb), row.pb))
+      : null;
+    const yieldPercentile = hasSufficientHistory
+      ? (finiteOrNull(row.dividend_yield_percentile_3y) ?? percentile(peers.map(item => item.dividend_yield), row.dividend_yield))
+      : null;
+    const defaultPercentile = !hasSufficientHistory
+      ? 50
+      : base.type === 'dividend'
       ? yieldPercentile
       : Math.round(((pePercentile + pbPercentile) / 2) * 10) / 10;
     const asOfDate = new Date(`${row.date}T00:00:00`);
@@ -130,9 +142,12 @@ export function buildValuationIndices(history = [], baseIndices = [], referenceD
       dividendYieldPercentile: yieldPercentile,
       defaultPercentile: isStale ? 50 : defaultPercentile,
       rawPercentile: defaultPercentile,
+      hasSufficientHistory,
       isStale,
       staleDays,
       valuationAsOf: row.date,
+      valuationDataTime: row.data_time || null,
+      percentileWindow: row.percentile_window || 'local_history',
       valuationSource: row.valuation_source || 'local_history'
     };
   });

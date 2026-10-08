@@ -16,6 +16,7 @@ VERIFIED_VALUATION_CODES = {
 VERIFIED_PERCENTILE_FIELDS = {
     "pe_percentile_3y", "pb_percentile_3y", "dividend_yield_percentile_3y"
 }
+NEUTRAL_CURRENT_ONLY_CODES = {"000852", "HKTECH", "NDX"}
 RISK_PREMIUM_OBSERVATION_ASSETS = {
     "512100": ("small_cap", "000852"),
     "513180": ("china_offshore_growth", "HKTECH"),
@@ -100,7 +101,7 @@ def main():
         for asset in assets
         if asset.get("target_index_code") and str(asset.get("code")) in active_codes
     }
-    missing_target_history = (asset_targets - {"NDX"}) - history_codes
+    missing_target_history = asset_targets - history_codes
     if missing_target_history:
         errors.append(f"估值历史缺少目标指数: {sorted(missing_target_history)}")
     latest_verified = {
@@ -110,6 +111,12 @@ def main():
     for code, item in latest_verified.items():
         if not item.get("date") or not VERIFIED_PERCENTILE_FIELDS <= set(item):
             errors.append(f"{code} 缺少已核验估值日期或三年百分位")
+    for code in NEUTRAL_CURRENT_ONLY_CODES:
+        item = max((row for row in history if row.get("index_code") == code), key=lambda row: row.get("date", ""), default={})
+        if item.get("percentile_window") != "insufficient_history_neutral":
+            errors.append(f"{code} 历史样本不足时必须使用中性估值标记")
+        if any(float(item.get(field, -1)) != 50.0 for field in VERIFIED_PERCENTILE_FIELDS):
+            errors.append(f"{code} 历史样本不足时百分位必须固定为50")
     # 估值新鲜度：估值历史为半手动维护，滞后要显式告警，但不要因运营滞后阻断数据正确性检查。
     _latest_date = max((item.get("date", "") for item in history if item.get("date")), default="")
     if _latest_date:

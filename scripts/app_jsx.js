@@ -2708,13 +2708,13 @@ function App() {
           </div>
         )}
 
-        {/* TAB 5: 🌡️ 估值温度计与再平衡 (10指数 P2-1 & 增量再平衡 P2-2) */}
+        {/* TAB 5: 🌡️ 估值温度计与再平衡 (12指数 P2-1 & 增量再平衡 P2-2) */}
         {activeTab === 'thermometer' && (
           <div>
             <div className="card" id="thermometer-card">
               <div className="card-header">
                 <div className="card-title">
-                  <span>🌡️ 估值温度计与卖出侧纪律闭环 (10大核心指数监测)</span>
+                  <span>🌡️ 估值温度计与卖出侧纪律闭环 (12大核心指数监测)</span>
                   <span className="tag" style={{ background: thermometerMetrics.tier.color, color: '#FFF' }}>
                     {activeThermometerIndex.name}：{thermometerMetrics.tier.label} ({thermometerMetrics.percentile}%)
                   </span>
@@ -2724,7 +2724,7 @@ function App() {
                 </span>
               </div>
 
-              {/* 10大指数选择器与滑块 */}
+              {/* 12大指数选择器与滑块 */}
               <div className="grid-2" style={{ gap: '16px', marginBottom: '18px' }}>
                 <div className="form-group">
                   <label className="form-label">监测目标指数</label>
@@ -2747,6 +2747,11 @@ function App() {
                   {activeThermometerIndex.isStale && (
                     <div style={{ fontSize: '0.75rem', color: '#FBBF24', marginTop: 6 }}>
                       ⚠️ 估值缓存已滞后 {activeThermometerIndex.staleDays} 天：保留 PE/PB 展示，但默认百分位回到 50%，不据此放大或缩小定投。
+                    </div>
+                  )}
+                  {activeThermometerIndex.hasSufficientHistory === false && (
+                    <div style={{ fontSize: '0.75rem', color: '#FBBF24', marginTop: 6 }}>
+                      ⚠️ 已更新当前 PE/PB/股息率，但三年历史样本不足；百分位保持中性 50%，不据此放大或缩小定投。
                     </div>
                   )}
                 </div>

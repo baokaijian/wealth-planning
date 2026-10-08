@@ -106,6 +106,11 @@ function runCase(testCase) {
     testCase.stableIncomeDrop, testCase.delayMonths, testCase.pauseDividendYear
   );
   const dcaMissing = engine.getDcaAdjustment([], 'NO_DATA', 'overseas_tech');
+  const dcaInsufficient = engine.getDcaAdjustment([{
+    index_code: '000852', date: '2026-10-08', pe: 41.5189, pb: 2.303,
+    dividend_yield: 1.1254, pe_percentile_3y: 50, pb_percentile_3y: 50,
+    dividend_yield_percentile_3y: 50, percentile_window: 'insufficient_history_neutral'
+  }], '000852', 'small_cap', { referenceDate: '2026-10-08' });
   const fit = engine.evaluatePortfolioFit(weights, assets, family.isProhibitAggressive);
   const protection = engine.calculateProtectionGap(
     testCase.familyData,
@@ -125,6 +130,10 @@ function runCase(testCase) {
     stableIncomeTotal: harvest.totalStableIncomeHistory.reduce((sum, value) => sum + value, 0),
     missingDcaFactor: dcaMissing.factor,
     missingDcaHasHistory: dcaMissing.hasHistory,
+    insufficientDcaFactor: dcaInsufficient.factor,
+    insufficientDcaHasHistory: dcaInsufficient.hasHistory,
+    insufficientDcaHasSufficientHistory: dcaInsufficient.hasSufficientHistory,
+    insufficientDcaPe: dcaInsufficient.pe,
     portfolioFitStatus: fit.status,
     profileKey: family.profileKey,
     protectionLifeGap: protection.life.gap,
