@@ -100,13 +100,26 @@
             "low": 1.533,
             "price_source": "tencent_realtime_quote",
             "price_as_of": "2026-10-20 16:14:40",
-            "yield": null,
-            "impliedYield": null,
-            "yield_method": "no_cash_distribution_in_trailing_12m",
-            "trailing_12m_cash_per_unit": 0,
-            "distribution_count": 0,
-            "distribution_as_of": "",
-            "distribution_months": {}
+            "yield": 7.8176,
+            "impliedYield": 7.8176,
+            "yield_method": "trailing_12m_cash_distributions",
+            "trailing_12m_cash_per_unit": 0.12,
+            "distribution_count": 12,
+            "distribution_as_of": "2026-10-19",
+            "distribution_months": {
+                "1": 0.083333,
+                "2": 0.083333,
+                "3": 0.083333,
+                "4": 0.083333,
+                "5": 0.083333,
+                "6": 0.083333,
+                "7": 0.083333,
+                "8": 0.083333,
+                "9": 0.083333,
+                "10": 0.083333,
+                "11": 0.083333,
+                "12": 0.083333
+            }
         },
         "510300": {
             "name": "沪深300ETF华泰柏瑞",
@@ -117,13 +130,15 @@
             "low": 4.186,
             "price_source": "tencent_realtime_quote",
             "price_as_of": "2026-10-20 16:14:43",
-            "yield": null,
-            "impliedYield": null,
-            "yield_method": "no_cash_distribution_in_trailing_12m",
-            "trailing_12m_cash_per_unit": 0,
-            "distribution_count": 0,
-            "distribution_as_of": "",
-            "distribution_months": {}
+            "yield": 2.9147,
+            "impliedYield": 2.9147,
+            "yield_method": "trailing_12m_cash_distributions",
+            "trailing_12m_cash_per_unit": 0.123,
+            "distribution_count": 1,
+            "distribution_as_of": "2026-01-19",
+            "distribution_months": {
+                "1": 1.0
+            }
         },
         "563360": {
             "name": "A500ETF华泰柏瑞",
@@ -151,13 +166,16 @@
             "low": 6.77,
             "price_source": "tencent_realtime_quote",
             "price_as_of": "2026-10-20 16:14:54",
-            "yield": null,
-            "impliedYield": null,
-            "yield_method": "no_cash_distribution_in_trailing_12m",
-            "trailing_12m_cash_per_unit": 0,
-            "distribution_count": 0,
-            "distribution_as_of": "",
-            "distribution_months": {}
+            "yield": 3.0709,
+            "impliedYield": 3.0709,
+            "yield_method": "trailing_12m_cash_distributions",
+            "trailing_12m_cash_per_unit": 0.211,
+            "distribution_count": 2,
+            "distribution_as_of": "2026-07-15",
+            "distribution_months": {
+                "1": 0.293839,
+                "7": 0.706161
+            }
         },
         "588000": {
             "name": "科创50ETF华夏",
@@ -295,15 +313,13 @@
             "low": 2.698,
             "price_source": "tencent_realtime_quote",
             "price_as_of": "2026-10-20 16:14:56",
-            "yield": 1.4898,
-            "impliedYield": 1.4898,
-            "yield_method": "trailing_12m_cash_distributions",
-            "trailing_12m_cash_per_unit": 0.041,
-            "distribution_count": 1,
-            "distribution_as_of": "2026-01-19",
-            "distribution_months": {
-                "1": 1.0
-            }
+            "yield": null,
+            "impliedYield": null,
+            "yield_method": "no_cash_distribution_in_trailing_12m",
+            "trailing_12m_cash_per_unit": 0,
+            "distribution_count": 0,
+            "distribution_as_of": "",
+            "distribution_months": {}
         },
         "513180": {
             "name": "恒生科技ETF华夏",
@@ -329,19 +345,19 @@
         "fallback": "null yield means no verified trailing cash distribution; the UI may show a clearly labelled planning assumption"
     },
     "data_quality": {
-        "generated_at": "2026-10-20 14:26:27",
+        "generated_at": "2026-10-20 17:27:20",
         "assets_checked": 18,
-        "unverified_stable_cashflow_count": 2,
-        "fetch_error_count": 3,
+        "unverified_stable_cashflow_count": 4,
+        "fetch_error_count": 0,
         "alerts": [
             {
                 "code": "511360",
                 "name": "短融 ETF",
                 "income_type": "cash_interest",
                 "declared_yield": 2.7,
-                "severity": "error",
-                "reason": "dividend_source_fetch_failed",
-                "detail": "<urlopen error _ssl.c:999: The handshake operation timed out>"
+                "severity": "warning",
+                "reason": "no_verified_cash_distribution_in_trailing_12m",
+                "detail": "该资产近12个月在分红数据源中无真实现金分配记录，界面使用的收益率是规划假设，不是可核验的实际分红。"
             },
             {
                 "code": "512890",
@@ -357,18 +373,9 @@
                 "name": "央企股东回报 ETF",
                 "income_type": "dividend",
                 "declared_yield": 4.2,
-                "severity": "error",
-                "reason": "dividend_source_fetch_failed",
-                "detail": "<urlopen error _ssl.c:999: The handshake operation timed out>"
-            },
-            {
-                "code": "513530",
-                "name": "恒生港股通高股息低波 ETF",
-                "income_type": "dividend",
-                "declared_yield": 4.8,
-                "severity": "error",
-                "reason": "dividend_source_fetch_failed",
-                "detail": "<urlopen error _ssl.c:999: The handshake operation timed out>"
+                "severity": "warning",
+                "reason": "no_verified_cash_distribution_in_trailing_12m",
+                "detail": "该资产近12个月在分红数据源中无真实现金分配记录，界面使用的收益率是规划假设，不是可核验的实际分红。"
             },
             {
                 "code": "511520",
