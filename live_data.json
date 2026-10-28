@@ -47,13 +47,15 @@
             "low": 1.21,
             "price_source": "tencent_realtime_quote",
             "price_as_of": "2026-10-28 16:14:57",
-            "yield": null,
-            "impliedYield": null,
-            "yield_method": "no_cash_distribution_in_trailing_12m",
-            "trailing_12m_cash_per_unit": 0,
-            "distribution_count": 0,
-            "distribution_as_of": "",
-            "distribution_months": {}
+            "yield": 1.0656,
+            "impliedYield": 1.0656,
+            "yield_method": "trailing_12m_cash_distributions",
+            "trailing_12m_cash_per_unit": 0.013,
+            "distribution_count": 1,
+            "distribution_as_of": "2025-12-11",
+            "distribution_months": {
+                "12": 1.0
+            }
         },
         "510880": {
             "name": "红利ETF华泰柏瑞",
@@ -347,9 +349,9 @@
         "fallback": "null yield means no verified trailing cash distribution; the UI may show a clearly labelled planning assumption"
     },
     "data_quality": {
-        "generated_at": "2026-10-28 16:11:56",
+        "generated_at": "2026-10-28 18:27:14",
         "assets_checked": 18,
-        "unverified_stable_cashflow_count": 4,
+        "unverified_stable_cashflow_count": 3,
         "fetch_error_count": 0,
         "alerts": [
             {
@@ -357,15 +359,6 @@
                 "name": "短融 ETF",
                 "income_type": "cash_interest",
                 "declared_yield": 2.7,
-                "severity": "warning",
-                "reason": "no_verified_cash_distribution_in_trailing_12m",
-                "detail": "该资产近12个月在分红数据源中无真实现金分配记录，界面使用的收益率是规划假设，不是可核验的实际分红。"
-            },
-            {
-                "code": "512890",
-                "name": "中证红利低波 ETF",
-                "income_type": "dividend",
-                "declared_yield": 4.5,
                 "severity": "warning",
                 "reason": "no_verified_cash_distribution_in_trailing_12m",
                 "detail": "该资产近12个月在分红数据源中无真实现金分配记录，界面使用的收益率是规划假设，不是可核验的实际分红。"
